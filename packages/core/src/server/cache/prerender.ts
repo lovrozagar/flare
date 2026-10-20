@@ -143,6 +143,11 @@ async function rendered(
 		captured = { key, entry }
 	})
 	await response.body?.cancel()
+	// A listed path another page serves, a static page beside a catch-all say, is that page's: its seed would be written
+	// again under this page's job, so nothing is kept (BUGS.md 418). The match is the request's own: a path the server
+	// answered as is, after the canonical step, which redirects a rewritten path rather than matching it.
+	const owner = response.status === 200 ? options.router.match(new URL(full, options.site).pathname).id : undefined
+	if (owner !== undefined && owner !== input.id) return { status: 0, path: full, owner }
 	const answer = { status: response.status, path: full }
 	return captured === undefined ? answer : { ...answer, ...captured }
 }

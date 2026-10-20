@@ -242,7 +242,6 @@ A root whose own loader failed never renders, so its bare failure is not checked
 | `ignored` | `_parts/widget.tsx`, and a page, a layout, and a nested page under `_root_/_parts` | no route and no layout. A folder that starts with `_` and is not a root holds none (BUGS.md 131) |
 | `id mismatch` | `createPage("_root_/abut")` in `_root_/about/about.page.tsx`, then `createRootLayout("_admin_")` in `_root_/root.root-layout.tsx` | build error naming the file, the string, and the id (BUGS.md 130) |
 | `duplicate url` | `_root_/dashboard` and `_admin_/dashboard` | build error, both files named |
-| `shadow` | a catch-all beside a static sibling | build error |
 | `two pages` | two `*.page.tsx` files in one folder | build error |
 
 ### `vite/codegen/scan.test.ts`
@@ -377,7 +376,7 @@ dx/routes.md through real apps. Each fixture is an app of route files under `src
 | `literal brackets` | `/[id]`, `/42` | the `[_]id]` page; 404 (bite: the brackets dropped) |
 | `ignored` | `/_parts/widget`, `/_parts` with a page file in `_parts` | 404, 404 (BUGS.md 131) |
 | `more than one root` | `/`, `/dashboard`, `/hr/about` | three documents, one per root (bite: every layout in every chain) |
-| `duplicate url`, `shadow`, `two pages`, `id mismatch`, `no root`, `bad brackets`, `repeated param` | one app each | the build fails with codegen's message naming the files (BUGS.md 130 for `id mismatch`); each bite is the check removed |
+| `duplicate url`, `two pages`, `id mismatch`, `no root`, `bad brackets`, `repeated param` | one app each | the build fails with codegen's message naming the files (BUGS.md 130 for `id mismatch`); each bite is the check removed |
 | `lazy route module` | a route module that imports the router and holds its evaluation open, two requests | both 200: the second import gets the namespace before `route` is set, and dev waits for it (bite: no dev wait) |
 
 ### `tests/integration/builder.test.ts`, `builder-render.test.ts`, and `builder-client.test.ts` (plan 14 9.6, B96)

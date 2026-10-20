@@ -354,3 +354,61 @@ it("concrete path", async () => {
 		["_root_/u/[id]", undefined, []],
 	])
 })
+
+// A catch-all that lists a path a static page serves: that path is the static page's, so the catch-all's job renders
+// nothing and names the owner, which fails the build instead of writing the static page's seed twice (BUGS.md 418).
+it("listed path owned", async () => {
+	const readme = createPage("_root_/docs/readme")
+		.cache({ ssg: true })
+		.render(() => "readme")
+	const docs = createPage("_root_/docs/[...path]")
+		.cache({ ssg: () => [{ path: ["readme"] }, { path: ["other"] }] })
+		.render(() => "docs")
+	const routeTree = [
+		node("_root_/docs/readme", "/docs/readme", readme),
+		node("_root_/docs/[...path]", "/docs/[...path]", docs),
+	]
+	const router = createRouter({ layouts: { _root_: root }, routeTree })
+	const found = prerendererOf(serveWith({ router, site: SITE }, { dev: false, log: quiet }))
+	if (found === undefined) throw new Error("no prerenderer")
+	const owned = await found.render({ id: "_root_/docs/[...path]", params: { path: ["readme"] }, env: {} })
+	expect(owned).toEqual({ status: 0, path: "/docs/readme", owner: "_root_/docs/readme" })
+	const other = await found.render({ id: "_root_/docs/[...path]", params: { path: ["other"] }, env: {} })
+	expect([other.status, other.owner, other.key]).toEqual([200, undefined, "static:dev:_root_/docs/[...path]:other"])
+})
+
+// The app's rewrite in `listed path owner as served`: it moves the static readme page.
+function moveReadme(path: string): string | undefined {
+	return path === "/docs/readme" ? "/docs/moved" : undefined
+}
+
+// The owner is the page the request itself reaches: a listed path the app's rewrite moves answers the rewrite's
+// redirect, not a false "two pages"; and an optional catch-all listing the empty path beside a static page of that
+// path finds the static page its owner (BUGS.md 418).
+it("listed path owner as served", async () => {
+	const readme = createPage("_root_/docs/readme")
+		.cache({ ssg: true })
+		.render(() => "readme")
+	const docs = createPage("_root_/docs/[...path]")
+		.cache({ ssg: () => [{ path: ["readme"] }] })
+		.render(() => "docs")
+	const ref = createPage("_root_/ref")
+		.cache({ ssg: true })
+		.render(() => "ref")
+	const rest = createPage("_root_/ref/[[...path]]")
+		.cache({ ssg: () => [{ path: [] }] })
+		.render(() => "rest")
+	const routeTree = [
+		node("_root_/docs/readme", "/docs/readme", readme),
+		node("_root_/docs/[...path]", "/docs/[...path]", docs),
+		node("_root_/ref", "/ref", ref),
+		node("_root_/ref/[[...path]]", "/ref/[[...path]]", rest),
+	]
+	const router = createRouter({ layouts: { _root_: root }, routeTree })
+	const found = prerendererOf(serveWith({ router, site: SITE, rewrite: moveReadme }, { dev: false, log: quiet }))
+	if (found === undefined) throw new Error("no prerenderer")
+	const moved = await found.render({ id: "_root_/docs/[...path]", params: { path: ["readme"] }, env: {} })
+	expect([moved.status, moved.owner]).toEqual([301, undefined])
+	const empty = await found.render({ id: "_root_/ref/[[...path]]", params: { path: [] }, env: {} })
+	expect(empty).toEqual({ status: 0, path: "/ref", owner: "_root_/ref" })
+})

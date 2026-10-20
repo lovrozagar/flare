@@ -1,3 +1,4 @@
+import { escapeSource } from "./escape.ts"
 import type { BuilderId } from "./scan.ts"
 
 // Dev writes a route file's builder id strings to the id its path gives (dx/routes.md, BUGS.md 130), as TanStack
@@ -15,6 +16,12 @@ export function fixIds(source: string, id: string, ids: readonly BuilderId[]): s
 	return text
 }
 
+// The id through codegen's one writer (BUGS.md 165), so a newline, U+2028, or `</` in a folder name cannot break the
+// user's file (BUGS.md 414). Its `"` is already escaped; a single-quoted literal escapes its own quote too, and a
+// template its backtick and `${` (BUGS.md 415).
 function quoted(id: string, quote: string): string {
-	return `${quote}${id.replaceAll("\\", "\\\\").replaceAll(quote, `\\${quote}`)}${quote}`
+	const body = escapeSource(id)
+	if (quote === "'") return `'${body.replaceAll("'", "\\'")}'`
+	if (quote === "`") return `\`${body.replaceAll("`", "\\`").replaceAll("${", "\\${")}\``
+	return `"${body}"`
 }

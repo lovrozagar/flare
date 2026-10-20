@@ -1,6 +1,6 @@
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
-import { defineLayouts, defineRouteTree, generateRoutes } from "./routes.ts"
+import { chunkReferences, defineLayouts, defineRouteTree, generateRoutes } from "./routes.ts"
 
 const rootLayout = "_root_/root.root-layout.tsx"
 
@@ -224,10 +224,16 @@ it("same url", () => {
 	for (const routeFiles of apart) expect(routesOf(routeFiles).routes).toHaveLength(2)
 })
 
-it("shadow", () => {
-	const files = ["_root_/files/readme/readme.page.tsx", "_root_/files/[...path]/[...path].page.tsx"]
-	expect(() => routesOf(files)).toThrow(/readme\.page\.tsx/)
-	expect(() => routesOf(files)).toThrow(/\[\.\.\.path\]\.page\.tsx/)
+// A catch-all beside a static page builds: the router ranks the static page first, so it hides nothing. The home page
+// beside a root catch-all, a group between them, and an optional catch-all build too (BUGS.md 418).
+it("static beside catch-all", () => {
+	const pairs = [
+		["_root_/docs/readme/readme.page.tsx", "_root_/docs/[...path]/docs.page.tsx"],
+		["_root_/home.page.tsx", "_root_/[...path]/nf.page.tsx"],
+		["_root_/guide/(g)/intro/intro.page.tsx", "_root_/guide/[...path]/guide.page.tsx"],
+		["_root_/ref/api/api.page.tsx", "_root_/ref/[[...path]]/ref.page.tsx"],
+	]
+	for (const pair of pairs) expect(routesOf(pair).routes).toHaveLength(2)
 })
 
 it("two pages", () => {
@@ -338,15 +344,34 @@ it("segment emitted", () => {
 	expect(generated.source).toContain('"_root_/docs": "/src/routes/_root_/docs/docs.segment.ts"')
 })
 
-// A route folder named with a newline, U+2028, or U+2029 still generates code that parses, each name written as an
-// escaped string literal, never raw (plan 21 16.6, BUGS.md 165). A param name is an identifier already.
+// A route folder named with a tab, a quote, or `</` still generates code that parses, each name written as an escaped
+// string literal, never raw (plan 21 16.6, BUGS.md 165). A param name is an identifier already.
 it("hostile names", () => {
-	const names = ["a\nb", "c\u2028d", "e\u2029f"]
+	const names = ["a\tb", 'c"d', "e</f"]
 	const { source } = routesOf(names.map((name, index) => `_root_/${name}/p${index}.page.tsx`))
 	expect(parseSync("routes.gen.ts", source).errors).toEqual([])
-	for (const raw of ['\n"', "\u2028", "\u2029"]) expect([raw, source.includes(raw)]).toEqual([raw, false])
-	expect(source).toContain(String.raw`"_root_/a\nb"`)
-	expect(source).toContain(String.raw`"_root_/c\u2028d"`)
+	for (const raw of ['"_root_/a\tb"', '"_root_/c"d"', "_root_/e</f"])
+		expect([raw, source.includes(raw)]).toEqual([raw, false])
+	expect(source).toContain(String.raw`"_root_/a\tb"`)
+	expect(source).toContain(String.raw`"_root_/c\"d"`)
+	expect(source).toContain(String.raw`"_root_/e<\/f"`)
+})
+
+// A line break in any name under src/routes, a folder's or a file's, is refused, the path shown escaped: the bundler
+// writes each module's path into a `//#region` line comment, where the break would end the comment and turn the rest of
+// the path into code (BUGS.md 425).
+it("line terminators", () => {
+	for (const [raw, shown] of [
+		["\n", "\\n"],
+		["\r", "\\r"],
+		["\u2028", "\\u2028"],
+		["\u2029", "\\u2029"],
+	]) {
+		const reason =
+			"a path under src/routes cannot hold a line break: the bundler writes module paths into line comments"
+		expect(() => routesOf([`_root_/x${raw}y/p.page.tsx`])).toThrow(`_root_/x${shown}y/p.page.tsx: ${reason}`)
+		expect(() => routesOf([`_root_/_parts/a${raw}b.tsx`])).toThrow(`_root_/_parts/a${shown}b.tsx: ${reason}`)
+	}
 })
 
 // A `crossOrigin` route whose chain authenticates or authorizes, in the page file or a layout above it, fails the build,
@@ -364,4 +389,18 @@ it("cross origin chain", () => {
 	expect(generate().routes.map((route) => route.id)).toEqual(["_root_/(g)/hook"])
 	sources["_root_/(g)/hook/hook.page.tsx"] = page.replace(".response(", ".authenticate().response(")
 	expect(generate).toThrow("_root_/(g)/hook/hook.page.tsx: .response() crossOrigin: true needs")
+})
+
+// The built chunks map emits each route module by its real path, a hostile folder name included: the generated
+// source escapes a tab, a quote, and `</`, and the build reads each path back as the file it names (BUGS.md 422).
+it("chunk paths", () => {
+	const names = ["x\ty", 'say "hi"', "a</b"]
+	const files = names.map((name) => `_root_/${name}/p.page.tsx`)
+	const source = generateRoutes([...files, rootLayout], read).source
+	const emitted: string[] = []
+	chunkReferences(source, (path) => {
+		emitted.push(path)
+		return String(emitted.length)
+	})
+	for (const name of names) expect(emitted).toContain(`/src/routes/_root_/${name}/p.page.tsx`)
 })

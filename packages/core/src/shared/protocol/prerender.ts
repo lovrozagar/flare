@@ -32,7 +32,8 @@ export type PrerenderParams = Record<string, string | string[]>
 export type PrerenderEntry = { data: unknown; storedAt: number; tags?: readonly string[] }
 
 // The answer's status, the public path it rendered, and the key and entry when the shared render could be stored.
-export type PrerenderResult = { status: number; path: string; key?: string; entry?: PrerenderEntry }
+// `owner` is the page that serves `path` when it is not the one asked for: nothing was rendered (BUGS.md 418).
+export type PrerenderResult = { status: number; path: string; key?: string; entry?: PrerenderEntry; owner?: string }
 
 // `site` is `createServer({ site })`.
 export type Prerenderer = {
