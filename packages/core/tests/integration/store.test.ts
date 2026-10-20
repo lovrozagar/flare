@@ -297,6 +297,95 @@ function never(): never {
 	throw new Error("unreachable")
 }
 
+// createAssetsStore's prose through a served page and real reads (store.md createAssetsStore, read): a key of another
+// build reads nothing; a seed for another key, or bytes that do not parse, is a miss the page renders live past; a
+// seed's `storedAt` is its `renderedAt`; every method but `get` is read-only; a not-ok Response's body is cancelled;
+// a throw is not kept; and the server only ever calls `get` on its `static` store.
+it("assets store prose", async () => {
+	const dir = temp()
+	const entry = await seedFrom(dir)
+	const read = vi.fn<(path: string) => Promise<Uint8Array | null>>(fileAssets(dir))
+	const assets = createAssetsStore(read)
+	expect(await assets.get("static:other-build:_root_/p")).toBeNull()
+	expect(read).not.toHaveBeenCalled()
+	expect((await assets.get(KEY))?.storedAt).toBe(entry.storedAt)
+	for (const write of [
+		() => assets.delete(KEY),
+		async () => assets.deleteByKeys?.([KEY]),
+		() => assets.deleteByTags(["t"]),
+	]) {
+		await expect(write()).rejects.toThrow(/read-only/)
+	}
+	const calls: string[] = []
+	const watched: FlareStore = {
+		get: (key) => (calls.push("get"), assets.get(key)),
+		set: (key, value) => (calls.push("set"), assets.set(key, value)),
+		delete: (key) => (calls.push("delete"), assets.delete(key)),
+		deleteByKeys: async (keys) => (calls.push("deleteByKeys"), assets.deleteByKeys?.(keys)),
+		deleteByTags: (tags) => (calls.push("deleteByTags"), assets.deleteByTags(tags)),
+	}
+	const seeded = serve({ static: watched }, { ssg: true })
+	await seeded.get()
+	expect([seeded.renders.count, [...new Set(calls)]]).toEqual([0, ["get"]])
+	const path = join(dir, (await artifactPath(KEY, { build: "dev" })) ?? never())
+	for (const bytes of [
+		JSON.stringify({ seed: true, key: "static:dev:_root_/other", renderedAt: 1, tags: [], data: entry.data }),
+		"{trunc",
+	]) {
+		writeFileSync(path, bytes)
+		const live = serve({ static: createAssetsStore(fileAssets(dir)) }, { ssg: true })
+		await live.get()
+		expect([bytes.slice(0, 12), live.renders.count]).toEqual([bytes.slice(0, 12), 1])
+	}
+	let cancelled = false
+	const failing = createAssetsStore(
+		async () => new Response(new ReadableStream({ cancel: () => void (cancelled = true) }), { status: 503 }),
+	)
+	expect([await failing.get(KEY), cancelled]).toEqual([null, true])
+	let attempts = 0
+	const flaky = createAssetsStore(async () => {
+		attempts += 1
+		if (attempts === 1) throw new Error("binding down")
+		return null
+	})
+	await expect(flaky.get(KEY)).rejects.toThrow("binding down")
+	expect([await flaky.get(KEY), attempts]).toEqual([null, 2])
+})
+
+// The filesystem store's names are SHA-256 hex, so keys that differ only in `/` and `_`, a key with a backslash, and
+// a key past any name limit are each stored and read back as their own (store.md createFilesystemStore).
+it("filesystem keys", async () => {
+	const store = createFilesystemStore({ dir: temp() })
+	const keys = ["a/b", "a_b", "a\\b", "k".repeat(1000)]
+	for (const [index, key] of keys.entries()) await store.set(key, { data: index, storedAt: index })
+	expect(await Promise.all(keys.map(async (key) => (await store.get(key))?.data))).toEqual([0, 1, 2, 3])
+})
+
+// `revalidate` inside a request hands its write to `waitUntil`, and the v0 fields each throw naming the field
+// (store.md revalidate).
+it("revalidate waitUntil", async () => {
+	const store = createMemoryStore()
+	const purge = createPage("_root_/hook").response(() => {
+		void revalidate({ keys: [KEY] })
+		return new Response("ok")
+	})
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/hook", path: "/hook", module: purge as RouteModule, response: true }],
+	})
+	const app = createServer({ router, site: SITE, store })
+	const waited: Promise<unknown>[] = []
+	await app.fetch(
+		new Request(`${SITE}/hook`),
+		{},
+		{ waitUntil: (promise: Promise<unknown>) => void waited.push(promise) },
+	)
+	expect(waited.length).toBeGreaterThan(0)
+	for (const field of ["callerData", "cdnPurgeAdapter", "tagHeader", "revalidateSecret"]) {
+		expect(() => createRevalidateFn(store)({ keys: [KEY], [field]: 1 } as RevalidateOptions)).toThrow(field)
+	}
+})
+
 // A filesystem store's damaged page file is a miss the next render writes over, so the page caches again; a damaged
 // epoch is a purge now, so the tag's purge still answers (BUGS.md 394).
 it("damaged file heals", async () => {
