@@ -178,9 +178,11 @@ function forbidden(fn: ServerFnRef): StageResult {
 	return reply(fn, { name: fn.name, status: 403, message: "Forbidden" }, 403)
 }
 
+// The cache decision reads the envelope's status, the call's outcome: a thrown redirect is HTTP 200 and stays
+// private (BUGS.md 381).
 function reply(fn: ServerFnRef, envelope: Envelope, status: number): StageResult {
 	const headers = new Headers({ "content-type": "application/json" })
-	setCacheControl(headers, fn.record, status)
+	setCacheControl(headers, fn.record, envelope.status)
 	return { status, body: JSON.stringify(dataToWire(envelope)), headers }
 }
 

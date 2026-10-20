@@ -296,8 +296,12 @@ it("cache errors private", async () => {
 		throw new Error("broken")
 	})
 	const cookie = cachedFn("ccookie", () => new Response("hi", { headers: { "set-cookie": "s=1" } }))
+	// A thrown redirect is HTTP 200 on the wire, and its envelope's 303 is what the cache decision reads (BUGS.md 381).
+	const moved = cachedFn("cmoved", () => {
+		throw redirect({ href: "https://login.example/" })
+	})
 	const fine = cachedFn("cfine", () => "ok")
-	const server = serve([missing, broken, cookie, fine])
+	const server = serve([missing, broken, cookie, moved, fine])
 	const control = async (fn: Fn, input: unknown) => {
 		const response = await server.fetch(get(fn, input))
 		return [response.status, response.headers.get("cache-control")]
@@ -308,6 +312,7 @@ it("cache errors private", async () => {
 	expect(await control(missing, "x")).toEqual([404, "private, no-store"])
 	expect(await control(broken, "x")).toEqual([500, "private, no-store"])
 	expect(await control(cookie, "x")).toEqual([200, "private, no-store"])
+	expect(await control(moved, "x")).toEqual([200, "private, no-store"])
 })
 
 // `cache: { maxAge }` on a public GET is a public max-age; with POST, `authenticate`, or `authorize` the chain throws.
