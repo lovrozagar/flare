@@ -1,6 +1,6 @@
 import { expect, it } from "vitest"
 import { createServer } from "../../server/lifecycle/create.ts"
-import { markUnmatched } from "../../server/lifecycle/finalize.ts"
+import { finalize, markUnmatched } from "../../server/lifecycle/finalize.ts"
 import { createMiddleware } from "../../server/middleware/index.ts"
 import { createServerFn } from "../../server/server-fn/dispatch.ts"
 import { notFound as missingPage } from "../../shared/errors/index.ts"
@@ -236,4 +236,35 @@ it("rewrapped unmatched", async () => {
 		ctx(),
 	)
 	expect([response.status, await response.text()]).toEqual([200, "index"])
+})
+
+// A stream body that fails after its first chunk keeps that chunk: the error reaches the body one turn later, since
+// workerd drops a chunk it has not sent when the body errors in the same turn. A cancel reaches the source, and a
+// fixed body is the server's own Response (BUGS.md 382).
+it("failed stream keeps sent", async () => {
+	let sent = false
+	const failing = new ReadableStream<Uint8Array>({
+		pull(controller) {
+			if (sent) return controller.error(new Error("the source broke"))
+			sent = true
+			controller.enqueue(new TextEncoder().encode("first line\n"))
+		},
+	})
+	let cancelled = false
+	const open = new ReadableStream<Uint8Array>({
+		cancel() {
+			cancelled = true
+		},
+	})
+	const fixed = finalize({ status: 200, body: "whole" })
+	const answers = [finalize({ status: 200, body: failing }), finalize({ status: 200, body: open }), fixed]
+	const handler = createWorkersHandler({ fetch: () => answers.shift() ?? fixed })
+	const reader = (
+		(await handler.fetch(new Request("https://site.test/"), {}, ctx())).body as ReadableStream
+	).getReader()
+	expect(new TextDecoder().decode((await reader.read()).value)).toBe("first line\n")
+	await expect(reader.read()).rejects.toThrow("the source broke")
+	await (await handler.fetch(new Request("https://site.test/"), {}, ctx())).body?.cancel()
+	expect(cancelled).toBe(true)
+	expect(await handler.fetch(new Request("https://site.test/"), {}, ctx())).toBe(fixed)
 })

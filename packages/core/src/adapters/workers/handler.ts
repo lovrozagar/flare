@@ -1,4 +1,4 @@
-import { finalize, isUnmatched } from "../../server/lifecycle/finalize.ts"
+import { finalize, isUnmatched, rebodied, streamsBody } from "../../server/lifecycle/finalize.ts"
 import { createLogger } from "../../server/lifecycle/logger.ts"
 
 export type WorkerCtx = {
@@ -32,7 +32,7 @@ export function createWorkersHandler(
 				clientIp: connectingIp(request),
 			})
 			// Only a document no route matched reaches the binding: the app's own 404s stay (plan 21 13.4).
-			if (!isUnmatched(response) || assets === undefined) return response
+			if (!isUnmatched(response) || assets === undefined) return keepingSent(response)
 			if (request.method !== "GET" && request.method !== "HEAD") {
 				return finalize({ status: 405, body: "", headers: new Headers({ allow: "GET, HEAD, OPTIONS" }) })
 			}
@@ -56,4 +56,28 @@ function connectingIp(request: Request): string | undefined {
 	const header = request.headers.get("cf-connecting-ip")
 	if (header === null) return undefined
 	return header
+}
+
+// A stream body that fails keeps the bytes before the failure: workerd drops a chunk it has not sent when the body
+// errors in the same turn, so the error waits one (BUGS.md 382). workerd ends the message with its last chunk all the
+// same, so the cut is not visible to a cache; a public stream is buffered before it is answered (BUGS.md 383). This
+// rests on workerd's scheduling, measured in Miniflare's workerd, not on a signal: the chunk arrived in 0 runs with the
+// error at once or thrown from `pull`, and in 5 of 5 with it a `setTimeout(0)` later. A change in that order fails
+// tests/workerd `worker cut keeps sent`.
+function keepingSent(response: Response): Response {
+	if (!streamsBody(response)) return response
+	const reader = response.body.getReader()
+	const body = new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			try {
+				const step = await reader.read()
+				if (step.done) return controller.close()
+				controller.enqueue(step.value)
+			} catch (error) {
+				setTimeout(() => controller.error(error), 0)
+			}
+		},
+		cancel: (reason) => reader.cancel(reason),
+	})
+	return rebodied(response, body)
 }

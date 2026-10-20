@@ -198,11 +198,8 @@ it("idle timeout", async () => {
 	expect(bun.calls).toEqual([0])
 	expect([response.status, await response.text()]).toEqual([200, "streamed"])
 	expect(bun.calls).toEqual([0, 30])
-	const plain = timeouts()
-	const whole = createBunFetch({ fetch: () => finalize({ status: 200, body: "whole" }) })
-	expect(whole.idleTimeout).toBe(10)
-	expect(await (await whole.fetch(new Request("http://localhost/"), plain)).text()).toBe("whole")
-	expect(plain.calls).toEqual([])
+	// A body that is not a stream keeps the timeout: `blob body` pins it, through Bun's inspector or its stand-in.
+	expect(createBunFetch({ fetch: () => finalize({ status: 200, body: "whole" }) }).idleTimeout).toBe(10)
 	expect(await (await streamed.fetch(new Request("http://localhost/"))).text()).toBe("streamed")
 	const server = { fetch: () => new Response("") }
 	for (const idleTimeout of [-1, 1.5, 256]) {
@@ -243,7 +240,7 @@ it("drain", async () => {
 })
 
 // Under Bun a string or bytes body is a Blob its inspector shows: it is sent as it is, its type Bun's own, and the idle
-// timeout is never touched, though the answer counts as streaming (plan 21 12.7).
+// timeout is never touched (plan 21 12.7).
 it("blob body", async () => {
 	// Under Node a stand-in inspector; under Bun, Bun's own.
 	const inspect = vi.fn<(value: unknown) => string>(() => "Response (4 bytes) {\n  Blob (4 bytes)\n}")
@@ -295,4 +292,38 @@ it("cancel during a pull", async () => {
 		expect(await next).toEqual({ done: true, value: undefined })
 	})
 	expect([writes, await fetcher.drain({ timeout: "1s" })]).toEqual([[], true])
+})
+
+// A streamed answer that sends its first line and then fails keeps that line behind a real Bun.serve, which drops a
+// chunk it has not sent when the body errors in the same turn; the message never ends with its last chunk. That holds
+// for any stream body, marked by this copy of Flare or not (BUGS.md 382).
+it.runIf(bun !== undefined)("bun cut keeps sent", async () => {
+	let sent = false
+	const body = new ReadableStream<Uint8Array>({
+		pull(controller) {
+			if (sent) return controller.error(new Error("the source broke"))
+			sent = true
+			controller.enqueue(new TextEncoder().encode("first line\n"))
+		},
+	})
+	// A raw stream Response, as a `.response()` route or a server bundle with its own copy of Flare hands over: the
+	// adapter cannot tell it from one it marked, so it watches every stream body.
+	const failing = { fetch: () => new Response(body, { headers: { "content-type": "application/x-ndjson" } }) }
+	const served: unknown = Reflect.apply(Reflect.get(Object(bun), "serve"), bun, [
+		{ hostname: "127.0.0.1", port: 0, ...createBunFetch(failing) },
+	])
+	try {
+		const text = await new Promise<string>((resolve) => {
+			let received = ""
+			const socket = connect(Number(Reflect.get(Object(served), "port")), "127.0.0.1", () =>
+				socket.write("GET / HTTP/1.1\r\nhost: site.test\r\n\r\n"),
+			)
+			socket.on("data", (chunk: Buffer) => void (received += chunk.toString("latin1")))
+			socket.on("error", () => resolve(received))
+			socket.on("close", () => resolve(received))
+		})
+		expect([text.includes("first line\n"), text.endsWith("\r\n0\r\n\r\n")]).toEqual([true, false])
+	} finally {
+		await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
+	}
 })

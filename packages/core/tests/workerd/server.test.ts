@@ -44,11 +44,23 @@ const home = createPage("_root_/").render(() => "worker home");
 const stored = createPage("_root_/stored").cache({ ssr: { ttl: "1m" } }).render(() => "stored page");
 const nested = createPage("_root_/a/b").response(() => new Response("ab"));
 const relayed = createPage("_root_/relayed").response(() => fetch("http://127.0.0.1:${upstreamAddress.port}/"));
+// A stream that sends its first line, then fails (BUGS.md 382).
+const cut = createPage("_root_/cut").response(() => {
+	let sent = false;
+	return new Response(new ReadableStream({
+		pull(controller) {
+			if (sent) return controller.error(new Error("the source broke"));
+			sent = true;
+			controller.enqueue(new TextEncoder().encode("first line\\n"));
+		},
+	}));
+});
 const routeTree = [
 	{ id: "_root_/", path: "/", module: home },
 	{ id: "_root_/stored", path: "/stored", module: stored },
 	{ id: "_root_/a/b", path: "/a/b", module: nested },
 	{ id: "_root_/relayed", path: "/relayed", module: relayed },
+	{ id: "_root_/cut", path: "/cut", module: cut },
 ];
 const server = createServer({
 	router: createRouter({ layouts: { _root_: root }, routeTree }),
@@ -176,6 +188,12 @@ async function raw(target: string): Promise<string> {
 it("worker backslash", async () => {
 	expect(await raw("/a\\b")).toBe("HTTP/1.1 200 OK ab")
 	expect((await raw("/\\a/b")).startsWith("HTTP/1.1 400")).toBe(true)
+})
+
+// A stream that fails after its first line keeps that line in workerd, which drops a chunk it has not sent when the
+// body errors in the same turn (BUGS.md 382).
+it("worker cut keeps sent", async () => {
+	expect(await raw("/cut")).toBe("HTTP/1.1 200 OK first line\n")
 })
 
 // After routing, an unmatched GET or HEAD goes to the binding, and a file comes back untouched; a path the binding
