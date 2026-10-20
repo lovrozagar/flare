@@ -20,7 +20,12 @@ export function parseSegment(folder: string): Segment[] {
 	if (!folder.startsWith("[")) return [{ kind: "static", text: folder }]
 	for (const form of FORMS) {
 		const name = form.pattern.exec(folder)?.[1]
-		if (name !== undefined) return [form.build(name)]
+		const [segment] = name === undefined ? [] : [form.build(name)]
+		// A plain object cannot hold `__proto__`: params, the repeat check, and the types would all lose it (BUGS.md 407).
+		if (segment !== undefined && segment.kind !== "static" && segment.name === "__proto__") {
+			throw new Error(`reserved param name __proto__: ${folder}`)
+		}
+		if (segment !== undefined) return [segment]
 	}
 	throw new Error(`bad brackets: ${folder}`)
 }
@@ -39,6 +44,8 @@ export function isRootFolder(folder: string): boolean {
 export function idPattern(id: string): string {
 	const folders = id.split("/")
 	const root = folders.findIndex(isRootFolder)
+	// One root per id: a second would be a document inside a document, its marker kept in the URL (BUGS.md 408).
+	if (folders.findLastIndex(isRootFolder) !== root) throw new Error(`a root inside a root: ${id}`)
 	const kept = folders.filter((folder, index) => {
 		if (index === root) return false
 		if (index < root) return parseSegment(folder).some((segment) => segment.kind !== "static")

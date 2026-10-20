@@ -68,6 +68,13 @@ const uncachedApp = appWith("cache: { client: false }")
 const rewriteApp = appWith(
 	'rewrite: (location) => (location.pathname === "/old" ? { ...location, pathname: "/b" } : undefined)',
 )
+const smoothApp = appWith('scrollRestorationBehavior: "smooth"')
+// A rewrite that counts its calls on the client and throws for /c.
+const countedApp = appWith(`rewrite: (location) => {
+	if (typeof window !== "undefined") window.__rewrites = (window.__rewrites ?? 0) + 1
+	if (location.pathname === "/c") throw new Error("rewrite boom")
+	return location.pathname === "/old" ? { ...location, pathname: "/b" } : undefined
+}`)
 
 async function landed(tab: Page, path: string): Promise<void> {
 	await tab.waitForFunction((want) => document.getElementById("page")?.textContent === want, path)
@@ -140,6 +147,45 @@ async function rewriteSteps(tab: Page): Promise<void> {
 	await remember(tab, await tab.evaluate(() => document.getElementById("page")?.textContent))
 }
 
+// Back after leaving /a at 600, with every `scrollTo` call's `behavior` recorded (router.md
+// scrollRestorationBehavior).
+async function smoothSteps(tab: Page): Promise<void> {
+	await tab.evaluate(() => {
+		const behaviors: unknown[] = []
+		Reflect.set(window, "__behaviors", behaviors)
+		const scroll = window.scrollTo.bind(window)
+		window.scrollTo = ((...args: unknown[]) => {
+			const [first] = args
+			if (typeof first === "object" && first !== null) behaviors.push(Reflect.get(first, "behavior"))
+			Reflect.apply(scroll, window, args)
+		}) as typeof window.scrollTo
+		scroll(0, 600)
+	})
+	await tab.waitForFunction(() => Math.round(scrollY) === 600)
+	await go(tab, "/b")
+	await tab.goBack()
+	await landed(tab, "/a")
+	// The restore's call is what this reads; a smooth scroll's landing is the engine's, and timing it is not.
+	await tab.waitForFunction(() => (Reflect.get(window, "__behaviors") as unknown[]).includes("smooth"))
+	await remember(tab, await tab.evaluate(() => Reflect.get(window, "__behaviors")))
+}
+
+// An anchor to /old, then one to /c whose rewrite throws: the address bar and the rewrite calls each made (router.md
+// rewrite: the address bar shows the rewritten URL, once per navigation, and a throw keeps the URL).
+async function countedSteps(tab: Page): Promise<void> {
+	const calls = () => tab.evaluate(() => Number(Reflect.get(window, "__rewrites") ?? 0))
+	const before = await calls()
+	await go(tab, "/old", "/b")
+	const after = await calls()
+	await remember(tab, [await tab.evaluate(() => location.pathname), after - before])
+	await tab.evaluate(() => document.getElementById("to-c")?.click())
+	await tab.waitForTimeout(300)
+	await remember(tab, [
+		await tab.evaluate(() => location.pathname),
+		await tab.evaluate(() => document.getElementById("page")?.textContent),
+	])
+}
+
 describe.each(ENGINES)("%s", (engine) => {
 	// Back restores the position the page was left at, from sessionStorage keyed by history index.
 	it("scroll restore", async () => {
@@ -165,6 +211,21 @@ describe.each(ENGINES)("%s", (engine) => {
 		expect((await run(engine, { app: freshApp, path: "/", steps: cacheSteps })).record).toEqual([[]])
 		expect((await run(engine, { app: cappedApp, path: "/", steps: cacheSteps })).record).toEqual([["/a"]])
 		expect((await run(engine, { app: uncachedApp, path: "/", steps: cacheSteps })).record).toEqual([["/a"]])
+	})
+
+	// Back restores the position with the configured behavior, passed to `scrollTo`.
+	it("scroll behavior", async () => {
+		const result = await run(engine, { app: smoothApp, path: "/a", steps: smoothSteps })
+		expect(result.record).toEqual([expect.arrayContaining(["smooth"])])
+	})
+
+	// The rewritten URL is the address bar's, the rewrite runs once for the navigation, and a throw keeps the URL.
+	it("rewrite address", async () => {
+		const result = await run(engine, { app: countedApp, path: "/", steps: countedSteps })
+		expect(result.record).toEqual([
+			["/b", 1],
+			["/b", "/b"],
+		])
 	})
 
 	// The client rewrite runs before match: an anchor to /old lands the /b page.

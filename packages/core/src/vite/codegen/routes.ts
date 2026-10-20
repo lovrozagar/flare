@@ -1,7 +1,14 @@
 import { posix } from "node:path"
 import { closureMarker } from "./closures.ts"
-import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts"
-import { assertCrossOrigin, assertOneLayout, assertRoot } from "./layout-checks.ts"
+import {
+	idPattern,
+	isRootFolder,
+	parseSegment,
+	patternSegments,
+	staticKey,
+	type Segment,
+} from "../../shared/route-tree/index.ts"
+import { assertCrossOrigin, assertIntercepts, assertOneLayout, assertRoot } from "./layout-checks.ts"
 import { codeLiteral, escapeSource } from "./escape.ts"
 import { scanRoute, type ClientLiteral, type Scan } from "./scan.ts"
 
@@ -135,9 +142,9 @@ function paramType(segment: Exclude<Segment, { kind: "static" }>): string {
 }
 
 // An optional segment gives two display URLs: without it, and with a `<tag>` or `<rest>` placeholder.
-function urlsOf(segments: readonly Segment[]): string[] {
-	const short = segments.flatMap((segment) => (isOptional(segment) ? [] : [display(segment)]))
-	const long = segments.map(display)
+function urlsOf(segments: readonly Segment[], write: (segment: Segment) => string = display): string[] {
+	const short = segments.flatMap((segment) => (isOptional(segment) ? [] : [write(segment)]))
+	const long = segments.map(write)
 	return segments.some(isOptional) ? [join(short), join(long)] : [join(long)]
 }
 
@@ -147,6 +154,12 @@ function join(parts: readonly string[]): string {
 
 function isOptional(segment: Segment): boolean {
 	return segment.kind !== "static" && segment.optional
+}
+
+// A segment as the default matcher tells it apart: folded static text, or a param by kind behind a NUL (BUGS.md 406).
+function matchKey(segment: Segment): string {
+	if (segment.kind === "static") return staticKey(segment.text, false)
+	return `\0${segment.kind === "dynamic" ? "" : "..."}${segment.optional ? "?" : ""}`
 }
 
 function display(segment: Segment): string {
@@ -196,7 +209,7 @@ function assertOne(pages: readonly Item[]): void {
 function assertUnique(routes: readonly RouteGen[]): void {
 	const seen = new Map<string, RouteGen>()
 	for (const route of routes) {
-		for (const url of route.urls) {
+		for (const url of urlsOf(patternSegments(route.path), matchKey)) {
 			const prior = seen.get(url)
 			if (prior) throw new Error(`duplicate url: ${prior.file}, ${route.file}`)
 			seen.set(url, route)
@@ -211,17 +224,6 @@ function assertShadow(routes: readonly RouteGen[]): void {
 			(other) => other !== route && parent(other.id) === parent(route.id) && paramKind(last(other.id)) === undefined,
 		)
 		if (sibling) throw new Error(`shadow: ${route.file}, ${sibling.file}`)
-	}
-}
-
-// An intercept opens over the pages its `from` names, so each is a page's id: a URL path or an id no page has would
-// never open it (BUGS.md 401).
-function assertIntercepts(routes: readonly RouteGen[]): void {
-	const ids = new Set(routes.map((route) => route.id))
-	for (const route of routes) {
-		const unknown = route.intercept?.from.find((id) => !ids.has(id))
-		if (unknown !== undefined)
-			throw new Error(`${route.file}: intercept from: no route has id ${JSON.stringify(unknown)}`)
 	}
 }
 

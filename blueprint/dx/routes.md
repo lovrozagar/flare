@@ -51,7 +51,7 @@ The remaining segments are the URL. `/` joins them, with a leading `/`.
 | `[_]id]` | the static text `[id]` | none |
 | `(blog)` | a group | none |
 
-The pattern parser is `shared/route-tree/segments.test.ts` (`param`, `catch-all`, `optional`, `literal brackets`, `group is not a segment`). A param name matches `[A-Za-z_][A-Za-z0-9_]*`. Only the four forms above are params. `[_]text]` with no `]` inside `text` is the static segment `[text]`. Any other folder that starts with `[` is a build error, including `[user-id]` and `[_]blog` (`segments.test.ts` `bad brackets`). A repeated param name in one id is a build error (`routes.test.ts` `repeated param`).
+The pattern parser is `shared/route-tree/segments.test.ts` (`param`, `catch-all`, `optional`, `literal brackets`, `group is not a segment`). A param name matches `[A-Za-z_][A-Za-z0-9_]*`, except `__proto__`, which no params object can hold: it throws `reserved param name __proto__` in any bracket form, and `[_]__proto__]` stays static text (`proto param`, BUGS.md 407). Only the four forms above are params. `[_]text]` with no `]` inside `text` is the static segment `[text]`. Any other folder that starts with `[` is a build error, including `[user-id]` and `[_]blog` (`segments.test.ts` `bad brackets`). A repeated param name in one id is a build error (`routes.test.ts` `repeated param`).
 
 A param value stays percent-encoded (`params.test.ts` `raw param`). A valid `%HH` is uppercased and is not decoded (`%2f` is stored as `%2F`). `%ZZ`, a trailing `%`, and `%2` match as those characters (`encoded upper`, `invalid percent`). `buildUrl`, `Link`, `navigate`, and `redirect` throw when a param value contains `/`, `\`, or a `%` that is not two hex digits, and they do not double-encode an existing `%HH` (`href.test.ts` `raw slash`, `bad percent`, `no double encode`).
 
@@ -75,7 +75,7 @@ The generated route map imports each route module lazily, `() => import("../rout
 
 | case | result | test |
 | --- | --- | --- |
-| two files compute to the same URL, including `_root_/dashboard` and `_admin_/dashboard` | build error, both files named | `routes.test.ts` `duplicate url` |
+| two files compute to the same URL, including `_root_/dashboard` and `_admin_/dashboard` | build error, both files named. Same means the default matcher cannot tell them apart: static folders that differ only in case (`About`, `about`), and params of one kind under one URL parent whatever their names or the group or root between them (`users/[id]`, `(g)/users/[slug]`). A literal-bracket folder `[_]id]` is static text, apart from the param `[id]` | `routes.test.ts` `duplicate url`, `same url` (BUGS.md 406) |
 | a catch-all and a static sibling under the same parent | build error. The catch-all would swallow the sibling | `routes.test.ts` `shadow` |
 | two `*.page.tsx` files in one folder | build error | `routes.test.ts` `two pages` |
 | the id string in the file disagrees with the path | build error, the file named | `routes.test.ts` `id mismatch` |
@@ -87,4 +87,4 @@ The generated route map imports each route module lazily, `() => import("../rout
 
 ## More than one root
 
-Each `*.root-layout.tsx` is its own document. A navigation from one root to another is a full document load (`client/navigation/target.test.ts` `other root`). It is not a data request. Two roots that compute to the same URL are the duplicate-url error above.
+Each `*.root-layout.tsx` is its own document. A root folder sits at most once in an id: one inside another, such as `_root_/_x_/p`, fails codegen and `createRouter` with `a root inside a root` (`segments.test.ts` `id pattern`, BUGS.md 408). A navigation from one root to another is a full document load (`client/navigation/target.test.ts` `other root`). It is not a data request. Two roots that compute to the same URL are the duplicate-url error above.

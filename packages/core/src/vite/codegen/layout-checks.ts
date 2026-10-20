@@ -56,3 +56,14 @@ export function assertCrossOrigin(
 		if (authHint(chain) !== "public") throw new Error(`${page.file}: .response() ${CROSS_ORIGIN_RULE}`)
 	}
 }
+
+// An intercept opens over the pages its `from` names, so each is a page's id: a URL path or an id no page has would
+// never open it (BUGS.md 401).
+export function assertIntercepts(routes: ReadonlyArray<Named & { intercept?: { from: string[] } }>): void {
+	const ids = new Set(routes.map((route) => route.id))
+	for (const route of routes) {
+		const unknown = route.intercept?.from.find((id) => !ids.has(id))
+		if (unknown !== undefined)
+			throw new Error(`${route.file}: intercept from: no route has id ${JSON.stringify(unknown)}`)
+	}
+}

@@ -235,12 +235,21 @@ async function writeBody(res: NodeRes, body: ReadableStream<Uint8Array> | null, 
 			res.end()
 			return
 		}
-		if (!res.write(step.value)) await drain(res)
+		if (!res.write(step.value)) await drain(res, gone)
 	}
 }
 
-function drain(res: NodeRes): Promise<void> {
+// A destroyed socket never emits drain, so a client that stopped reading and then left ends the wait too; the next
+// read finds the body cancelled, and the request leaves the drain's count (BUGS.md 411).
+function drain(res: NodeRes, gone: AbortSignal): Promise<void> {
+	if (gone.aborted) return Promise.resolve()
 	return new Promise((resolve) => {
-		res.once("drain", () => resolve())
+		const left = (): void => resolve()
+		// Each wait's abort listener goes when it drains, so a long stream does not pile them on the signal.
+		res.once("drain", () => {
+			gone.removeEventListener("abort", left)
+			resolve()
+		})
+		gone.addEventListener("abort", left, { once: true })
 	})
 }
