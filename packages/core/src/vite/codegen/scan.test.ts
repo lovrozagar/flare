@@ -108,8 +108,20 @@ it("builder id spans", () => {
 	expect(spans('export const ID = "_root_/a";\nexport const route = createPage(ID);')).toEqual([
 		["_root_/a", '"_root_/a"'],
 	])
-	const source = 'export const route = createPage("_root_/a");\nconst bad = createPage(`_root_/b`);'
+	const source = 'export const route = createPage("_root_/a");\nconst bad = createPage(`_root_/${b}`);'
 	expect(spans(source)).toEqual([["_root_/a", '"_root_/a"']])
+})
+
+// The builder as the boundary split reads it: by its import, aliased or not, or through the package's namespace, and
+// an id written as a template with no substitutions, so each is checked against the path and dev rewrites it
+// (BUGS.md 415).
+it("builder forms", () => {
+	const aliased = 'import { createPage as cp } from "@lovrozagar/flare";\nexport const route = cp("_root_/a");'
+	const spaced = 'import * as flare from "@lovrozagar/flare";\nexport const route = flare.createLayout("_root_/b");'
+	const other = 'import * as other from "x";\nexport const route = other.createPage("_root_/c");'
+	expect([ids(aliased), ids(spaced), ids(other)]).toEqual([["_root_/a"], ["_root_/b"], []])
+	expect(spans("export const route = createPage(`_root_/t`);")).toEqual([["_root_/t", "`_root_/t`"]])
+	expect(spans("const ID = `_root_/u`;\nexport const route = createPage(ID);")).toEqual([["_root_/u", "`_root_/u`"]])
 })
 
 // A `.ts` route file parses as TypeScript, so a generic arrow in it is no tag (plan 21 8.1).

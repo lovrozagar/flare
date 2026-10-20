@@ -97,6 +97,23 @@ const ssg = (id: string, path: string, text = "page"): Page =>
 			.render(() => text),
 	)
 
+// A catch-all listing a path a static page serves fails the build naming both pages, and writes nothing, instead of the
+// static page's seed twice (BUGS.md 418).
+it("two pages for one path", async () => {
+	const docs = createPage("_root_/docs/[...path]")
+		.cache({ ssg: () => [{ path: ["readme"] }] })
+		.render(() => "docs")
+	const { pre } = server([
+		ssg("_root_/docs/readme", "/docs/readme"),
+		page("_root_/docs/[...path]", "/docs/[...path]", docs),
+	])
+	const result = await run(pre)
+	expect([result.code, result.written]).toEqual([1, []])
+	expect(result.stderr).toEqual([
+		'[flare:prerender] two pages for /docs/readme: _root_/docs/readme serves it, and _root_/docs/[...path] {"path":["readme"]} lists it',
+	])
+})
+
 // A fixture app under the repo's node_modules, so its imports resolve as an app's would.
 function fixture(files: Record<string, string>): string {
 	mkdirSync(FIXTURES, { recursive: true })

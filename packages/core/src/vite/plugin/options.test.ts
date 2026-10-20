@@ -16,6 +16,21 @@ it("assets base", () => {
 	expect(() => parseOptions({ assetsBase: "/assets#x" })).toThrow("/assets#x")
 })
 
+// `image.exclude` with a `g` or `y` flag tests each path from its start: `test` on such a RegExp keeps `lastIndex`, so
+// every other match was missed. The app's own RegExp is left as it is (BUGS.md 417).
+it("image exclude flags", () => {
+	for (const given of [/\.png$/g, /\.png$/y, /\.PNG$/gi]) {
+		const exclude = parseOptions({ image: { exclude: given } }).image?.exclude
+		const paths = ["src/a.png", "src/b.png", "src/c.png", "src/d.png"]
+		expect([given.flags, paths.map((path) => exclude?.test(path) === true)]).toEqual([
+			given.flags,
+			[true, true, true, true],
+		])
+		expect(given.lastIndex).toBe(0)
+	}
+	expect(parseOptions({ image: { exclude: /\.PNG$/gi } }).image?.exclude?.flags).toBe("i")
+})
+
 it("image empty", () => {
 	// `{}` turns the image plugin on. Absent, there is none, and sharp never loads.
 	expect(flare({ image: {} }).map((plugin) => plugin.name)).toContain("flare:image")

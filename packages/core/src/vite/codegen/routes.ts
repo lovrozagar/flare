@@ -53,6 +53,7 @@ export function generateRoutes(
 	read: (file: string) => string,
 	options: { routesDir?: string } = {},
 ): GeneratedRoutes {
+	assertBuildable(files)
 	const routed = files.filter((file) => !ignored(file))
 	const pages: Item[] = []
 	const layouts: LayoutGen[] = []
@@ -69,10 +70,18 @@ export function generateRoutes(
 	assertOne(pages)
 	const routes = pages.map((page) => toRoute(page, scans.get(page.file)))
 	assertUnique(routes)
-	assertShadow(routes)
 	assertKinds(routes)
 	assertIntercepts(routes)
 	return { source: render(routes, layouts, options.routesDir ?? "src/routes"), routes, layouts }
+}
+
+// The bundler writes each module's path into a `//#region` line comment, so a line break in a name would end the
+// comment and turn the rest of the path into code that throws when the chunk loads (BUGS.md 425).
+function assertBuildable(files: readonly string[]): void {
+	const broken = files.find((file) => /[\n\r\u2028\u2029]/u.test(file))
+	if (broken === undefined) return
+	const reason = "a path under src/routes cannot hold a line break: the bundler writes module paths into line comments"
+	throw new Error(`${escapeSource(broken)}: ${reason}, so this file cannot be built`)
 }
 
 // A folder that starts with `_` and is not a root, such as `_parts`, holds no routes (dx/routes.md).
@@ -217,16 +226,6 @@ function assertUnique(routes: readonly RouteGen[]): void {
 	}
 }
 
-function assertShadow(routes: readonly RouteGen[]): void {
-	for (const route of routes) {
-		if (paramKind(last(route.id)) !== "catch-all") continue
-		const sibling = routes.find(
-			(other) => other !== route && parent(other.id) === parent(route.id) && paramKind(last(other.id)) === undefined,
-		)
-		if (sibling) throw new Error(`shadow: ${route.file}, ${sibling.file}`)
-	}
-}
-
 // Routes nested under one param folder share it. Only a second folder of that kind under the same parent clashes.
 function assertKinds(routes: readonly RouteGen[]): void {
 	const seen = new Map<string, { folder: string; file: string }>()
@@ -248,14 +247,6 @@ function paramKind(folder: string): string | undefined {
 	const segment = parseSegment(folder)[0]
 	if (segment === undefined || segment.kind === "static") return undefined
 	return segment.optional ? `optional-${segment.kind}` : segment.kind
-}
-
-function parent(id: string): string {
-	return id.slice(0, id.lastIndexOf("/"))
-}
-
-function last(id: string): string {
-	return id.slice(id.lastIndexOf("/") + 1)
 }
 
 // Every route module is a lazy import that resolves its `route` export, so a route's code loads only when a
@@ -292,8 +283,9 @@ function lazy(routesDir: string, file: string): string {
 // A marker after it becomes the files that chunk imports, once the bundle is known (closures.ts, BUGS.md 124.6).
 export function chunkReferences(source: string, emit: (path: string) => string): string {
 	return source.replace(/^export const chunks = \{.*\};$/m, (line) =>
-		line.replace(/: "(\/[^"]+)"/g, (_all: string, path: string) => {
-			const ref = emit(path)
+		// Each value is a JSON string literal, escapes and all: the path is what it decodes to (BUGS.md 422).
+		line.replace(/: ("\/(?:[^"\\]|\\.)*")/g, (_all: string, literal: string) => {
+			const ref = emit(JSON.parse(literal) as string)
 			return `: [import.meta.ROLLUP_FILE_URL_${ref}, ${closureMarker(ref)}]`
 		}),
 	)

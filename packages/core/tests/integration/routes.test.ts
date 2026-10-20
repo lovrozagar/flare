@@ -58,6 +58,18 @@ const TABLE: Record<string, string> = {
 	"[locale]/_root_/root.root-layout.tsx": rootLayout("[locale]/_root_"),
 	"[locale]/_root_/about/about.page.tsx": page("[locale]/_root_/about"),
 	"_root_/[_]id]/page.page.tsx": page("_root_/[_]id]"),
+	"_root_/users/me/me.page.tsx": page("_root_/users/me"),
+	"_root_/rank/[[lang]]/lang.page.tsx": page("_root_/rank/[[lang]]"),
+	"_root_/rank/[[lang]]/pricing/pricing.page.tsx": page("_root_/rank/[[lang]]/pricing"),
+	"_root_/index/index.page.tsx": page("_root_/index"),
+	'_root_/say "hi"/odd.page.tsx': page('_root_/say "hi"'),
+	"_root_/search/search.page.tsx": [
+		'import { createPage } from "@lovrozagar/flare";',
+		'export const route = createPage("_root_/search")',
+		"\t.loader((ctx) => ({ search: JSON.stringify(ctx.search), proto: Object.getPrototypeOf(ctx.search) === null }))",
+		'\t.render((props) => <p id="page">{props.loaderData.search} {String(props.loaderData.proto)}</p>);',
+		"",
+	].join("\n"),
 	// Not routes: a folder that starts with `_` and does not end with `_`, even a page file in it.
 	"_root_/_parts/widget.tsx": "export const widget = 1;\n",
 	"_root_/_parts/card.page.tsx": page("_root_/_parts"),
@@ -152,6 +164,93 @@ it("more than one root", async () => {
 	expect(roots).toEqual(["_root_", "_admin_", "[locale]/_root_"])
 })
 
+// A param value stays percent-encoded and is not decoded, an invalid escape kept as written; a lowercase escape is
+// 301 to its uppercase form, and a `%2F` inside a segment is 400 before any route matches (routes.md Brackets,
+// canonical-redirect.test `hostile`).
+it("percent params", async () => {
+	const pages = []
+	for (const path of ["/users/a%3Ab", "/users/%ZZ", "/users/a%25"]) pages.push((await at(table, path)).page)
+	expect(pages).toEqual([
+		'_root_/users/[id] {"id":"a%3Ab"}',
+		'_root_/users/[id] {"id":"%ZZ"}',
+		'_root_/users/[id] {"id":"a%25"}',
+	])
+	const lower = await table?.fetch(new Request("http://localhost/users/a%3ab"))
+	expect([lower?.status, lower?.headers.get("location")]).toEqual([301, "/users/a%3Ab"])
+	expect((await at(table, "/users/a%2fb")).status).toBe(400)
+})
+
+// Rank: a static segment before a param, and an optional param that matched nothing consumed nothing, so `/rank/pricing`
+// is the pricing page, not the tag `pricing` (routes.md Brackets).
+it("rank", async () => {
+	const pages = []
+	for (const path of ["/users/me", "/users/7", "/rank/pricing", "/rank/hr", "/rank/hr/pricing"])
+		pages.push((await at(table, path)).page)
+	expect(pages).toEqual([
+		"_root_/users/me {}",
+		'_root_/users/[id] {"id":"7"}',
+		"_root_/rank/[[lang]]/pricing {}",
+		'_root_/rank/[[lang]] {"lang":"hr"}',
+		'_root_/rank/[[lang]]/pricing {"lang":"hr"}',
+	])
+})
+
+// The search is a null-prototype record: prototype keys dropped, `""` kept, a repeated key a list in appearance order
+// (routes.md Brackets).
+it("search record", async () => {
+	const answer = await at(table, "/search?b=2&a=1&a=3&__proto__=x&constructor=y&prototype=z&e=")
+	expect(answer.page).toBe('{"b":"2","a":["1","3"],"e":""} true')
+})
+
+// A folder named `index` is not special, and a folder name with any character the file system allows but a line break
+// is a route (routes.md Brackets, BUGS.md 165, 425).
+it("index and hostile folders", async () => {
+	expect((await at(table, "/index")).page).toBe("_root_/index {}")
+	expect((await at(table, "/say%20%22hi%22")).page).toBe('_root_/say "hi" {}')
+})
+
+// A catch-all beside a static page: the static page wins and the catch-all takes every other path, the home page and a
+// root catch-all, a group between them, or an optional catch-all alike (dx/routes.md, BUGS.md 418).
+it("static beside catch-all", async () => {
+	const server = await served({
+		"_root_/root.root-layout.tsx": rootLayout("_root_"),
+		"_root_/home.page.tsx": page("_root_/"),
+		"_root_/[...path]/nf.page.tsx": page("_root_/[...path]"),
+		"_root_/docs/readme/readme.page.tsx": page("_root_/docs/readme"),
+		"_root_/docs/[...path]/docs.page.tsx": page("_root_/docs/[...path]"),
+		"_root_/guide/(g)/intro/intro.page.tsx": page("_root_/guide/(g)/intro"),
+		"_root_/guide/[...path]/guide.page.tsx": page("_root_/guide/[...path]"),
+		"_root_/ref/api/api.page.tsx": page("_root_/ref/api"),
+		"_root_/ref/[[...path]]/ref.page.tsx": page("_root_/ref/[[...path]]"),
+	})
+	const pages = []
+	for (const path of [
+		"/",
+		"/x",
+		"/docs/readme",
+		"/docs/other",
+		"/guide/intro",
+		"/guide/x",
+		"/ref/api",
+		"/ref/x",
+		"/ref",
+	]) {
+		const answer = await get(server, path)
+		pages.push([path, answer.status, answer.page?.split(" ")[0]])
+	}
+	expect(pages).toEqual([
+		["/", 200, "_root_/"],
+		["/x", 200, "_root_/[...path]"],
+		["/docs/readme", 200, "_root_/docs/readme"],
+		["/docs/other", 200, "_root_/docs/[...path]"],
+		["/guide/intro", 200, "_root_/guide/(g)/intro"],
+		["/guide/x", 200, "_root_/guide/[...path]"],
+		["/ref/api", 200, "_root_/ref/api"],
+		["/ref/x", 200, "_root_/ref/[[...path]]"],
+		["/ref", 200, "_root_/ref/[[...path]]"],
+	])
+})
+
 // What a failed build printed. A build that passed throws.
 async function failure(routes: Record<string, string>): Promise<string> {
 	const built = await viteBuild(project(routes))
@@ -172,17 +271,6 @@ describe("build errors", () => {
 		})
 		expect(output).toMatch(
 			/duplicate url: _admin_\/dashboard\/dashboard\.page\.tsx, _root_\/dashboard\/dashboard\.page\.tsx/,
-		)
-	})
-
-	it("shadow", async () => {
-		const output = await failure({
-			...ROOT,
-			"_root_/docs/[...path]/docs.page.tsx": page("_root_/docs/[...path]"),
-			"_root_/docs/readme/readme.page.tsx": page("_root_/docs/readme"),
-		})
-		expect(output).toMatch(
-			/shadow: _root_\/docs\/\[\.\.\.path\]\/docs\.page\.tsx, _root_\/docs\/readme\/readme\.page\.tsx/,
 		)
 	})
 
@@ -216,6 +304,31 @@ describe("build errors", () => {
 	it("repeated param", async () => {
 		const output = await failure({ ...ROOT, "_root_/[id]/posts/[id]/post.page.tsx": page("_root_/[id]/posts/[id]") })
 		expect(output).toContain("_root_/[id]/posts/[id]/post.page.tsx repeated param id")
+	})
+})
+
+describe("route file errors", () => {
+	// The intro's contracts: every route file exports `route`, a layout lives in its own folder, and the builder call is
+	// a direct export (routes.md).
+	it("route file shape", async () => {
+		const missing = await failure({
+			...ROOT,
+			"_root_/a/a.page.tsx":
+				'import { createPage } from "@lovrozagar/flare";\nexport const page = createPage("_root_/a");\n',
+		})
+		expect(missing).toContain("_root_/a/a.page.tsx: no route export")
+		const beside = await failure({
+			...ROOT,
+			"_root_/b/b.page.tsx": page("_root_/b"),
+			"_root_/b/b.layout.tsx": layout("_root_/b"),
+		})
+		expect(beside).toContain("layout beside page: _root_/b/b.layout.tsx, _root_/b/b.page.tsx")
+		const wrapped = await failure({
+			...ROOT,
+			"_root_/c/c.page.tsx":
+				'import { createPage } from "@lovrozagar/flare";\nconst made = createPage("_root_/c").render(() => "c");\nexport const route = made;\n',
+		})
+		expect(wrapped).toContain("_root_/c/c.page.tsx: createPage must be a direct export")
 	})
 })
 

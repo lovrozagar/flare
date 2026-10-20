@@ -80,7 +80,9 @@ function parseImage(image: FlareOptions["image"]): ParsedOptions["image"] {
 	const quality = image.quality ?? 75
 	if (!Number.isInteger(quality) || quality < 1 || quality > 100) throw new Error("image.quality")
 	if (image.exclude !== undefined && !(image.exclude instanceof RegExp)) throw new Error("image.exclude")
-	return { widths, quality, ...(image.exclude && { exclude: image.exclude }) }
+	// A copy without `g` or `y`, whose `test` would start each path where the last match ended (BUGS.md 417).
+	const exclude = image.exclude && new RegExp(image.exclude.source, image.exclude.flags.replaceAll(/[gy]/g, ""))
+	return { widths, quality, ...(exclude && { exclude }) }
 }
 
 // Omission, `{}`, and `reset: false` are the same: no preflight.

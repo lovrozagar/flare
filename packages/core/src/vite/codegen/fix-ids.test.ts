@@ -30,6 +30,38 @@ it("rewrites", () => {
 })
 
 // A file already right comes back as the same string, and what the scan cannot resolve is left as written.
+// A template id keeps its backticks, with a backtick and `${` in the new id escaped (BUGS.md 415).
+it("template id", () => {
+	const source = "export const route = createPage(`_root_/old`).render(r);\n"
+	for (const id of ["_root_/new", "_root_/a`b", "_root_/${x}", "_root_/a\nb"]) {
+		const rewritten = fixed(source, id)
+		expect([
+			id,
+			rewritten.includes("createPage(`"),
+			scanRoute("a.page.tsx", rewritten).ids.map((found) => found.id),
+		]).toEqual([id, true, [id]])
+	}
+})
+
+// A hostile folder name is written as codegen writes every value: the rewritten file still parses, and its id reads
+// back as the folder's, a newline, a quote, U+2028, and `</` included, in either quote (BUGS.md 414).
+it("hostile ids", () => {
+	for (const id of [
+		"_root_/a\nb",
+		"_root_/it's",
+		'_root_/say "hi"',
+		"_root_/a\u2028b",
+		"_root_/</script>",
+		"_root_/a\\b",
+	]) {
+		for (const quote of ['"', "'"]) {
+			const source = `export const route = createPage(${quote}_root_/old${quote}).render(r);\n`
+			const rewritten = fixed(source, id)
+			expect([id, scanRoute("a.page.tsx", rewritten).ids.map((found) => found.id)]).toEqual([id, [id]])
+		}
+	}
+})
+
 it("leaves alone", () => {
 	const right = 'export const route = createPage("_root_/a");\n'
 	expect(fixed(right, "_root_/a")).toBe(right)

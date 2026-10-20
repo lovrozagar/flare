@@ -70,7 +70,7 @@ export function serverCode(file: string, source: string, program: Program): Span
 
 // How the module names the route builders: named imports, possibly aliased, by local name, and namespace imports of
 // the package.
-type Builders = { locals: Map<string, string>; namespaces: Set<string> }
+export type Builders = { locals: Map<string, string>; namespaces: Set<string> }
 
 // `export const name = builder(...)...` chains whose root is a route builder imported from the package, by name or
 // through a namespace. A builder called or read any other way is a build error, so every route chain is one the
@@ -92,7 +92,7 @@ function routeChains(file: string, program: Program): Array<[string, Step[]]> {
 	return chains
 }
 
-function builderNames(program: Program): Builders {
+export function builderNames(program: Program): Builders {
 	const builders: Builders = { locals: new Map(), namespaces: new Set() }
 	for (const statement of program.body) {
 		if (statement.type !== "ImportDeclaration" || statement.source.value !== "@lovrozagar/flare") continue
@@ -147,7 +147,7 @@ function direct(file: string, builder: string): Error {
 }
 
 // The builder a call starts a chain with: `createPage(…)` through a named import, or `ns.createPage(…)`.
-function rootBuilder(call: CallExpression, builders: Builders): string | undefined {
+export function rootBuilder(call: CallExpression, builders: Builders): string | undefined {
 	const callee = call.callee
 	if (callee.type === "Identifier") return builders.locals.get(callee.name)
 	if (callee.type !== "MemberExpression" || callee.computed || callee.object.type !== "Identifier") return undefined

@@ -4,6 +4,7 @@ import {
 	isMethodList,
 	METHODS_RULE,
 } from "../../shared/route-builder/methods.ts"
+import { builderNames, rootBuilder, type Builders } from "../boundary/split.ts"
 import { langOf } from "../route-meta/index.ts"
 import { constInits, keyName, unwrapped } from "./literals.ts"
 import {
@@ -67,6 +68,7 @@ export function scanRoute(file: string, source: string): Scan {
 		ids: [],
 	}
 	const consts = constStrings(parsed.program)
+	const builders = builderNames(parsed.program)
 	const chain = routeCalls(parsed.program)
 	new Visitor({
 		ImportDeclaration: (node) => {
@@ -77,7 +79,7 @@ export function scanRoute(file: string, source: string): Scan {
 		},
 		CallExpression: (node) => {
 			if (chain.has(node)) readCall(scan, node)
-			const id = builderId(node, consts)
+			const id = builderId(node, { consts, builders })
 			if (id !== undefined) scan.ids.push(id)
 		},
 	}).visit(parsed.program)
@@ -89,8 +91,8 @@ export function scanRoute(file: string, source: string): Scan {
 function constStrings(program: Program): Map<string, BuilderId> {
 	const consts = new Map<string, BuilderId>()
 	for (const [name, init] of constInits(program)) {
-		if (init.type === "Literal" && typeof init.value === "string")
-			consts.set(name, { id: init.value, start: init.start, end: init.end })
+		const id = idLiteral(init)
+		if (id !== undefined) consts.set(name, id)
 	}
 	return consts
 }
@@ -123,13 +125,27 @@ function under(node: Expression, calls: Set<CallExpression>): Expression | undef
 	return unwrapped(node)
 }
 
-// The id a bare builder call names, when its first argument is a string literal or a const bound to one.
-function builderId(node: CallExpression, consts: ReadonlyMap<string, BuilderId>): BuilderId | undefined {
-	if (node.callee.type !== "Identifier" || !BUILDERS.has(node.callee.name)) return undefined
+// The id a builder call names, when its first argument is a string literal, a template with no substitutions, or a
+// const bound to one. The builder is a bare name, or the package's import as the boundary split reads it: aliased, or
+// through its namespace (BUGS.md 415).
+function builderId(
+	node: CallExpression,
+	at: { consts: ReadonlyMap<string, BuilderId>; builders: Builders },
+): BuilderId | undefined {
+	const bare = node.callee.type === "Identifier" && BUILDERS.has(node.callee.name)
+	if (!bare && rootBuilder(node, at.builders) === undefined) return undefined
 	const [first] = node.arguments
-	if (first?.type === "Literal" && typeof first.value === "string")
-		return { id: first.value, start: first.start, end: first.end }
-	return first?.type === "Identifier" ? consts.get(first.name) : undefined
+	if (first?.type === "Identifier") return at.consts.get(first.name)
+	return first === undefined || first.type === "SpreadElement" ? undefined : idLiteral(first)
+}
+
+// A string literal, or a template with no substitutions, with its span, quotes included.
+function idLiteral(node: Expression): BuilderId | undefined {
+	if (node.type === "Literal" && typeof node.value === "string")
+		return { id: node.value, start: node.start, end: node.end }
+	const [quasi] = node.type === "TemplateLiteral" && node.expressions.length === 0 ? node.quasis : []
+	const cooked = quasi?.value.cooked
+	return typeof cooked === "string" ? { id: cooked, start: node.start, end: node.end } : undefined
 }
 
 // `export const route = …` or `export { route }`: the builder record codegen imports (dx/routes.md).

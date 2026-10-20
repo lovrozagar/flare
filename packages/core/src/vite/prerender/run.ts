@@ -140,8 +140,10 @@ const WORKERS_CAUSE =
 
 function settle(at: Settle): void {
 	const where = `${at.job.id} ${JSON.stringify(at.job.params)}`
-	const { status, key, entry } = at.result
-	if (status !== 200) at.problems.push(`${where} answered ${status}${at.workers ? `: ${WORKERS_CAUSE}` : ""}`)
+	const { status, key, entry, owner } = at.result
+	if (owner !== undefined)
+		at.problems.push(`two pages for ${at.result.path}: ${owner} serves it, and ${where} lists it`)
+	else if (status !== 200) at.problems.push(`${where} answered ${status}${at.workers ? `: ${WORKERS_CAUSE}` : ""}`)
 	else if (key === undefined || entry === undefined) at.problems.push(`${where} rendered nothing storable`)
 	else {
 		at.written.push({ key, entry })
