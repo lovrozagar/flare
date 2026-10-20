@@ -52,3 +52,28 @@ it("bad timeout", async () => {
 	await expect(work.drain({ timeout: "soon" })).rejects.toThrow("duration")
 	expect(work.draining()).toBe(false)
 })
+
+// A timeout longer than a timer can hold, 2^31 - 1 ms (about 24.8 days), is waited out in full, not cut to a
+// millisecond (BUGS.md 421).
+it("long timeout", async () => {
+	vi.useFakeTimers()
+	try {
+		const work = pendingWork()
+		const held = Promise.withResolvers<void>()
+		work.track(held.promise)
+		let result: boolean | undefined
+		void work.drain({ timeout: "30d" }).then((value) => (result = value))
+		await vi.advanceTimersByTimeAsync(25 * 86_400_000)
+		expect(result).toBeUndefined()
+		await vi.advanceTimersByTimeAsync(5 * 86_400_000)
+		expect(result).toBe(false)
+		const other = pendingWork()
+		other.track(new Promise((resolve) => setTimeout(resolve, 26 * 86_400_000)))
+		let drained: boolean | undefined
+		void other.drain({ timeout: "30d" }).then((value) => (drained = value))
+		await vi.advanceTimersByTimeAsync(26 * 86_400_000)
+		expect(drained).toBe(true)
+	} finally {
+		vi.useRealTimers()
+	}
+})
