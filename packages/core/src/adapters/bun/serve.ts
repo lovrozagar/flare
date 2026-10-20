@@ -67,11 +67,16 @@ export function createBunFetch(
 			const sent = Promise.withResolvers<void>()
 			pending.track(sent.promise)
 			const timeout = bun === undefined ? undefined : (seconds: number) => bun.timeout(request, seconds)
+			// Bun counts a handler that has not answered yet as idle, so a render slower than `idleTimeout` before its first
+			// byte would be cut: the handler runs under Bun's longest timeout, which still bounds one that hangs, or none when
+			// `idleTimeout` is 0, and every end below sets `idleTimeout` back (BUGS.md 424).
+			timeout?.(idleTimeout === 0 ? 0 : MAX_IDLE)
 			// A throw as the call starts rejects like a later one, so the answer is never left in flight.
 			const answered = new Promise<Response>((resolve) => resolve(server.fetch(forwarded(request, hops), env, ctx)))
 			return answered.then(
 				(response) => watched(response, { timeout, idle: idleTimeout, sent: sent.resolve }),
 				(error: unknown) => {
+					timeout?.(idleTimeout)
 					sent.resolve()
 					throw error
 				},
@@ -94,6 +99,7 @@ type Watch = { timeout: ((seconds: number) => void) | undefined; idle: number; s
 // since reading a Blob body makes it a stream (BUGS.md 238).
 function watched(response: Response, watch: Watch): Response {
 	if (blobBody(response) || response.body === null) {
+		watch.timeout?.(watch.idle)
 		watch.sent()
 		return response
 	}
