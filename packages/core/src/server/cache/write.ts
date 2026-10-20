@@ -58,10 +58,13 @@ export type EntryInput = {
 }
 
 // Never stored: a redirect target, a cookie, the decision's own headers, and the security set, which finalize
-// writes on every answer (B46).
+// writes on every answer (B46). Nor a validator: a stored hit ignores `If-None-Match` and `If-Modified-Since`, so an
+// `ETag` or `Last-Modified` would only send every revalidation the full body (BUGS.md 399).
 const NEVER_STORED = new Set([
 	"location",
 	"set-cookie",
+	"etag",
+	"last-modified",
 	"cache-control",
 	"cdn-cache-control",
 	"cache-tag",

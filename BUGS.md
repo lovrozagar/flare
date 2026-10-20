@@ -1544,6 +1544,18 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 397.1 [x] Found by plan 29's gap review of dx/server-fn.md (2026-10-20, `.tmp/grunt/reviews/6.1-server-fn.md` D5): the envelope carried `to` with no mark of its form, and the client chose by origin alone, so `redirect({ href: "http://localhost/elsewhere" })` called `go`, not `assign`, and kept the client's state; an app that uses `href` to force a fresh document after a sign-in or sign-out did not get one. `call.test.ts` `reject` checked a same-origin `to` and a cross-origin `href` only.
 397.2 [x] Fix: an `href` redirect's envelope carries `document: true`, and the client loads it in full wherever it points; a same-origin `to` stays the internal navigation. dx/server-fn.md says so. Red first: envelope.test `href` and server-fn.test `wire redirect` (the mark), call.test `reject` (a same-origin `href` assigns).
 
+398 [x] `prefetchGcTime` did not default to `gcTime`: a prefetched entry outlived the route's or router's `gcTime` by up to 30 s
+398.1 [x] Found by plan 29's gap review of dx/cache.md (2026-10-20, `.tmp/grunt/reviews/6.1-cache.md` D4): the prefetcher kept an entry for `min(prefetchStaleTime ?? "30s", prefetchGcTime ?? Infinity)` and never read `gcTime`, so with `client: { gcTime: "100ms" }` a hovered link's landing was still held at 29,999 ms. The doc gives `prefetchGcTime` the default `gcTime`. Both prefetch tests set `prefetchGcTime` themselves.
+398.2 [x] Fix: the bound is `prefetchGcTime`, else the route's `gcTime`, else the router's; a router whose client cache is `false` sets none, as before. dx/cache.md says so. Red first: prefetch.test `prefetch gc default` (route and router `gcTime: "100ms"`, gone at 101 ms).
+
+399 [x] A stored page kept the route's `ETag` and replayed it on every hit, though a hit ignores `If-None-Match`
+399.1 [x] Found by plan 29's gap review of dx/cache.md (2026-10-20, `.tmp/grunt/reviews/6.1-cache.md` D5): `NEVER_STORED` had no `etag`, so `.cache({ ssr: { ttl: "1h" } }).headers(() => ({ etag: '"v1"' }))` stored the header and each hit sent it; a browser or CDN then revalidated against a validator the server ignores, and every revalidation got the full body. The doc says no `ETag` is sent. `read.test.ts` `no etag` stored a record with no `etag`. `Last-Modified` is the same kind of validator and was kept too.
+399.2 [x] Fix: `ETag` and `Last-Modified` are never stored, so neither the miss served from the stored page nor a hit sends them. dx/cache.md says so. Red first: cache.test `no validators stored` (the miss and an `If-None-Match` hit).
+
+400 [x] The webhook recipe in dx/cache.md answered 500 and logged a render error for an authorized call whose body was not JSON
+400.1 [x] Found by plan 29's gap review of dx/cache.md (2026-10-20, `.tmp/grunt/reviews/6.1-cache.md` D6): the recipe awaited `request.json()` with no guard, so an authorized CMS that sent `not json` or an empty body got a 500 and the server logged `[flare:render] ... SyntaxError`, while the recipe's own check answers 400 for every other bad body; a CMS that retries on 5xx kept retrying. `cache.test.ts` `webhook purge` copied the recipe but sent only good JSON.
+400.2 [x] Fix: the recipe reads the body with `request.json().catch(() => undefined)`, so a body that is not JSON falls to its 400. dx/cache.md and the test's copy match. Red first: cache.test `webhook purge` (`not json`, empty, `null`, and an empty `tags` list are 400 with nothing logged).
+
 ## Verify
 
 97 [x] Verify

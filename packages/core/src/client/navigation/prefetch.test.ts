@@ -289,6 +289,24 @@ it("save data", async () => {
 	expect(document.head.querySelectorAll('link[rel="prefetch"]')).toHaveLength(1)
 })
 
+// `prefetchGcTime` defaults to `gcTime`, the route's, else the router's: a prefetched entry never outlives it
+// (BUGS.md 398).
+it("prefetch gc default", async () => {
+	const held = async (router: ReturnType<typeof routerOf>, at: number) => {
+		const app = setup(router)
+		const link = anchor()
+		app.prefetcher.watch(link, "/about", "intent")
+		hover(link)
+		await settled()
+		app.clock.now = at
+		return app.prefetcher.prefetched("/about?_flare=data") !== undefined
+	}
+	const route = routerOf({}, { client: { gcTime: "100ms" } })
+	const router = routerOf({ cache: { client: { gcTime: "100ms" } } })
+	expect([await held(route, 100), await held(route, 101), await held(router, 101)]).toEqual([true, false, false])
+	expect(await held(routerOf({ cache: { client: false } }), 29_999)).toBe(true)
+})
+
 it("prefetch stale", async () => {
 	const capped = setup(routerOf({}, { client: { prefetchGcTime: "100ms" } }))
 	const once = anchor()
