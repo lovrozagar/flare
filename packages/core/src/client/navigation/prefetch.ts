@@ -50,6 +50,14 @@ const INTENT = ["pointerenter", "focus", "touchstart"] as const
 
 const PREFETCH_STALE = "30s"
 
+// How long a prefetched entry may be kept: `prefetchGcTime`, else the route's `gcTime`, else the router's (BUGS.md
+// 398). A router whose client cache is off sets no bound.
+function gcOf(client: ReturnType<typeof clientOf>, router: Router): number {
+	const routerGc = router.cache.client === false ? undefined : router.cache.client.gcTime
+	const gcTime = client.prefetchGcTime ?? client.gcTime ?? routerGc
+	return gcTime === undefined ? Number.POSITIVE_INFINITY : parseDuration(gcTime)
+}
+
 // `modules` loads route code and does no server work. `data` runs the loaders with `_flare=prefetch`, loads the
 // modules too, and never commits (B64). A navigation to that URL takes the landing whole while it is fresh, and
 // from then on it is a normal cache entry (dx/cache.md).
@@ -60,10 +68,7 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 		const entry = held.get(target.dataUrl)
 		if (entry !== undefined && !expired(entry)) return
 		const client = clientOf(target.match.client)
-		const keep = Math.min(
-			parseDuration(client.prefetchStaleTime ?? PREFETCH_STALE),
-			client.prefetchGcTime === undefined ? Number.POSITIVE_INFINITY : parseDuration(client.prefetchGcTime),
-		)
+		const keep = Math.min(parseDuration(client.prefetchStaleTime ?? PREFETCH_STALE), gcOf(client, deps.router))
 		const next: Held = { landing: request(deps, target), keep }
 		held.delete(target.dataUrl)
 		held.set(target.dataUrl, next)

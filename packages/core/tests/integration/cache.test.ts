@@ -212,6 +212,29 @@ it("listed encoded", async () => {
 	])
 })
 
+// A stored page never keeps the route's validators: an `ETag` or `Last-Modified` the server would ignore on
+// `If-None-Match` or `If-Modified-Since` is sent on neither the miss nor the hit (BUGS.md 399).
+it("no validators stored", async () => {
+	const page = createPage("_root_/v")
+		.cache({ ssr: { ttl: "1h" } })
+		.headers(() => ({ etag: '"v1"', "last-modified": "Wed, 21 Oct 2026 07:28:00 GMT", "x-kept": "1" }))
+		.render(() => "v")
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/v", path: "/v", module: page }] })
+	const app = createServer({ router, site: SITE, store: createMemoryStore() })
+	const sent = []
+	const asked: Record<string, string>[] = [{}, { "if-none-match": '"v1"' }]
+	for (const headers of asked) {
+		const response = await app.fetch(new Request(`${SITE}/v`, { headers }))
+		const read = (name: string) => response.headers.get(name)
+		sent.push([response.status, read("flare-cache"), read("etag"), read("last-modified"), read("x-kept")])
+		await response.text()
+	}
+	expect(sent).toEqual([
+		[200, "miss", null, null, "1"],
+		[200, "hit", null, null, "1"],
+	])
+})
+
 // A listed slug whose tombstone is newer renders live, and the body may be stored again.
 it("purged listed", async () => {
 	const memory = createMemoryStore()
@@ -243,7 +266,8 @@ const hook = createPage("_root_/hook").response(
 		if (!(await authorized(header, Reflect.get(Object(env), "REVALIDATE_SECRET")))) {
 			return new Response(null, { status: 401 })
 		}
-		const body: unknown = await request.json()
+		// A body that is not JSON is the 400 below, not a render error (BUGS.md 400).
+		const body: unknown = await request.json().catch(() => undefined)
 		const tags: unknown = Reflect.get(Object(body), "tags")
 		if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === "string") || tags.length === 0) {
 			return new Response(null, { status: 400 })
@@ -272,17 +296,20 @@ it("webhook purge", async () => {
 	const app = createServer({ router, site: SITE, store: createMemoryStore() })
 	const env = { REVALIDATE_SECRET: "s3cret" }
 	const visit = () => app.fetch(new Request(`${SITE}/p`), env)
-	const call = (authorization: string) =>
-		app.fetch(
-			new Request(`${SITE}/hook`, { method: "POST", headers: { authorization }, body: '{"tags":["posts"]}' }),
-			env,
-		)
+	const call = (authorization: string, body = '{"tags":["posts"]}') =>
+		app.fetch(new Request(`${SITE}/hook`, { method: "POST", headers: { authorization }, body }), env)
 	await visit()
 	await vi.waitFor(async () => expect((await visit()).headers.get("flare-cache")).toBe("hit"))
 	const stored = renders
 	for (const wrong of ["Bearer nope", "Bearer s3cre", "s3cret", "Bearer s3cret2", ""]) {
 		expect((await call(wrong)).status).toBe(401)
 	}
+	// A body that is not JSON, or none, is the recipe's 400, not a logged render error (BUGS.md 400).
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	for (const body of ["not json", "", "null", '{"tags":[]}'])
+		expect([body, (await call("Bearer s3cret", body)).status]).toEqual([body, 400])
+	expect(logged).not.toHaveBeenCalled()
+	logged.mockRestore()
 	expect((await visit()).headers.get("flare-cache")).toBe("hit")
 	expect(renders).toBe(stored)
 	expect((await call("Bearer s3cret")).status).toBe(204)
@@ -339,5 +366,51 @@ it("hostile state hit", async () => {
 	for (const body of [await miss.text(), await hit.text()]) {
 		expect(body).not.toContain("<script>alert")
 		expect(stateIn(body).at(-1)?.["data"]).toEqual({ text: hostile })
+	}
+})
+
+// The webhook route answers only POST: a GET or HEAD is 405 naming `POST, OPTIONS`, and an OPTIONS is 204 (dx/cache.md
+// Purge from a webhook, BUGS.md 208).
+it("webhook methods", async () => {
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/hook", path: "/hook", module: hook }],
+	})
+	const app = createServer({ router, site: SITE, store: createMemoryStore() })
+	const answers = []
+	for (const method of ["GET", "HEAD", "OPTIONS"]) {
+		const response = await app.fetch(new Request(`${SITE}/hook`, { method }), { REVALIDATE_SECRET: "s3cret" })
+		answers.push([method, response.status, response.headers.get("allow")])
+	}
+	expect(answers).toEqual([
+		["GET", 405, "POST, OPTIONS"],
+		["HEAD", 405, "POST, OPTIONS"],
+		["OPTIONS", 204, "POST, OPTIONS"],
+	])
+})
+
+// Outside dev, an ssg page with no `static` store renders per request and logs that once, at error level, for each
+// server; and a page's `params()` list is called once per process and function, however many servers read it.
+it("ssg production reads", async () => {
+	vi.stubEnv("DEV", false)
+	vi.stubEnv("PROD", true)
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	try {
+		const params = vi.fn<() => Array<{ slug: string }>>(() => [{ slug: "a" }])
+		const page = createPage("_root_/s/[slug]")
+			.cache({ ssg: params })
+			.render(() => "s")
+		const router = createRouter({
+			layouts: { _root_: root },
+			routeTree: [{ id: "_root_/s/[slug]", path: "/s/[slug]", module: page }],
+		})
+		const servers = [createServer({ router, site: SITE }), createServer({ router, site: SITE })]
+		const statuses = []
+		for (const app of [...servers, ...servers]) statuses.push((await app.fetch(new Request(`${SITE}/s/a`))).status)
+		const lines = logged.mock.calls.filter((call) => call.some((part) => String(part).includes("has no static store")))
+		expect([statuses, lines.length, params.mock.calls.length]).toEqual([[200, 200, 200, 200], 2, 1])
+	} finally {
+		logged.mockRestore()
+		vi.unstubAllEnvs()
 	}
 })
