@@ -58,8 +58,10 @@ store.md#FlareStore#method:delete(key)	packages/core/tests/integration/store.tes
 store.md#FlareStore#method:deleteByTags(tags)	packages/core/tests/integration/store.test.ts::store tags	packages/core/tests/e2e/docs-cache.test.ts::revalidate tag
 store.md#FlareStore#method:deleteByKeys(keys)	packages/core/tests/integration/store.test.ts::store delete	n/a: no docs route purges by key; a key purge has no browser-visible step beyond the stored page it removes, which store.test drives through createServer
 store.md#createMemoryStore#	packages/core/tests/integration/store.test.ts::memory isolated	packages/core/tests/e2e/dashboard-api.test.ts::webhook purge
+store.md#createMemoryStore#prop:maxBytes	packages/core/tests/integration/store.test.ts::memory bound	n/a: no docs route fills a store past its bound; the bound is the store's own bookkeeping, which store.test drives through createServer
 store.md#createFilesystemStore#	packages/core/tests/integration/store.test.ts::filesystem store	packages/core/tests/e2e/docs-cache.test.ts::store per runtime
 store.md#createFilesystemStore#prop:dir	packages/core/tests/integration/store.test.ts::filesystem store	packages/core/tests/e2e/docs-cache.test.ts::store per runtime
+store.md#createFilesystemStore#prop:maxBytes	packages/core/tests/integration/store.test.ts::filesystem bound	n/a: no docs route fills a store past its bound; the bound is the store's own bookkeeping, which store.test drives through createServer
 store.md#fileAssets#	packages/core/tests/integration/store.test.ts::assets store	packages/core/tests/e2e/docs-cache.test.ts::ssg seed
 store.md#createAssetsStore#	packages/core/tests/integration/store.test.ts::assets store	packages/core/tests/e2e/docs-cache.test.ts::ssg seed
 store.md#createAssetsStore#prop:read	packages/core/tests/integration/store.test.ts::assets store; packages/core/tests/integration/store.test.ts::assets store base	packages/core/tests/e2e/docs-cache.test.ts::ssg seed

@@ -9,7 +9,7 @@ A store that fails never takes the site down with it. A stored page's read waits
 | method | required | outcome | pitfall | test |
 | --- | --- | --- | --- | --- |
 | `get(key)` | yes | `FlareStoreEntry` or `null` | a miss is `null`, not a throw | `server/cache/memory.test.ts` `round trip` |
-| `set(key, entry, ttl?)` | yes | stores the entry. `ttl` is milliseconds | the framework passes `ttl`. An implementation that ignores it keeps the entry forever, which is the bug `ttl` exists to close | `server/cache/write.test.ts` `ssr ttl` |
+| `set(key, entry, ttl?)` | yes | stores the entry. `ttl` is milliseconds. Both built-in stores drop an entry past it: on its next read, and through the sweep each write runs over a few entries, so one nothing reads again is dropped too and anonymous requests over endless slugs cannot grow the store with expired entries (BUGS.md 380) | the framework passes `ttl`. An implementation that ignores it keeps the entry forever, which is the bug `ttl` exists to close | `server/cache/write.test.ts` `ssr ttl`; `server/cache/memory.test.ts` `expired swept`; `adapters/stores/fs/store.test.ts` `expired swept` |
 | `delete(key)` | yes | on a mutable store, writes a tombstone for that key. A later `get` returns `{ data: { tombstone: true }, storedAt }`, not null. The cache layer does not serve it | the assets store rejects `delete`. SSG reads that store and ignores tombstones | `server/cache/tombstone.test.ts` `delete writes`, `key purge` |
 | `deleteByTags(tags)` | yes | not called by `revalidate`. A tag purge gets and sets `epoch:<tag>`, a number | a store that lists every key is wrong on Cache API. There is no tag index | `server/cache/epoch.test.ts` `tag purge` |
 | `deleteByKeys(keys)` | no | batch delete. Absent: the framework calls `delete` per key | | `epoch.test.ts` `get cost` |
@@ -21,10 +21,14 @@ The key is built by the framework: `static:<build>:<routeId>:<rawParams>`. There
 ## createMemoryStore
 
 ```ts
-createMemoryStore(): FlareStore
+createMemoryStore({ maxBytes? }): FlareStore
 ```
 
-No arguments. Two calls do not share entries (`memory.test.ts` `isolated`). The map lives for the process. A second instance does not see the first, which is the pitfall of constructing it inside a request.
+Two calls do not share entries (`memory.test.ts` `isolated`). The map lives for the process. A second instance does not see the first, which is the pitfall of constructing it inside a request.
+
+| prop | required | default | accepts | outcome | pitfall | test |
+| --- | --- | --- | --- | --- | --- | --- |
+| `maxBytes` | no | 50 MiB | a positive whole number of bytes | an LRU over each entry's size, the UTF-8 byte length of its JSON: a read makes an entry the most recent, a write past the bound evicts the least recent, and an entry larger than the bound is not stored. Epoch records are never counted or evicted (B147, BUGS.md 380) | a Workers isolate has 128 MB of memory, so a Workers app with a large live set lowers `maxBytes` or uses the Cache API store. Anything else throws | `server/cache/memory.test.ts` `lru bound` |
 
 ## createFilesystemStore
 
@@ -34,7 +38,8 @@ createFilesystemStore({ dir? })
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `dir` | no | `".flare/cache"` | a directory path | one file per key under that directory, named by the SHA-256 hex of the key. The record holds the key, and a mismatch is a miss | the default is relative to the process cwd. Production passes an absolute directory | `adapters/stores/fs/store.test.ts` `dir` |
+| `dir` | no | `".flare/cache"` | a directory path | one file per key under that directory, named by the SHA-256 hex of the key, `epoch-` first for an epoch record. The record holds the key, and a mismatch is a miss | the default is relative to the process cwd. Production passes an absolute directory | `adapters/stores/fs/store.test.ts` `dir` |
+| `maxBytes` | no | 1 GiB | a positive whole number of bytes | FIFO by write time: each pass of the expiry sweep lists the directory once, and past the bound removes the oldest-written records first, never an epoch. The directory can pass the bound by one pass's writes (B147, BUGS.md 380) | anything else throws | `adapters/stores/fs/store.test.ts` `bound` |
 
 Keys `a/b` and `a_b` are two files (`no collision`). A key containing `\` throws and nothing is written (`backslash`). A key the filesystem would truncate throws (`long key`). The implementation does not shorten the name.
 

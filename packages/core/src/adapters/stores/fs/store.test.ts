@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
@@ -102,4 +102,51 @@ it("ttl and purge", async () => {
 it("unreadable", async () => {
 	await mkdir(join(dir, `${createHash("sha256").update("k").digest("hex")}.json`))
 	await expect(createFilesystemStore({ dir }).get("k")).rejects.toThrow(/EISDIR/)
+})
+
+// An expired record that nothing reads again is removed too: each write sweeps a few files, so anonymous requests
+// over endless slugs cannot fill the disk (BUGS.md 380).
+it("expired swept", async () => {
+	vi.useFakeTimers({ now: 0, toFake: ["Date"] })
+	const store = createFilesystemStore({ dir })
+	// A record with no ttl stays, and a file that does not parse stops neither the sweep nor the write.
+	await store.set("kept", entry)
+	await writeFile(join(dir, "junk.json"), "{")
+	for (let index = 0; index < 200; index++) await store.set(`old${index}`, entry, 1)
+	vi.setSystemTime(1)
+	for (let index = 0; index < 200; index++) await store.set(`new${index}`, entry, 1000)
+	await rm(join(dir, "junk.json"))
+	const keys = await Promise.all(
+		(await readdir(dir)).map(async (name) => JSON.parse(await readFile(join(dir, name), "utf8")).key as string),
+	)
+	expect(keys.filter((key) => key.startsWith("old"))).toEqual([])
+	expect(keys).toHaveLength(201)
+})
+
+// Each pass of the sweep removes the oldest-written records until the rest fit `maxBytes`. An epoch record, named
+// `epoch-…`, is neither counted nor removed, and a file gone before its stat is skipped (B147, BUGS.md 380).
+it("bound", async () => {
+	const filler = createFilesystemStore({ dir })
+	for (const key of ["a", "b", "c"]) await filler.set(key, entry)
+	await filler.deleteByTags(["t"])
+	const size = (await stat(join(dir, `${createHash("sha256").update("a").digest("hex")}.json`))).size
+	const files = await readdir(dir)
+	expect(files.filter((name) => name.startsWith("epoch-"))).toHaveLength(1)
+	for (const [index, key] of ["a", "b", "c"].entries()) {
+		const at = new Date(Date.UTC(2026, 0, 1, 0, 0, index))
+		await utimes(join(dir, `${createHash("sha256").update(key).digest("hex")}.json`), at, at)
+	}
+	await symlink(join(dir, "gone"), join(dir, "dangling.json"))
+	const store = createFilesystemStore({ dir, maxBytes: size * 2 })
+	await store.set("d", entry)
+	expect([await store.get("a"), await store.get("b"), await store.get("c"), await store.get("d")]).toEqual([
+		null,
+		entry,
+		entry,
+		entry,
+	])
+	expect((await store.get("epoch:t"))?.storedAt).toBeTypeOf("number")
+	for (const maxBytes of [0, 1.5, Number.NaN]) {
+		expect(() => createFilesystemStore({ dir, maxBytes })).toThrow("createFilesystemStore: maxBytes must be")
+	}
 })
