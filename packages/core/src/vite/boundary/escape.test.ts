@@ -1,10 +1,12 @@
 import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { createServer } from "vite"
 import { afterEach, expect, it } from "vitest"
 import { CLIENT_ONLY_RUNTIME } from "../../shared/env/client-only.ts"
 import { ISOMORPHIC_RUNTIME } from "../../shared/env/isomorphic.ts"
 import { SERVER_ONLY_RUNTIME } from "../../shared/env/server-only.ts"
-import { app, bundledBuild, fixtures, PACKAGE_ENTRY } from "./build.fixture.ts"
+import { flare } from "../plugin/flare.ts"
+import { app, boundary, bundledBuild, fixtures, PACKAGE_ENTRY } from "./build.fixture.ts"
 
 // Real builds with the package bundled, as an app's are: a createServerOnlyFn body reached by every route the walk
 // follows is rewritten away, and one reached by a route it does not follow keeps the helper's runtime, which fails
@@ -65,19 +67,89 @@ it("nested namespaces", async () => {
 	expect(await client(module, files)).not.toContain("SECRET_NESTED")
 })
 
-// 3. A dependency's barrel is not followed: the call keeps the runtime, and the build fails naming the chain.
+// 3. A dependency is rewritten as the app is (BUGS.md 463): a library's own createServerOnlyFn call loses its body in
+// the client, and a library barrel re-exporting a helper is followed, so neither fails the build.
+function dependency(root: string, index: string, dependencies: Record<string, string> = {}): void {
+	mkdirSync(join(root, "node_modules/dep"), { recursive: true })
+	const manifest = { name: "dep", type: "module", main: "index.js", dependencies }
+	writeFileSync(join(root, "node_modules/dep/package.json"), `${JSON.stringify(manifest)}\n`)
+	writeFileSync(join(root, "node_modules/dep/index.js"), index)
+}
+
 it("dependency barrel", async () => {
 	const root = fixture(app('import { serverOnly } from "dep";\nexport const s = serverOnly(() => "SECRET_DEP");\n'))
-	mkdirSync(join(root, "node_modules/dep"), { recursive: true })
+	dependency(root, 'export { createServerOnlyFn as serverOnly } from "@lovrozagar/flare";\n')
+	expect(await bundledBuild(root, "client", { bundle: ["dep"] })).not.toContain("SECRET_DEP")
+})
+
+// A library's barrel chain is followed at any depth from what the app imports, as an app's is, across packages: `dep`
+// re-exports `./outer.js`, which re-exports the package `dep-env`, whose entry re-exports the helper; only that last
+// file names it. `dep` reaches Flare through `dep-env`'s own dependency on it (BUGS.md 463).
+it("dependency barrel chain", async () => {
+	const root = fixture(app('import { serverOnly } from "dep";\nexport const s = serverOnly(() => "SECRET_DEEP");\n'))
+	dependency(root, 'export * from "./outer.js";\n', { "dep-env": "1.0.0" })
+	writeFileSync(join(root, "node_modules/dep/outer.js"), 'export * from "dep-env";\nexport const other = 1;\n')
+	mkdirSync(join(root, "node_modules/dep-env"), { recursive: true })
 	writeFileSync(
-		join(root, "node_modules/dep/package.json"),
-		'{ "name": "dep", "type": "module", "main": "index.js" }\n',
+		join(root, "node_modules/dep-env/package.json"),
+		'{ "name": "dep-env", "type": "module", "main": "index.js", "peerDependencies": { "@lovrozagar/flare": "*" } }\n',
 	)
 	writeFileSync(
-		join(root, "node_modules/dep/index.js"),
+		join(root, "node_modules/dep-env/index.js"),
 		'export { createServerOnlyFn as serverOnly } from "@lovrozagar/flare";\n',
 	)
-	await expect(bundledBuild(root, "client", { bundle: ["dep"] })).rejects.toThrow(ESCAPED)
+	expect(await bundledBuild(root, "client", { bundle: ["dep", "dep-env"] })).not.toContain("SECRET_DEEP")
+})
+
+it("dependency call", async () => {
+	const root = fixture(app('import { readSecret } from "dep";\nexport const s = readSecret;\n'))
+	dependency(
+		root,
+		'import { createServerOnlyFn } from "@lovrozagar/flare";\nexport const readSecret = createServerOnlyFn(() => "SECRET_LIB");\n',
+	)
+	const client = await bundledBuild(root, "client", { bundle: ["dep"] })
+	expect(client).not.toContain("SECRET_LIB")
+	const server = await bundledBuild(root, "ssr", { bundle: ["dep"], config: { ssr: { noExternal: ["dep"] } } })
+	expect(server).toContain("SECRET_LIB")
+})
+
+// In `vite dev`, Vite 8 pre-bundles a dependency through the environment's plugins, so the boundary rewrites it there
+// as in a build: the library's server-only body is gone from the optimized chunk the dev client loads. Without flare()
+// the same chunk keeps it, so the case is not vacuous (BUGS.md 463).
+it("dependency dev", async () => {
+	const root = fixture({
+		...app('import { readSecret } from "dep";\nexport const s = readSecret;\n'),
+		"src/client.ts": 'import { s } from "./mod.ts";\nReflect.set(globalThis, "kept", s);\n',
+	})
+	dependency(
+		root,
+		'import { createServerOnlyFn } from "@lovrozagar/flare";\nexport const readSecret = createServerOnlyFn(() => "SECRET_DEV_DEP");\n',
+	)
+	const optimized = async (withFlare: boolean): Promise<string> => {
+		const server = await createServer({
+			root,
+			configFile: false,
+			logLevel: "silent",
+			cacheDir: join(root, withFlare ? ".vite-flare" : ".vite-bare"),
+			plugins: withFlare ? flare({ entry: { client: "src/client.ts", server: "src/server.ts" } }) : [],
+			resolve: { alias: { "@lovrozagar/flare": PACKAGE_ENTRY } },
+			optimizeDeps: { include: ["dep"], noDiscovery: true },
+			server: { middlewareMode: true, ws: false },
+		})
+		try {
+			const client = server.environments.client
+			const mod = (await client.transformRequest("/src/mod.ts"))?.code ?? ""
+			const url = /from\s+"([^"]*\/deps\/dep\.js[^"]*)"/.exec(mod)?.[1]
+			expect(url).toBeDefined()
+			return (await client.transformRequest(String(url)))?.code ?? ""
+		} finally {
+			await server.close()
+		}
+	}
+	const kept = await optimized(true)
+	expect(kept).toContain("readSecret")
+	expect(kept).not.toContain("SECRET_DEV_DEP")
+	expect(await optimized(false)).toContain("SECRET_DEV_DEP")
 })
 
 // 4. An alias to the package, and a path to its entry, are not the package's name: the runtime stays and fails.
@@ -131,4 +203,46 @@ it("names the chain", async () => {
 		'import { createServerOnlyFn } from "~flare";\nexport const s = createServerOnlyFn(() => "SECRET_ALIAS");\n'
 	const failure = client(module, {}, { config: { resolve: { alias: { "~flare": PACKAGE_ENTRY } } } })
 	await expect(failure).rejects.toThrow(/server-only\.ts <- .*exports\/index\.ts <- .*src\/mod\.ts/)
+})
+
+// A Web Worker is a client graph (B9). Its server-only body and `.server()` body are gone from the worker bundle a
+// build emits, and from the worker entry `vite dev` serves (`?worker_file&type=module`), which the dev rewrite skipped
+// (BUGS.md 462). The worker uses both results, so without flare() the bodies stay: the case is not vacuous.
+const WORKER = {
+	"src/worker.ts":
+		'import { createServerOnlyFn, createIsomorphicFn } from "@lovrozagar/flare";\nconst read = createServerOnlyFn(() => "SECRET_WORKER");\nconst pick = createIsomorphicFn().server(() => "SECRET_ISO").client(() => "WORKER_CLIENT");\npostMessage([String(read), String(pick)]);\n',
+	"src/client.ts": 'new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });\n',
+	"src/server.ts": "export const server = {};\n",
+}
+
+it("web worker build", async () => {
+	const root = fixture(WORKER)
+	const built = await bundledBuild(root, "client")
+	expect(built).toContain("WORKER_CLIENT")
+	expect(built).not.toMatch(/SECRET_WORKER|SECRET_ISO/)
+	expect(await bundledBuild(root, "client", { flare: false })).toContain("SECRET_WORKER")
+})
+
+it("web worker dev", async () => {
+	const root = fixture(WORKER)
+	const served = async (plugins: ReturnType<typeof boundary>[]): Promise<string> => {
+		const server = await createServer({
+			root,
+			configFile: false,
+			logLevel: "silent",
+			plugins,
+			resolve: { alias: { "@lovrozagar/flare": PACKAGE_ENTRY } },
+			server: { middlewareMode: true, ws: false },
+		})
+		try {
+			const result = await server.environments.client.transformRequest("/src/worker.ts?worker_file&type=module")
+			return result?.code ?? ""
+		} finally {
+			await server.close()
+		}
+	}
+	const rewritten = await served([boundary()])
+	expect(rewritten).toContain("WORKER_CLIENT")
+	expect(rewritten).not.toMatch(/SECRET_WORKER|SECRET_ISO/)
+	expect(await served([])).toContain("SECRET_WORKER")
 })

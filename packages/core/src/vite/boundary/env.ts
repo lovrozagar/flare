@@ -129,6 +129,8 @@ function requireDirect(
 	const callees = new Set([...calls.keys()].map((call) => call.callee.start))
 	const named = nonReferences(program)
 	const members = new Set<number>()
+	// `typeof helper` and `typeof ns.helper` are type positions, no reads (BUGS.md 464).
+	const typed = new Set<number>()
 	const fail = (name: string): never => {
 		throw new Error(`${file}: ${name} must be called directly`)
 	}
@@ -142,13 +144,21 @@ function requireDirect(
 			if (!node.computed) members.add(node.object.start)
 		},
 		TSQualifiedName: (node) => void members.add(node.left.start),
-		TSTypeQuery: (node) => void members.add(node.exprName.start),
+		TSTypeQuery: (node) => {
+			members.add(node.exprName.start)
+			typed.add(leftmost(node.exprName))
+		},
 		Identifier: (node) => {
-			if (named.has(node.start)) return
+			if (named.has(node.start) || typed.has(node.start)) return
 			if (names.locals.has(node.name) && !callees.has(node.start)) fail(node.name)
 			if (names.namespaces.has(node.name) && !members.has(node.start)) throw namespaceValue(file, node.name)
 		},
 	}).visit(program)
+}
+
+// The start of a type query's leftmost identifier: `typeof a` is `a`, `typeof a.b.c` is `a`.
+function leftmost(node: { type: string; start: number; left?: unknown }): number {
+	return node.type === "TSQualifiedName" ? leftmost(node.left as typeof node) : node.start
 }
 
 // The namespace read as a value hands its exports to code the rewrite cannot follow. The route split says the same.

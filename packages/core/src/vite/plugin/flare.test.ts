@@ -260,10 +260,14 @@ it("boundary transform", async () => {
 		"/app/src/lib/read.ts?inline",
 		"\0virtual:x.ts",
 		"/app/src/style.css",
-		"/elsewhere/read.ts",
-		"/app/node_modules/x/read.ts",
 	]) {
 		expect(await run("client", id, source)).toBeNull()
+	}
+	// A dependency and a module outside the root get the env rewrite too, and only that (BUGS.md 463); one that names
+	// no helper is left alone.
+	for (const id of ["/elsewhere/read.ts", "/app/node_modules/x/read.ts"]) {
+		expect(code(await run("client", id, source))).not.toContain("SECRET")
+		expect(await run("client", id, "export const a = 1;\n")).toBeNull()
 	}
 	expect(await run("client", "/app/src/plain.ts", "export const a = 1;\n")).toBeNull()
 })

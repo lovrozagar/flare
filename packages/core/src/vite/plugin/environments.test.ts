@@ -337,8 +337,9 @@ function workerApp(worker: string): Record<string, string> {
 	}
 }
 
-// A Vite `?worker` bundle is a client graph: the boundary rewrites it and the tripwire scans it, so a Web Worker that
-// reaches the package's server code fails the build and names the module, and a clean one builds.
+// A Vite `?worker` bundle is a client graph: the tripwire scans it, so a Web Worker that reaches the package's server
+// code fails the build and names the module. The env helpers in a worker are boundary/escape.test's `web worker build`
+// and `web worker dev` (BUGS.md 462).
 it("web worker", async () => {
 	const SERVER = fileURLToPath(new URL("../../server/context/ctx.ts", import.meta.url))
 	const leaking = await builder(
@@ -347,23 +348,6 @@ it("web worker", async () => {
 	await expect(leaking.build(leaking.environments.client ?? never())).rejects.toThrow(
 		/server\/context\/ctx\.ts is server code and cannot be in the client graph \(B45\)/,
 	)
-	// Under the repo's node_modules, so the worker's import of the package resolves.
-	mkdirSync(FIXTURES, { recursive: true })
-	const root = mkdtempSync(join(FIXTURES, "worker-"))
-	roots.push(root)
-	const env = 'import { createServerOnlyFn } from "@lovrozagar/flare";\n'
-	const worker = `${env}export const read = createServerOnlyFn(() => "SECRET_IN_WORKER");\npostMessage(1);\n`
-	for (const [name, source] of Object.entries(workerApp(worker))) {
-		mkdirSync(join(root, "src"), { recursive: true })
-		writeFileSync(join(root, "src", name), source)
-	}
-	const clean = await builder(root)
-	const client = outputs(await clean.build(clean.environments.client ?? never()))
-	const code = client.flatMap((file) =>
-		file.type === "chunk" ? [file.code] : file.fileName.endsWith(".js") ? [String(file.source)] : [],
-	)
-	expect(code.join("\n")).toContain("postMessage")
-	expect(code.join("\n")).not.toContain("SECRET_IN_WORKER")
 }, 60_000)
 
 function never(): never {
