@@ -121,3 +121,19 @@ it("registry", () => {
 	expect(() => font.preloadLinks("nope")).toThrow("Inter has no nope subset")
 	expect(() => font.css(["nope"])).toThrow("Inter has no nope subset")
 })
+
+const made = (weights: number[]) => () =>
+	createFont({ family: "Brand", src: "/fonts/brand.woff2", category: "sans-serif", weights })
+
+// A self-served font is one file: a subset name changes neither its CSS nor its preload, as the doc's
+// `subsets={["latin"]}` example has it. Its weights are one face each, 1 to 1000 as CSS reads them: an empty list or
+// one outside that throws (dx/features.md Fonts, BUGS.md 438).
+it("self-served checks", () => {
+	const font = createFont({ family: "Brand", src: "/fonts/brand.woff2", category: "sans-serif" })
+	expect(font.css(["cyrillic"])).toBe(font.css())
+	expect(font.preloadLinks("latin")).toEqual([{ href: "/fonts/brand.woff2" }])
+	expect(font.preloadLinks()).toEqual([{ href: "/fonts/brand.woff2" }])
+	expect(made([])).toThrow("weights lists no weight")
+	for (const weight of [0, 1001]) expect(made([weight])).toThrow("weight")
+	expect(made([1, 1000])).not.toThrow()
+})

@@ -6,7 +6,11 @@ import { expectReported } from "../../../shared/dev/reported.fixture.ts"
 
 // The plugin's widths, as flare({ image: { widths } }) writes them into config.ts. `hydrating` stands for a render
 // that hydrates the server's markup.
-const plugin = vi.hoisted(() => ({ widths: [320, 640, 1280, 1920] as readonly number[], hydrating: false }))
+const plugin = vi.hoisted(() => ({
+	widths: [320, 640, 1280, 1920] as readonly number[],
+	hydrating: false,
+	configured: true,
+}))
 
 vi.mock("solid-js", async (original) => {
 	const actual = await original<typeof import("solid-js")>()
@@ -18,12 +22,16 @@ vi.mock("./config.ts", async (original) => ({
 	get imageWidths() {
 		return plugin.widths
 	},
+	get imageConfigured() {
+		return plugin.configured
+	},
 }))
 
 afterEach(() => {
 	document.body.replaceChildren()
 	plugin.widths = [320, 640, 1280, 1920]
 	plugin.hydrating = false
+	plugin.configured = true
 	vi.unstubAllEnvs()
 })
 
@@ -63,8 +71,74 @@ it("srcset", () => {
 		false,
 		"",
 	])
-	// A width the plugin did not list throws.
-	expectReported(mount({ alt: "a", src: photo, widths: [321] }), "Image width 321 is not one of the plugin widths")
+	// A width the plugin did not list throws, naming the plugin's widths (BUGS.md 446).
+	expectReported(
+		mount({ alt: "a", src: photo, widths: [321] }),
+		"Image width 321 is not one of the plugin widths (320, 640, 1280, 1920)",
+	)
+})
+
+// A binding's URLs are written as the plugin gave them: the build names each file percent-encoded (BUGS.md 432), and a
+// data URL keeps its comma, which an encoding here would turn into an invalid URL.
+it("srcset file names", () => {
+	const pixel = "data:image/gif;base64,R0lGODlhAQABAAAAACw="
+	const named: ImageBinding = {
+		src: `${pixel}#640`,
+		width: 1000,
+		height: 500,
+		variants: [
+			{ width: 320, src: "/my%20photo-320.webp" },
+			{ width: 640, src: `${pixel}#640` },
+		],
+	}
+	expect(img({ alt: "a", src: named }).getAttribute("srcset")).toBe(`/my%20photo-320.webp 320w, ${pixel}#640 640w`)
+	expect(img({ alt: "a", src: named }).getAttribute("src")).toBe(`${pixel}#640`)
+})
+
+// A string src gets the same checks as a binding: a fixed width and every `widths` entry are plugin widths
+// (dx/features.md Image, BUGS.md 442).
+// An app without `flare({ image })` has no widths of its own, so a string src's fixed width and `widths` are its
+// own: a remote image renders, unchecked against the defaults.
+it("string src without the plugin", () => {
+	plugin.configured = false
+	const image = img({ alt: "r", src: "https://cdn.example/x.jpg", fixed: true, width: 300, height: 200, widths: [300] })
+	expect(image.getAttribute("src")).toBe("https://cdn.example/x.jpg")
+	expect(image.getAttribute("width")).toBe("300")
+})
+
+it("string src checks", () => {
+	expectReported(
+		mount({ alt: "a", src: "/p.png", fixed: true, width: 333, height: 10 }),
+		"Image width 333 is not one of the plugin widths",
+	)
+	expectReported(
+		mount({ alt: "a", src: "/p.png", maxWidth: 320, widths: [321] }),
+		"Image width 321 is not one of the plugin widths",
+	)
+})
+
+// `maxHeight` and `aspectRatio` shape a responsive image, so without `maxWidth` they throw, not silently vanish
+// (BUGS.md 443).
+it("responsive needs maxWidth", () => {
+	expectReported(
+		mount({ alt: "a", src: photo, maxHeight: 300 } as never),
+		"Image maxHeight and aspectRatio need maxWidth",
+	)
+	expectReported(
+		mount({ alt: "a", src: photo, aspectRatio: 2 } as never),
+		"Image maxHeight and aspectRatio need maxWidth",
+	)
+})
+
+// `quality` is an integer from 1 to 100 (BUGS.md 444).
+it("quality range", () => {
+	for (const quality of [0, 101, 1.5]) {
+		expectReported(
+			mount({ alt: "a", src: photo, maxWidth: 320, quality }),
+			`Image quality ${quality} is not an integer from 1 to 100`,
+		)
+	}
+	expect(img({ alt: "a", src: photo, maxWidth: 320, quality: 100 }).hasAttribute("srcset")).toBe(true)
 })
 
 it("alt required", () => {
@@ -135,6 +209,9 @@ it("complete before hydrate", async () => {
 it("blur scheme", () => {
 	const element = img({ alt: "a", src: photo, placeholder: "blur", blurDataURL: "https://evil.test/a.png" })
 	expect(element.style.backgroundImage).toBe("")
+	// A scheme is case-insensitive, so an uppercase `DATA:` URL is a data URL (BUGS.md 445).
+	const upper = img({ alt: "a", src: photo, placeholder: "blur", blurDataURL: "DATA:image/png;base64,AA" })
+	expect(upper.style.backgroundImage).toContain("DATA:image/png;base64,AA")
 })
 
 it("fill", () => {

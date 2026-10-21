@@ -1,6 +1,6 @@
 import { createComponent, createSignal, isHydrating, onCleanup, onSettled } from "solid-js"
 import { Dynamic, isServer, type JSX } from "@solidjs/web"
-import { imageQuality, imageWidths } from "./config.ts"
+import { imageConfigured, imageQuality, imageWidths } from "./config.ts"
 
 // What an optimized image import binds to: the intrinsic size, and one variant per configured width that fits. `src`
 // is the largest variant (dx/features.md Image).
@@ -40,7 +40,10 @@ type Fixed = {
 	maxHeight?: never
 	aspectRatio?: never
 }
-type Responsive = { maxWidth?: number; maxHeight?: number; aspectRatio?: number; fill?: never; fixed?: false }
+// `maxHeight` and `aspectRatio` shape a responsive image, so they come with `maxWidth` (BUGS.md 443).
+type Responsive =
+	| { maxWidth: number; maxHeight?: number; aspectRatio?: number; fill?: never; fixed?: false }
+	| { maxWidth?: undefined; maxHeight?: never; aspectRatio?: never; fill?: never; fixed?: false }
 
 export type ImageProps = Base & (Fill | Fixed | Responsive)
 
@@ -158,20 +161,44 @@ function mode(props: ImageProps): Mode {
 			throw new Error("Image fixed needs width and height")
 		return "fixed"
 	}
-	return props.maxWidth === undefined ? "plain" : "responsive"
+	if (props.maxWidth !== undefined) return "responsive"
+	if (props.maxHeight !== undefined || props.aspectRatio !== undefined) {
+		throw new Error("Image maxHeight and aspectRatio need maxWidth")
+	}
+	return "plain"
+}
+
+// `quality` is an integer from 1 to 100, as the dev endpoint takes it; one outside throws in dev and production alike
+// (BUGS.md 444).
+function checkQuality(quality: number | undefined): void {
+	if (quality !== undefined && (!Number.isInteger(quality) || quality < 1 || quality > 100)) {
+		throw new Error(`Image quality ${quality} is not an integer from 1 to 100`)
+	}
 }
 
 function configured(width: number): number {
-	if (!imageWidths.includes(width)) throw new Error(`Image width ${width} is not one of the plugin widths`)
+	// The message names the allowed set: a width outside it is a render error, which the doc names (BUGS.md 446).
+	if (!imageWidths.includes(width)) {
+		throw new Error(`Image width ${width} is not one of the plugin widths (${imageWidths.join(", ")})`)
+	}
 	return width
 }
 
+// A variant's URL as `src` and the srcset write it: as the binding gives it. The build names each file
+// percent-encoded, so whitespace and commas, which a srcset splits at, never appear raw (BUGS.md 432); a data URL keeps
+// its comma.
 function url(src: string, props: ImageProps): string {
 	return withQuality(src, props.quality, import.meta.env?.DEV === true)
 }
 
 function srcset(props: ImageProps): string | undefined {
 	const current = mode(props)
+	checkQuality(props.quality)
+	// A string src gets the checks a binding does, then has no srcset (BUGS.md 442), against the widths the app
+	// configured: without `flare({ image })` they are its own, as a remote image's are.
+	const checked = typeof props.src !== "string" || imageConfigured
+	if (checked && current === "fixed") configured(Number(Reflect.get(props, "width")))
+	if (checked) props.widths?.forEach(configured)
 	if (typeof props.src === "string") return undefined
 	const binding = props.src
 	const variant = (width: number): string | undefined => binding.variants.find((item) => item.width === width)?.src
@@ -221,6 +248,7 @@ function blur(props: ImageProps): JSX.CSSProperties {
 	if (props.placeholder !== "blur") return {}
 	const data = props.blurDataURL
 	if (data === undefined) throw new Error("Image placeholder blur needs a blurDataURL")
-	if (!data.startsWith("data:")) return {}
+	// A URL scheme is case-insensitive (BUGS.md 445).
+	if (!/^data:/i.test(data)) return {}
 	return { "background-image": `url(${JSON.stringify(data)})`, "background-size": "cover" }
 }

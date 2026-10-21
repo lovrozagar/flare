@@ -1,3 +1,4 @@
+import { RAW_SEARCH } from "./raw-search.ts"
 import { readFileSync } from "node:fs"
 import { expect, it } from "vitest"
 import { idPattern } from "../route-tree/index.ts"
@@ -185,4 +186,14 @@ it("nullish value", () => {
 	expect(buildUrl({ to: users, params: { id: "1" }, search })).toBe("/users/1?c=x")
 	expect(buildUrl({ to: ids.optional, params: { locale: null } })).toBe("/optional-locale")
 	expect(() => buildUrl({ to: users, params: { id: null } })).toThrow(/id/)
+})
+
+// A raw query rides on a key no app object can set: it is written as given, and beside a `search` it throws
+// (BUGS.md 441).
+it("raw query", () => {
+	expect(buildUrl({ to: "_root_/a", [RAW_SEARCH]: "?b=2&a=1" } as never)).toBe("/a?b=2&a=1")
+	expect(buildUrl({ to: "_root_/a", [RAW_SEARCH]: "" } as never)).toBe("/a")
+	expect(() => buildUrl({ to: "_root_/a", search: { a: 1 }, [RAW_SEARCH]: "?b=2" } as never)).toThrow(
+		"a raw query and search together",
+	)
 })

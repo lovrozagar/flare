@@ -8,7 +8,8 @@ import { expect, idle, open, serverOf, test } from "./docs.fixture.ts"
 // about 3% room, and growth past one is a decision, as the bundle budgets are (bits/01). The documents were measured
 // again on 2026-10-18, after BUGS.md 352's entry handler grew each page's client script from 71 to 985 bytes. The
 // JavaScript is the docs app's whole client: v0.9.23's measure on the same page was 70 KB of initial JS and 2.86 KB of
-// navigation JS, against v1's 54 KB and 1.5 KB for the same route alone.
+// navigation JS, against v1's 54 KB and 1.5 KB for the same route alone. The first load's JavaScript was raised to its
+// measured size on 2026-10-21, each raise's breakdown in its commit message.
 const BUDGET: Record<string, number> = {
 	"html /": 53_200,
 	"html gz /": 11_800,
@@ -18,7 +19,7 @@ const BUDGET: Record<string, number> = {
 	"html gz /docs/routing": 13_700,
 	"state /docs/routing": 6_450,
 	"ndjson /docs/routing": 4_970,
-	"initial js gz": 121_200,
+	"initial js gz": 121_509,
 	"prefetch js gz": 11_800,
 	"navigation js gz": 0,
 }

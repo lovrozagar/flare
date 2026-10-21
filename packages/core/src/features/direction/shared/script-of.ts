@@ -46,9 +46,20 @@ const RTL_SCRIPTS: ReadonlySet<string> = new Set([
 export function dirOf(locale: string | undefined, defaultDir: Dir): Dir {
 	if (locale === undefined || locale === "") return defaultDir
 	try {
-		const script = new Intl.Locale(locale).maximize().script
+		const script = scriptOf(new Intl.Locale(locale))
 		return script !== undefined && RTL_SCRIPTS.has(script) ? "rtl" : "ltr"
 	} catch {
 		return defaultDir
 	}
+}
+
+// Languages a runtime's ICU maximizes to no script, each with a tag that does: Bun's ICU canonicalizes `drw` and
+// `tnf` to `prs` (Dari) and leaves it there, where browsers and Node give `fa-Arab-AF` (BUGS.md 433).
+const ALIASES: Readonly<Record<string, string>> = { prs: "fa-AF" }
+
+function scriptOf(tag: Intl.Locale): string | undefined {
+	const likely = tag.maximize()
+	if (likely.script !== undefined) return likely.script
+	const alias = ALIASES[likely.language]
+	return alias === undefined ? undefined : new Intl.Locale(alias).maximize().script
 }

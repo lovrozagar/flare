@@ -25,6 +25,12 @@ beforeAll(async () => {
 	await sharp({ create: { width: 100, height: 50, channels: 3, background: "#0a0" } })
 		.png()
 		.toFile(join(root, "src", "tiny.png"))
+	await sharp({ create: { width: 100, height: 60, channels: 3, background: "#0a0" } })
+		.tiff()
+		.toFile(join(root, "src", "tiny.tiff"))
+	// Names a URL query would cut or change, and one that starts with `..` inside the project.
+	for (const name of ["a+b.png", "c&d.png", "e#f.png", "..hero.png", "50%.png", "a b,c.png"])
+		writeFileSync(join(root, "src", name), readFileSync(png))
 	// A phone photo: stored 1000x500, with EXIF orientation 6, so it shows 500x1000, upright.
 	await sharp({ create: { width: 1000, height: 500, channels: 3, background: "#04c" } })
 		.jpeg()
@@ -132,8 +138,12 @@ it("exclude", async () => {
 	// project, and a virtual module, are not app images.
 	for (const id of [png, `${png}?url`, `${png}?url&image`, `${png}?image&w=320`, `${png}?a?image`])
 		expect((await load(id, { command: "build" })).code).toBeNull()
-	expect((await load(join(tmpdir(), "outside.png?image"), { command: "build" })).code).toBeNull()
 	expect((await load("\0virtual.png?image", { command: "build" })).code).toBeNull()
+	// A `?image` import outside the project is a build error, not Vite's plain URL (BUGS.md 455).
+	const outside = join(tmpdir(), "outside.png")
+	await expect(load(`${outside}?image`, { command: "build" })).rejects.toThrow(
+		`${outside}?image is outside the project root`,
+	)
 })
 
 it("binding", async () => {
@@ -154,25 +164,66 @@ it("binding", async () => {
 	expect(server.emitted).toEqual([])
 	// The plugin config replaces config.ts with the app's widths and quality.
 	const config = await load(join(import.meta.dirname, "..", "shared", "config.ts"), { command: "build" })
-	expect(config.code).toBe("export const imageWidths = [320,640,1280];\nexport const imageQuality = 75;\n")
+	expect(config.code).toBe(
+		"export const imageWidths = [320,640,1280];\nexport const imageQuality = 75;\nexport const imageConfigured = true;\n",
+	)
 })
 
-// An image narrower than every configured width has no variant: dev serves the file, a build emits it as it is.
+// An image narrower than every configured width has one variant at its own width, a webp like any other: dev points
+// at the endpoint, which takes that width for that file only, and a build emits it. A TIFF then displays (BUGS.md 454).
 it("no variant", async () => {
 	const tiny = join(root, "src", "tiny.png")
+	const dev = "/_flare/image?src=/src/tiny.png&w=100"
 	expect((await load(`${tiny}?image`, { command: "serve" })).binding).toEqual({
-		src: "/src/tiny.png",
+		src: dev,
 		width: 100,
 		height: 50,
-		variants: [],
+		variants: [{ width: 100, src: dev }],
 	})
-	const built = await load(`${tiny}?image`, { command: "build" })
-	expect(built.binding).toMatchObject({
-		src: expect.stringMatching(/^\/assets\/tiny-[0-9a-f]{8}\.png$/),
-		variants: [],
-	})
-	expect(Buffer.from(built.emitted[0]?.source ?? []).equals(readFileSync(tiny))).toBe(true)
+	const handle = imageEndpoint(settings, { root }).handle
+	const served = await handle(new Request(`http://localhost${dev}&q=80`))
+	expect(served.status).toBe(200)
+	expect(await sharp(Buffer.from(await served.arrayBuffer())).metadata()).toMatchObject({ width: 100, format: "webp" })
+	for (const query of ["src=/src/tiny.png&w=99", "src=/src/tiny.png&w=50", "src=/src/a.png&w=100"])
+		expect((await handle(new Request(`http://localhost/?${query}`))).status).toBe(400)
+	for (const [name, width] of [
+		["tiny.png", 100],
+		["tiny.tiff", 100],
+	] as const) {
+		const built = await load(`${join(root, "src", name)}?image`, { command: "build" })
+		const stem = name.split(".")[0] ?? ""
+		expect(built.binding).toMatchObject({
+			src: expect.stringMatching(new RegExp(`^/assets/${stem}-${width}-[0-9a-f]{8}\\.webp$`)),
+			variants: [{ width }],
+		})
+		expect(await sharp(built.emitted[0]?.source).metadata()).toMatchObject({ width, format: "webp" })
+	}
 	expect((await load(`${tiny}?image`, { env: "ssr", command: "build" })).emitted).toEqual([])
+	await expect(encodeVariant(png, 100, settings)).rejects.toThrow("image width 100 is not configured")
+})
+
+// A built variant's URL names its file percent-encoded, so `%`, a space, or a comma in the name reads back as that
+// file (BUGS.md 432).
+it("prod url names", async () => {
+	for (const name of ["50%.png", "a b,c.png"]) {
+		const { binding, emitted } = await load(`${join(root, "src", name)}?image`, { command: "build" })
+		const src = (binding as { src: string }).src
+		const file = emitted.find((item) => item.fileName.includes("-640-"))?.fileName ?? ""
+		expect(decodeURIComponent(src.slice(src.lastIndexOf("/") + 1))).toBe(file.slice(file.lastIndexOf("/") + 1))
+		expect(src).not.toMatch(/[\s,]|%(?![0-9A-F]{2})/)
+	}
+})
+
+// A file name with `+`, `&`, or `#` reaches the endpoint as named (BUGS.md 456), and one that starts with `..` is in
+// the project (BUGS.md 457).
+it("dev url names", async () => {
+	const handle = imageEndpoint(settings, { root }).handle
+	for (const name of ["a+b.png", "c&d.png", "e#f.png", "..hero.png"]) {
+		const { binding } = await load(`${join(root, "src", name)}?image`, { command: "serve" })
+		const src = (binding as { src: string }).src
+		expect(new URL(src, "http://localhost").searchParams.get("src")).toBe(`/src/${name}`)
+		expect((await handle(new Request(`http://localhost${src}`))).status).toBe(200)
+	}
 })
 
 it("webp", async () => {

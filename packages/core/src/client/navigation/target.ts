@@ -1,4 +1,5 @@
-import { KIND_PARAM, withoutInternalKeys } from "../../shared/protocol/index.ts"
+import { RAW_SEARCH } from "../../shared/url/raw-search.ts"
+import { KIND_PARAM, withoutInternalKeys, withoutInternalQuery } from "../../shared/protocol/index.ts"
 import { rewriteLocation, type Match, type Router } from "../../shared/router/create-router.ts"
 import { buildUrl, routeHref, type Location } from "../../shared/url/index.ts"
 import { isHashMove } from "./scroll.ts"
@@ -31,7 +32,12 @@ export function resolveTarget(input: NavigateInput, context: TargetContext): Tar
 	// A route id is the URL the router writes: under its base, with its trailing-slash rule (plan 21 3.7, 3.9). Reserved
 	// keys leave the search for the URL and for a shallow move's page alike (BUGS.md 322).
 	const search = withoutInternalKeys(input.search)
-	const built = routeHref(context.router, buildUrl({ to: input.to, params: input.params, search, hash: input.hash }))
+	const given: unknown = Reflect.get(input, RAW_SEARCH)
+	const raw = { [RAW_SEARCH]: typeof given === "string" ? withoutInternalQuery(given) : given }
+	const built = routeHref(
+		context.router,
+		buildUrl({ to: input.to, params: input.params, search, hash: input.hash, ...raw }),
+	)
 	const location = rewriteLocation(context.router, locationOf(new URL(built, context.origin)), context.origin)
 	if (input.shallow === true && location.pathname !== context.current.pathname) {
 		throw new Error("navigate: a shallow navigation keeps the pathname")

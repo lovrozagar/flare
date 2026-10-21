@@ -1,6 +1,7 @@
 import { expect, it } from "vitest"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRouter, type RouterOptions } from "../../shared/router/create-router.ts"
+import { RAW_SEARCH } from "../../shared/url/raw-search.ts"
 import { hashAgain, resolveTarget, resolveUrl, type TargetContext } from "./target.ts"
 
 const pages: RouterOptions["routeTree"] = [
@@ -20,6 +21,23 @@ function context(options: Partial<RouterOptions> = {}): TargetContext {
 it("foreign origin", () => {
 	expect(() => resolveTarget({ to: "https://evil/" }, context())).toThrow(/route id/)
 	expect(() => resolveTarget({ to: "//evil/x" }, context())).toThrow(/route id/)
+})
+
+// A target with a raw query: the key rides beside the public fields, as setLocale's spread passes it.
+const raw = (query: string, hash?: string) => ({
+	to: "_root_/about",
+	hash,
+	[RAW_SEARCH]: query,
+})
+
+// The raw query setLocale and the cross-tab follow pass is written byte for byte, order and repeats kept, through the
+// real router (BUGS.md 441); its reserved pairs leave it as a search's keys do (BUGS.md 322).
+it("raw query", () => {
+	const kept = resolveTarget(raw("b=2&a=1&constructor=x&b=3", "h"), context())
+	expect(kept).toMatchObject({ kind: "data", url: "/about?b=2&a=1&constructor=x&b=3#h" })
+	const stripped = resolveTarget(raw("?_flare=x&b=2&_flare_stale=y"), context())
+	expect(stripped).toMatchObject({ url: "/about?b=2" })
+	expect(resolveTarget(raw("_flare=x"), context())).toMatchObject({ url: "/about" })
 })
 
 it("data url", () => {

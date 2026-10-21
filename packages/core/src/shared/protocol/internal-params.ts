@@ -39,10 +39,19 @@ export function withoutInternalKeys(search: object | undefined): Record<string, 
 // data, and the match ids, raw params plus raw search, would then differ from the client's (B31).
 function withoutInternal(request: URL): URL {
 	const url = new URL(request)
-	const pairs = url.search.slice(1).split("&")
-	const kept = pairs.filter((pair) => !INTERNAL.has(nameOf(pair)))
-	if (kept.length < pairs.length) url.search = kept.join("&")
+	const query = withoutInternalQuery(url.search)
+	if (query !== url.search) url.search = query
 	return url
+}
+
+// A raw query, with or without its `?`, less its reserved pairs: every other byte and the order kept. A raw query a
+// navigation writes as given loses them as a search object's keys do (BUGS.md 322).
+export function withoutInternalQuery(raw: string): string {
+	const prefix = raw.startsWith("?") ? "?" : ""
+	const pairs = raw.slice(prefix.length).split("&")
+	const kept = pairs.filter((pair) => !INTERNAL.has(nameOf(pair)))
+	if (kept.length === pairs.length) return raw
+	return kept.length === 0 ? "" : `${prefix}${kept.join("&")}`
 }
 
 function nameOf(pair: string): string {

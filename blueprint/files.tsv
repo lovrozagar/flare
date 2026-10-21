@@ -60,6 +60,8 @@ packages/core/src/shared/url/href.test.ts	P2	test	shared	Unit cases for href.ts
 packages/core/src/shared/url/href.corpus.txt	P2	corpus	shared	Href corpus
 packages/core/src/shared/url/search.ts	P2	src	shared	Parse and serialize the search record. Null prototype. Drops __proto__, constructor, and prototype (B81)
 packages/core/src/shared/url/search.test.ts	P2	test	shared	Unit cases for search.ts
+packages/core/src/shared/url/raw-search.ts	P2	src	shared	RAW_SEARCH: the module-private key a navigation target carries its query on, written as given (BUGS.md 441)
+packages/core/src/shared/url/raw-search.test.ts	P2	test	shared	Unit cases for raw-search.ts
 packages/core/src/shared/url/index.ts	P2	index	shared	Re-exports
 packages/core/src/shared/duration/parse.ts	P2	src	shared	Parse a duration string into milliseconds
 packages/core/src/shared/duration/parse.test.ts	P2	test	shared	Unit cases for parse.ts
@@ -983,6 +985,8 @@ packages/core/tests/integration/hydrate.harness.ts	P15	test	node	SSR then hydrat
 packages/core/tests/integration/network-churn.test.ts	P16	test	node	BUGS.md 484's proof, peer-safe: interface churn in Chromium's namespace fails its loads, churn elsewhere does not reach it, and Firefox and WebKit ignore churn
 packages/core/tests/integration/network-churn.probe.mjs	P16	test	node	network-churn.test's probe inside a throwaway container: Firefox and WebKit loading a 300-module page
 packages/core/tests/integration/frozen-webkit.setup.ts	P16	test	node	The integration project's setup file: with the installed engines and Playwright's frozen macOS 14 WebKit, each case under a webkit suite skips with the BUGS.md 351 reason
+packages/core/tests/report-error.setup.ts	P13	test	dom	The unit-dom project's setup file: a browser's reportError, an ErrorEvent at the window, which jsdom lacks, so Solid's dev report of a render throw lands in the same place on Node and Bun; a report no listener prevented fails its test
+packages/core/tests/report-error.test.tsx	P13	test	dom	Unit cases for report-error.setup.ts: an unexpected render throw fails its test, every unhandled report counts, an expected one passes
 packages/core/tests/integration/hydrate.api.ts	P15	test	node	The api a harness tree or app is built from and the modules each side loads it from, split from hydrate.harness.ts at its 300-line limit
 packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported component and hook round-trips SSR to hydrate with no hydration warning, key miss, unclaimed node, or untracked strict read (B96)
 packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app mode: a document the real createServer(...).fetch serves, hydrated in each engine by the real createClient, its callbacks' record read back (B96)
