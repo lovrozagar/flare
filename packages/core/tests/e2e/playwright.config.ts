@@ -10,13 +10,20 @@ type FlareProject = Project<PlaywrightTestOptions, PlaywrightWorkerOptions & Flo
 const SERVERS = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"]
 const BROWSERS = ["chromium", "firefox", "webkit"] as const
 
-// The global setup puts the run-server's endpoint in the env before any worker starts, and a worker loads this file
-// again, so every project connects to it. Without one, the projects launch Playwright's installed engines (B97).
-const endpoint = process.env["FLARE_BROWSER_WS"]
-const connect = endpoint === undefined ? {} : { connectOptions: { wsEndpoint: endpoint, timeout: 60_000 } }
+// The global setup puts the run-servers' endpoints in the env before any worker starts, and a worker loads this file
+// again, so every project connects to its engine's: Chromium's own, with the headers that route it through the
+// loopback proxy (BUGS.md 484), and the shared one for Firefox and WebKit. Without them, the projects launch
+// Playwright's installed engines (B97).
+function connect(browserName: (typeof BROWSERS)[number]) {
+	const chromium = browserName === "chromium"
+	const endpoint = (chromium ? process.env["FLARE_CHROMIUM_WS"] : undefined) ?? process.env["FLARE_BROWSER_WS"]
+	if (endpoint === undefined) return {}
+	const headers: Record<string, string> = chromium ? JSON.parse(process.env["FLARE_CHROMIUM_HEADERS"] ?? "{}") : {}
+	return { connectOptions: { wsEndpoint: endpoint, timeout: 60_000, headers } }
+}
 
 const grid: FlareProject[] = SERVERS.flatMap((server) =>
-	BROWSERS.map((browserName) => ({ name: `${server}-${browserName}`, use: { browserName, ...connect } })),
+	BROWSERS.map((browserName) => ({ name: `${server}-${browserName}`, use: { browserName, ...connect(browserName) } })),
 )
 
 // The browser floor (decision B123): the production client in Chromium with every API newer than Chrome 111, Firefox
@@ -25,7 +32,7 @@ const grid: FlareProject[] = SERVERS.flatMap((server) =>
 const floor: FlareProject = {
 	name: "node-prod-floor",
 	testMatch: ["docs-smoke.test.ts", "docs-navigation.test.ts", "docs-data.test.ts"],
-	use: { browserName: "chromium", floor: true, ...connect },
+	use: { browserName: "chromium", floor: true, ...connect("chromium") },
 }
 
 const all = [...grid, floor]

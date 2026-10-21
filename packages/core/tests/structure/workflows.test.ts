@@ -46,3 +46,20 @@ it("prerelease tags", () => {
 it("nothing latest", () => {
 	expect(workflows.filter(({ text }) => /@latest\b/.test(text)).map((file) => file.name)).toEqual([])
 })
+
+// The browsers' topology is browser-server.ts's, the same in CI as on a machine (BUGS.md 484): the lint job's runner has
+// Docker, so its `test` runs the two containers, and no workflow sets an endpoint or the proxy by hand. The e2e grid
+// runs inside the pinned image and the Mac job installs its engines, so both launch them directly.
+it("browsers from browser-server", () => {
+	const byHand = /FLARE_BROWSER_WS|FLARE_CHROMIUM_WS|FLARE_CHROMIUM_HEADERS|loopback-proxy|x-playwright-launch-options/
+	expect(workflows.filter(({ text }) => byHand.test(text)).map((file) => file.name)).toEqual([])
+	const ci = workflows.find((file) => file.name === "ci.yml")?.text ?? ""
+	const job = (name: string): string =>
+		new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z][\\w-]*:\\n|$)`).exec(ci)?.[1] ?? ""
+	expect(job("e2e-linux")).toMatch(
+		/container:\s+image: mcr\.microsoft\.com\/playwright:v[\d.]+-noble@sha256:[0-9a-f]{64}/,
+	)
+	expect(job("e2e-mac")).toMatch(
+		/runs-on: macos-latest[\s\S]*bunx playwright install --with-deps chromium firefox webkit/,
+	)
+})
