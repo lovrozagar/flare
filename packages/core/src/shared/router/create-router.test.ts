@@ -53,6 +53,29 @@ it("not found fuzzy", async () => {
 	expect(await notFoundOf(router.match("/missing"))).toBe(rootNotFound)
 })
 
+// The types are the only check on the enum options (dx/router.md): a value they reject is not refused at createRouter but
+// stored as given, and a reader that compares it with its own values reads it as the default, so a bad `notFoundMode`
+// finds the root's notFoundRender as "root" does.
+it("enum options unchecked", async () => {
+	const bad = "bogus" as never
+	const options = {
+		trailingSlash: bad,
+		notFoundMode: bad,
+		scrollRestorationBehavior: bad,
+		prefetch: bad,
+		viewTransitions: bad,
+	}
+	const router = createRouter({ layouts, routeTree: pages, ...options })
+	expect(router).toMatchObject({
+		trailingSlash: "bogus",
+		notFoundMode: "bogus",
+		scrollRestorationBehavior: "bogus",
+		prefetch: { modules: "bogus", data: "bogus" },
+		viewTransitions: "bogus",
+	})
+	expect(await notFoundOf(router.match("/blog/missing"))).toBe(rootNotFound)
+})
+
 it("cache client only", () => {
 	const router = createRouter({ layouts: {}, routeTree: [] })
 	// @ts-expect-error the router cache has no ssr
