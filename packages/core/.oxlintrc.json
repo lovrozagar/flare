@@ -58,7 +58,7 @@
 			}
 		},
 		{
-			"files": ["tests/e2e/apps/**"],
+			"files": ["tests/e2e/apps/**", "tests/perf/apps/**"],
 			"rules": {
 				"flare/no-module-side-effects": "off",
 				"flare/funnel-only": "off"
