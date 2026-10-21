@@ -21,8 +21,10 @@ function started(): Harness {
 	return harness
 }
 
-// A root and a page with loader data, built on both sides from this source.
+// A root and a page with loader data, built on both sides from this source. The page can revalidate, as a sign-out
+// does.
 function app(api: Api): { router: unknown } {
+	if (typeof window !== "undefined") Object.assign(window, { __flareInvalidate: api.active.invalidate })
 	const root = api.rootLayout.createRootLayout("_root_").render((props) => props.children)
 	const home = api.page
 		.createPage("_root_/")
@@ -61,7 +63,44 @@ async function helperOn(engine: Engine): Promise<Seen> {
 	return seen
 }
 
+type Held = { ms: number; hydrated: boolean; dropped: string[]; state: FlareState | undefined }
+
+// A resource that never answers holds the page's load event: `load` still resolves once the page hydrates, well inside
+// its deadline (BUGS.md 472). Then a revalidation drops `self.flare` down to `call`, and `state` still reads the state
+// the document hydrated with (BUGS.md 475).
+async function heldOn(engine: Engine): Promise<Held> {
+	const seen: Held = { ms: 0, hydrated: false, dropped: [], state: undefined }
+	await started().app(engine, {
+		app,
+		client() {},
+		async steps(tab) {
+			const helper = flarePage(tab)
+			await tab.route("**/held.png", () => undefined)
+			await tab.addInitScript(() => {
+				new Image().src = "/held.png"
+			})
+			const start = Date.now()
+			await helper.load(new URL("/", tab.url()).href)
+			seen.ms = Date.now() - start
+			seen.hydrated = await tab.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"))
+			await tab.evaluate(() => (Reflect.get(window, "__flareInvalidate") as () => Promise<void>)())
+			seen.dropped = await tab.evaluate(() => Object.keys(Reflect.get(window, "flare") as object))
+			seen.state = await helper.state()
+		},
+	})
+	return seen
+}
+
 describe.each(ENGINES)("%s", (engine) => {
+	it("held load and revalidation", async () => {
+		const seen = await heldOn(engine)
+		expect(seen.hydrated).toBe(true)
+		expect(seen.ms).toBeLessThan(15_000)
+		expect(seen.dropped).toEqual(["call"])
+		expect(seen.state?.matches.map((match) => match.id)).toEqual(["_root_", "_root_/"])
+		expect(seen.state?.matches[1]?.data).toEqual({ greeting: "hello" })
+	}, 60_000)
+
 	it("helper on a real page", async () => {
 		const seen = await helperOn(engine)
 		expect(seen.hydrated).toBe(true)

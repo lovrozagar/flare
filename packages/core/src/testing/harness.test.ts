@@ -51,6 +51,13 @@ it("server context", async () => {
 })
 
 // `{ serverContext }` and nothing else: another key is not half-honored. It throws and names itself.
+// A missing or wrong router is named at the call, not met later as an engine's TypeError (BUGS.md 477).
+it("router required", () => {
+	for (const value of [undefined, {}, "router", { match: "no" }]) {
+		expect(() => createTestServer(value as never)).toThrow("createTestServer: router is required")
+	}
+})
+
 it("other keys refused", () => {
 	const site = { site: "https://x" } as unknown as Parameters<typeof createTestServer>[1]
 	expect(() => createTestServer(router, site)).toThrow("createTestServer takes { serverContext } only, not site")

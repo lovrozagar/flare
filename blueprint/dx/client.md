@@ -8,7 +8,7 @@ createClient(router)
   .onInteraction(() => {})
 ```
 
-`router` is the object from `createRouter`. It is required. There is no second argument.
+`router` is the object from `createRouter`. It is required. There is no second argument. Anything else, `undefined` or an object without the router's shape, throws at the call, naming `router`, before any boot is queued (`create-client.test.ts` `router required`, BUGS.md 434).
 
 The return value hydrates on the next microtask, which is why the callbacks are registered by chaining in the same turn. A callback registered after that microtask throws (`client/boot/ready.test.ts` `late`; `tests/integration/client.test.ts` `late registration`).
 

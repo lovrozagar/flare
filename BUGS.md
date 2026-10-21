@@ -1652,6 +1652,10 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 426.3 [ ] What lifts the cap: the rc.16 query hang fixed upstream or in Flare, and plan 25 6.3's bump (parked at 716c147e, which drops SafeErrored) landing with it. Until then this row stays open.
 426.4 [ ] The rc.16 query hang's own shape is not pinned yet (2026-10-21, an rc.16 worktree at 716c147e, chromium). Known: after a client navigation to the page, its rejecting `useQuery` runs its queryFn once and TanStack's state reads `status: "error"`, `fetchStatus: "idle"`, but the rendered read never re-runs to throw it, so no boundary is reached (an instrumented outlet guard's Errored fallback is never called) and the slot stays empty; a document load of the same page renders its errorRender; Flare's query getter is not involved (a plain `QueryClient` hangs too, and no navigation hydrate runs). The no-Flare control `.tmp/grunt/solid-query-hang-repro/` (Solid rc.16 and solid-query 6.0.0-rc.5, SSR then hydrate in jsdom) propagates the error in its `direct` and `slot` shapes, and hangs in its `inner` shape (a keyed memo mounting a fresh Errored and Loading under untrack), but that hang happens on rc.15 too, where Flare passes: it is a separate TanStack-in-a-fresh-boundary hang, not this regression. 716c147e resumes only once this row names the regression's own shape and its owner (Flare, solid-query, or Solid).
 
+434 [x] createClient accepted a missing or wrong `router`
+434.1 [x] Found by plan 29's batch C review (2026-10-21, client D4): the boot failed later, far from the call.
+434.2 [x] Fix: createClient throws at the call, naming `router`, unless it is given a router, with the check createServer and createTestServer make (`checkRouter`, BUGS.md 477; moved into batch D, which lands first). Red first: create-client.test `router required`.
+
 452 [x] A client that left before the Node listener's answer started had its body read through into the closed answer
 452.1 [x] Found while tracing the group 5 Mac flake (2026-10-21, minimal.test `basepath › cdn page fresh`, CI runs 39497487553 and 39519606173): writeBody cancels the body's reader from the request signal's `abort` listener, and an already aborted signal never fires a listener added after. A client that left while the server was still answering got a body nobody cancelled; before BUGS.md 411 the first backpressured write parked forever, after it the drain wait returns at once and the loop reads the whole body into the closed answer. Wasted work, not the flake's cause as far as the code shows.
 452.2 [x] Fix: writeBody cancels the reader at once when the signal is already aborted. Red first: listener-answers.test `left before the answer` (a 100-chunk body: cancelled, under 5 pulls).
@@ -1704,6 +1708,30 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 471 [x] Nothing pinned that createServer loads no seo module
 471.1 [x] Found by plan 29's batch D review (2026-10-21, seo D7, 6.1-seo.md): B58's claim held, but the boundaries lint rule would allow a re-export of a submitter from `./server`.
 471.2 [x] Fix: tests/structure/server-graph `server loads no seo` walks the runtime import graph of `src/exports/server.ts`, following relative specifiers, the package's own `@lovrozagar/flare/...` through its `exports` map, and a template `import()` with no substitution, and asserts no `src/features/seo` module; flip-proven by a re-export of `indexNow`, a self-import of `@lovrozagar/flare/seo`, and a template import (batch D review item 11).
+
+472 [x] flarePage.load threw Playwright's goto timeout on a page that had hydrated
+472.1 [x] Found by plan 29's batch D review (2026-10-21, testing D1, 6.1-testing.md): `load` awaited `goto` to the load event before reading the hydration signal, so a resource that never answered (a pixel, a long poll) made a hydrated page fail after 30 s with `page.goto: Timeout 30000ms exceeded`.
+472.2 [x] Fix: `goto` runs with `waitUntil: "commit"`, so the hydration wait starts at the response. Red first: playwright.test `hydrated`; flare-page.test `held load and revalidation` (an image whose request never answers) in Chromium, Firefox, and WebKit.
+
+473 [x] flarePage.load's 25 s deadline started after the load event
+473.1 [x] Found by plan 29's batch D review (2026-10-21, testing D2, 6.1-testing.md): a page that never hydrated, with a 10 s load event, threw `within 25000 ms` at 35 s.
+473.2 [x] Fix: the deadline counts from the call, its `goto` included (`HydrationWait.start`). Red first: playwright.test `deadline from the call`. Batch D review item 13: the goto's own timeout is what the deadline leaves, and a goto that times out past the deadline throws `The page never hydrated` (red first: playwright.test `deadline from the call`, a document that never answers).
+
+474 [x] The last re-issue warning named a query that was never sent
+474.1 [x] Found by plan 29's batch D review (2026-10-21, testing D3, 6.1-testing.md): a slice that ended reported `query N+1 sent` before the deadline check threw, so a page that never hydrated logged one warning too many.
+474.2 [x] Fix: the report runs at the top of the next slice, after the deadline check. Red first: playwright.test `never hydrated` (reports 1 and 2 for three slices).
+
+475 [x] flarePage.state blamed the page's shape after a revalidation
+475.1 [x] Found by plan 29's batch D review (2026-10-21, testing D4, 6.1-testing.md): `invalidate()`, or a server function that set a cookie, empties `self.flare` to `call`, and `state()` threw `self.flare is not Flare's document state` in every engine.
+475.2 [x] Fix: the page's init script keeps a copy of `self.flare`'s fields when it hydrates, and `state()` reads that copy (ruled: the snapshot at load); without a `load`, an emptied `self.flare` throws naming the revalidation. Red first: playwright.test `state kept`, `page script`; flare-page.test `held load and revalidation`.
+
+476 [x] A boot-stopping hydration mismatch reached the test only as a timeout
+476.1 [x] Found by plan 29's batch D review (2026-10-21, testing D5, 6.1-testing.md): a mismatch Solid logs stops the boot, so `load` threw `The page never hydrated` after 25 s and the test never read `consoleErrors()`, which held the cause; a mismatch Solid hydrates over without a word is not logged at all.
+476.2 [x] Fix: (ruled) the never-hydrated error ends with what the page logged, and dx/testing.md says `consoleErrors` holds what the engine logs, per engine. Red first: playwright.test `never hydrated logs`. Batch D review item 15: only what the page logged since that load began.
+
+477 [x] createTestServer and createServer met a missing router with an engine TypeError
+477.1 [x] Found by plan 29's batch D review (2026-10-21, testing D6, 6.1-testing.md): `createTestServer(undefined)` threw `Cannot read properties of undefined (reading 'routeTree')`, and `{}` threw `router.routeTree is not iterable`, naming neither the helper nor `router`.
+477.2 [x] Fix: both check the router at the call with the check createClient uses (BUGS.md 434), `checkRouter` in shared/router/create-router.ts. Red first: harness.test and create-input.test `router required`.
 
 ## Verify
 

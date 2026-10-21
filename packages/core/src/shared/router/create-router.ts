@@ -286,3 +286,11 @@ export function rewriteLocation(router: Pick<Router, "rewrite">, location: Locat
 	if (url.origin !== origin) throw new Error("rewrite: the result is not on this origin")
 	return { pathname: url.pathname, search: url.search, hash: url.hash }
 }
+
+// A missing or wrong router throws at the call that took it, naming it, not later as an engine's own message. The
+// message is short, since it ships in createClient; dx/client.md says what a router is (BUGS.md 477).
+export function checkRouter(caller: string, router: unknown): void {
+	if (typeof router !== "object" || router === null || typeof Reflect.get(router, "match") !== "function") {
+		throw new Error(`${caller}: router is required`)
+	}
+}

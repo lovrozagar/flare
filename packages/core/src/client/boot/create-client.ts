@@ -3,7 +3,7 @@ import { setActiveClient } from "../navigation/active.ts"
 import { hydrate } from "@solidjs/web"
 import { delegateClicks } from "../../shared/components/index.ts"
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts"
-import type { Router } from "../../shared/router/create-router.ts"
+import { checkRouter, type Router } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
 import type { Location } from "../../shared/url/index.ts"
 import { createHistory, type FlareHistory } from "../history/index.ts"
@@ -51,6 +51,7 @@ type Parts = { history: FlareHistory; scroll: ScrollStore; store: RouterStore; b
 
 // Hydrate starts on the next microtask, after the app chained its callbacks (dx/client.md).
 export function createClient(router: Router): ReadyApi {
+	checkRouter("createClient", router)
 	const ready = createReady()
 	queueMicrotask(() => {
 		ready.close()
@@ -167,8 +168,7 @@ function hydrateGuarded(state: ClientState, phase: { hydrating: boolean }, app: 
 	}
 }
 
-// Disposing the client also clears the active navigation, so the root `navigate` no longer reaches a client that is
-// gone (BUGS.md 105).
+// Disposing the client also clears the active navigation, so the root `navigate` no longer reaches it (BUGS.md 105).
 function disposer(...stops: (() => void)[]): () => void {
 	return () => {
 		setActiveClient(undefined)

@@ -84,6 +84,13 @@ it("input output", async () => {
 	expect(stateIn(body).at(-1)).toMatchObject({ params: { id: 7 }, search: { page: 2 } })
 })
 
+// A missing or wrong router is named at the call, not met later as an engine's TypeError (BUGS.md 477).
+it("router required", () => {
+	for (const value of [undefined, null, { routeTree: [] }, "router"]) {
+		expect(() => createServer({ router: value } as never)).toThrow("createServer: router is required")
+	}
+})
+
 // The observability options dx/observability.md plans are not in v1: `ServerOptions` has no such key, and a server
 // given one from JavaScript or through a cast throws, naming it, instead of ignoring it (plan 21 13.14, BUGS.md 216).
 it("planned options", () => {
