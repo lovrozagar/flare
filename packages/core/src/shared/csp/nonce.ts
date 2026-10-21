@@ -8,6 +8,8 @@ type RequestEvent = {
 	nonce: string
 	stylesheet?: StylesheetPlacement
 	devStyles?: readonly DevStyle[] | undefined
+	// Set by the render's first `<Stylesheet />`: a second renders nothing (BUGS.md 481).
+	stylesheetClaimed?: boolean
 }
 
 export type StylesheetPlacement = { href?: string }
@@ -71,6 +73,16 @@ export function placeStylesheet(href: string): boolean {
 	const placement = current()?.stylesheet
 	if (placement === undefined) return false
 	placement.href = href
+	return true
+}
+
+// The render's first `<Stylesheet />` claims it: true for that one, false for a later one, and undefined outside a
+// document render, where the component keeps its own claim (BUGS.md 481).
+export function claimStylesheet(): boolean | undefined {
+	const event = current()
+	if (event === undefined) return undefined
+	if (event.stylesheetClaimed === true) return false
+	event.stylesheetClaimed = true
 	return true
 }
 

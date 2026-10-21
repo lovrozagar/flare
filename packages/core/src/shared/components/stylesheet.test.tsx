@@ -1,4 +1,4 @@
-import { createComponent, flush } from "solid-js"
+import { createComponent, createRoot, flush } from "solid-js"
 import { render } from "@solidjs/web"
 import { afterEach, expect, it, vi } from "vitest"
 import { withRequest, type StylesheetPlacement } from "../csp/nonce.ts"
@@ -21,14 +21,20 @@ afterEach(() => {
 	delete (globalThis as FlareScope).flare
 })
 
-// What a client-only render writes for the request nonce `requestNonce`.
-function rendered(requestNonce = "n"): HTMLElement {
+// What a client-only render writes for the request nonce `requestNonce`, with `count` Stylesheets side by side.
+function rendered(requestNonce = "n", count = 1): HTMLElement {
 	;(globalThis as FlareScope).flare = { nonce: requestNonce }
 	const host = document.createElement("div")
-	render(() => createComponent(Stylesheet, {}), host)
+	disposers.push(render(() => Array.from({ length: count }, () => createComponent(Stylesheet, {})), host))
 	flush()
 	return host
 }
+
+const disposers: (() => void)[] = []
+
+afterEach(() => {
+	for (const dispose of disposers.splice(0)) dispose()
+})
 
 it("dev", () => {
 	vi.stubEnv("DEV", true)
@@ -53,6 +59,8 @@ it("prod", () => {
 			'<noscript><link rel="stylesheet" href="/assets/app.css"></noscript>' +
 			'<script nonce="n">{const l=document.createElement("link");l.rel="stylesheet";l.href=document.getElementById("flare-stylesheet").getAttribute("href");document.currentScript.after(l)}</script>',
 	)
+	// A page with no nonce, rendered on its own: the first page's Stylesheet has unmounted.
+	for (const dispose of disposers.splice(0)) dispose()
 	expect(rendered("").innerHTML).toBe('<link rel="stylesheet" href="/assets/app.css">')
 })
 
@@ -76,4 +84,37 @@ it("placed", () => {
 	const host = withRequest({ path: "/", nonce: "n", stylesheet }, () => rendered())
 	expect(host.innerHTML).toBe("")
 	expect(stylesheet.href).toBe("/assets/app.css")
+})
+
+// The page holds one stylesheet: a second `<Stylesheet />` in the same render renders nothing, in a dev document, a
+// production document, and a client-only render alike; once the first unmounts, a new one renders again
+// (dx/head.md, BUGS.md 481).
+it("one per render", () => {
+	vi.stubEnv("DEV", true)
+	const devStyles = [
+		{ id: "/src/app.css", css: "a{}" },
+		{ id: "/src/page.module.css", css: "b{}" },
+	]
+	const dev = withRequest({ path: "/", nonce: "n", devStyles }, () => rendered("n", 2))
+	expect(dev.querySelectorAll('[data-vite-dev-id="/src/app.css"]')).toHaveLength(1)
+	expect(dev.querySelectorAll('[data-vite-dev-id="/src/page.module.css"]')).toHaveLength(1)
+	vi.stubEnv("DEV", false)
+	for (const dispose of disposers.splice(0)) dispose()
+	const stylesheet: StylesheetPlacement = {}
+	expect(withRequest({ path: "/", nonce: "n", stylesheet }, () => rendered("n", 2)).innerHTML).toBe("")
+	expect(stylesheet.href).toBe("/assets/app.css")
+	for (const dispose of disposers.splice(0)) dispose()
+	const alone = rendered("n", 2)
+	expect(alone.querySelectorAll("#flare-stylesheet")).toHaveLength(1)
+	expect(alone.querySelectorAll("script")).toHaveLength(1)
+	expect(rendered("n").querySelectorAll("#flare-stylesheet")).toHaveLength(0)
+	for (const dispose of disposers.splice(0)) dispose()
+	expect(rendered("n").querySelectorAll("#flare-stylesheet")).toHaveLength(1)
+	// A render with no request scope and no document, a bare server render, claims nothing and renders.
+	vi.stubGlobal("document", undefined)
+	try {
+		expect(createRoot((dispose) => [Stylesheet(), dispose()][0])).toBeDefined()
+	} finally {
+		vi.unstubAllGlobals()
+	}
 })

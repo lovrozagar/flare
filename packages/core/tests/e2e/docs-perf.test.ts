@@ -19,7 +19,7 @@ const BUDGET: Record<string, number> = {
 	"html gz /docs/routing": 13_700,
 	"state /docs/routing": 6_450,
 	"ndjson /docs/routing": 4_970,
-	"initial js gz": 121_542,
+	"initial js gz": 121_660,
 	"prefetch js gz": 11_800,
 	"navigation js gz": 0,
 }
