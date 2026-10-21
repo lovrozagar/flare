@@ -1,6 +1,7 @@
 import { expect, it } from "vitest"
 import type { Deferred } from "../../shared/route-builder/register.ts"
 import { DOCUMENT_VIEW } from "../../shared/protocol/deferred-failure.ts"
+import { withServerContext } from "../context/ctx.ts"
 import { createDefer, type DeferScope } from "./defer.ts"
 
 const live: DeferScope = { stored: false, dev: false }
@@ -55,6 +56,46 @@ it("nested", async () => {
 	await expect(dev.defer(() => Promise.resolve(3)).promise).resolves.toBe(3)
 })
 
+// A deferred function that awaits, then defers again: the inner value with its function, and whether that ran.
+function awaitsThenDefers(loader: ReturnType<typeof createDefer>): { outer: Deferred<unknown>; ran: () => boolean } {
+	let ran = false
+	const outer = loader.defer(async () => {
+		await Promise.resolve()
+		return {
+			inner: loader.defer(async () => {
+				ran = true
+				return 2
+			}),
+		}
+	})
+	return { outer, ran: () => ran }
+}
+
+// The `await` form. Under a request, the deferred function runs in its own async-local scope, so the dev guard finds
+// it after an await too: the value rejects with the guard's error and the inner function never runs (BUGS.md 459).
+// Outside one, as on a runtime with no async-local storage, the await form is not guarded, as the doc says.
+it("nested after await", async () => {
+	const request = { request: new Request("http://localhost/"), env: {} }
+	const guarded = await withServerContext(
+		request,
+		async () => {
+			const nested = awaitsThenDefers(createDefer({ stored: false, dev: true }))
+			const outcome = await nested.outer.promise.then(
+				() => "resolved",
+				(error: unknown) => String(error),
+			)
+			return { outcome, ran: nested.ran() }
+		},
+		(error) => {
+			throw error
+		},
+	)
+	expect(guarded).toEqual({ outcome: "Error: defer: called inside a deferred function", ran: false })
+	const bare = awaitsThenDefers(createDefer({ stored: false, dev: true }))
+	await bare.outer.promise
+	expect(bare.ran()).toBe(true)
+})
+
 it("dedupe", async () => {
 	const { defer } = createDefer(live)
 	let second = false
@@ -102,10 +143,10 @@ it("call overrides route", async () => {
 
 it("started", async () => {
 	const loader = createDefer(live)
-	const first = loader.defer(() => Promise.resolve("a"))
+	const first = loader.defer(() => Promise.resolve("a"), { key: "first" })
 	loader.defer(() => Promise.reject(new Error("b")))
-	loader.defer(() => Promise.resolve("again"), { key: "d0" })
-	expect(loader.started.map((entry) => entry.key)).toEqual(["d0", "d1"])
+	loader.defer(() => Promise.resolve("again"), { key: "first" })
+	expect(loader.started.map((entry) => entry.key)).toEqual(["first", "d0"])
 	expect(loader.started[0].promise).toBe(first.promise)
 	await expect(loader.started[1].promise).rejects.toThrow("b")
 	const stored = createDefer({ stored: true, route: "stream", dev: false })
@@ -208,4 +249,29 @@ it("document view", async () => {
 	const stored = createDefer({ stored: true, dev: false })
 	stored.defer(() => Promise.resolve(1))
 	expect(stored.started.map((entry) => entry.stored)).toEqual([true])
+})
+
+// A function that throws before it returns its promise fails its own value, as a rejection does: the loader goes on,
+// and the other values settle (dx/defer.md, BUGS.md 429).
+it("sync throw", async () => {
+	const { defer } = createDefer(live)
+	const bad = defer((): Promise<number> => {
+		throw new Error("sync boom")
+	})
+	const ok = defer(() => Promise.resolve("fine"))
+	await expect(bad.promise).rejects.toThrow("sync boom")
+	await expect(ok.promise).resolves.toBe("fine")
+})
+
+// `d0`, `d1`, … are the default keys, so an explicit key in that pattern is refused where it is written, naming the
+// key and the pattern; any other key is the caller's (dx/defer.md, BUGS.md 430).
+it("reserved key", () => {
+	const { defer } = createDefer(live)
+	for (const key of ["d0", "d1", "d42"]) {
+		expect(() => defer(() => Promise.resolve(1), { key })).toThrow(`defer: the key "${key}" is reserved`)
+		expect(() => defer(() => Promise.resolve(1), { key })).toThrow("d0, d1, …")
+	}
+	expect(defer(() => Promise.resolve(1), { key: "data1" }).key).toBe("data1")
+	expect(defer(() => Promise.resolve(1), { key: "d" }).key).toBe("d")
+	expect(defer(() => Promise.resolve(1)).key).toBe("d0")
 })

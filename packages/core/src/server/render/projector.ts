@@ -124,8 +124,8 @@ function rebuilt(name: string, message: string, stack: string): Error {
 }
 
 // Render errors Solid contained after the shell, such as a `<Loading>` fragment that rejected for the client to render
-// again. Each is kept in `late`; a live answer logs it, and a `quiet` shared render, which renders again live and is
-// never stored, does not (plan 21 3.2).
+// again. Each is kept in `late`; a live answer logs it at once, and a `quiet` shared render logs them with reportLate
+// once it knows its answer is not stored (plan 21 3.2, BUGS.md 458).
 export function lateErrors(
 	sink: ErrorSink,
 	quiet: boolean,
@@ -133,8 +133,12 @@ export function lateErrors(
 	const late: unknown[] = []
 	const onRenderError = (error: unknown): void => {
 		late.push(error)
-		// A deferred failure the read rethrew was logged when the render projected its rejection (BUGS.md 374).
-		if (!quiet && !isFailureError(thrownBehind(error))) projectError(error, sink)
+		if (!quiet) reportLate([error], sink)
 	}
 	return { late, onRenderError }
+}
+
+// A deferred failure the read rethrew was logged when the render projected its rejection (BUGS.md 374).
+export function reportLate(errors: readonly unknown[], sink: ErrorSink): void {
+	for (const error of errors) if (!isFailureError(thrownBehind(error))) projectError(error, sink)
 }

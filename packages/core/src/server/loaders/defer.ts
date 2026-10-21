@@ -1,5 +1,6 @@
 import { DOCUMENT_VIEW, deferredFailure, type DeferredFailure } from "../../shared/protocol/deferred-failure.ts"
 import type { Deferred } from "../../shared/route-builder/register.ts"
+import { inDeferred, insideDeferred } from "./scope.ts"
 
 export type DeferMode = "resolve" | "stream"
 
@@ -100,6 +101,44 @@ class Placeholder<T> implements Deferred<T> {
 	}
 }
 
+// A defer called inside a deferred function, which the dev guard refuses.
+class NestedDefer extends Error {
+	constructor() {
+		super("defer: called inside a deferred function")
+	}
+}
+
+// The default keys' pattern.
+const RESERVED = /^d\d+$/
+
+// `d0`, `d1`, … are the default keys, so an explicit one in that pattern would take another call's value (BUGS.md 430).
+function explicitKey(key: string): string {
+	if (RESERVED.test(key)) throw new Error(`defer: the key "${key}" is reserved: d0, d1, … are the default keys`)
+	return key
+}
+
+// A throw before the function returns its promise is that value's rejection, as an `async` one's is: the loader goes
+// on and the other values settle (BUGS.md 429). The function runs in its deferred scope (BUGS.md 459).
+function start<T>(state: { running: boolean }, fn: () => Promise<T>): Promise<T> {
+	state.running = true
+	try {
+		return inDeferred(fn)
+	} catch (error) {
+		// The dev guard's error is the loader's: a nested defer is the app's bug, not this value's failure.
+		if (error instanceof NestedDefer) throw error
+		return Promise.reject(error)
+	} finally {
+		state.running = false
+	}
+}
+
+function runs(scope: DeferScope, options: DeferOptions): boolean {
+	if (scope.prefetch === true) return false
+	if (scope.fill === true) return isHole(options, scope.route)
+	if (!scope.stored) return true
+	return !isHole(options, scope.route)
+}
+
 // One scope per loader: default keys count from d0 inside that loader.
 export function createDefer(scope: DeferScope): LoaderDefer {
 	const seen = new Map<string, Deferred<unknown>>()
@@ -107,27 +146,23 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 	const started: Started[] = []
 	const state = { next: 0, running: false, holes: 0 }
 
-	function start<T>(fn: () => Promise<T>): Promise<T> {
-		state.running = true
-		try {
-			return fn()
-		} finally {
-			state.running = false
-		}
+	// A nested defer has no frame to resolve it, so the client would wait forever. The flag catches a call before the
+	// function's first await, and the deferred scope one after it (BUGS.md 459).
+	function nested(): boolean {
+		return scope.dev && (state.running || insideDeferred())
 	}
 
 	function defer<T>(fn: () => Promise<T>, options: DeferOptions = {}): Deferred<T> {
-		const key = options.key ?? `d${state.next++}`
+		const key = options.key === undefined ? `d${state.next++}` : explicitKey(options.key)
 		const first = seen.get(key)
 		// The key identifies the value: a repeated key is the first call's value whatever its function. The map holds
 		// every key's value, so `T` is the caller's claim about that key, which the cast states.
 		if (first !== undefined) return first as Deferred<T>
-		// A nested defer has no frame to resolve it, so the client would wait forever.
-		if (state.running && scope.dev) throw new Error("defer: called inside a deferred function")
-		const now = runs(options) && !state.running
+		if (nested()) throw new NestedDefer()
+		const now = runs(scope, options) && !state.running
 		const hole = scope.stored && !now && scope.prefetch !== true
 		const kept = scope.fill === true && !now
-		const value = new Placeholder(key, now ? start(fn) : new Promise<T>(() => undefined), { hole, kept })
+		const value = new Placeholder(key, now ? start(state, fn) : new Promise<T>(() => undefined), { hole, kept })
 		if (now) {
 			// The frame writer or the render reads the outcome. A rejection nobody reads is not a process crash.
 			value.promise.then(
@@ -140,13 +175,6 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 		if (hole) state.holes += 1
 		seen.set(key, value)
 		return value
-	}
-
-	function runs(options: DeferOptions): boolean {
-		if (scope.prefetch === true) return false
-		if (scope.fill === true) return isHole(options, scope.route)
-		if (!scope.stored) return true
-		return !isHole(options, scope.route)
 	}
 
 	return {

@@ -1,11 +1,13 @@
 import { createComponent, createMemo, Loading, type Element } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import { expect, it, vi, type Mock } from "vitest"
+import { useDeferred } from "../../shared/components/index.ts"
 import { notFound } from "../../shared/errors/http.ts"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts"
 import { useLocation } from "../../shared/components/outlet-nodes.ts"
+import type { Deferred } from "../../shared/route-builder/register.ts"
 import { serverCtx } from "../context/ctx.ts"
 import type { FlareStoreEntry } from "./contract.ts"
 import type { StoredPage } from "./write.ts"
@@ -37,12 +39,27 @@ const SITE = "https://example.com"
 const PUBLIC = "public, max-age=0, s-maxage=60"
 
 // One page at /p. `store: false` serves it with no store.
-function serve(page: RouteModule, store = true): { app: ReturnType<typeof serveWith>; set: Mock<FlareStore["set"]> } {
+function serve(
+	page: RouteModule,
+	store = true,
+	log: Logger = quiet,
+): { app: ReturnType<typeof serveWith>; set: Mock<FlareStore["set"]> } {
 	const memory = createMemoryStore()
 	const set = vi.fn<FlareStore["set"]>(memory.set)
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] })
 	const options = store ? { router, site: SITE, store: { ...memory, set } } : { router, site: SITE }
-	return { app: serveWith(options, { dev: false, log: quiet }), set }
+	return { app: serveWith(options, { dev: false, log }), set }
+}
+
+// A slot that reads a deferred value through useDeferred, as dx/defer.md shows.
+function deferredSlot(read: () => Deferred<unknown>, fallback: string): Element {
+	return createComponent(Loading, {
+		fallback,
+		get children() {
+			const value = useDeferred(read)
+			return [() => String(value())]
+		},
+	})
 }
 
 const get = (path = "/p", init?: RequestInit): Request => new Request(`${SITE}${path}`, init)
@@ -88,6 +105,38 @@ it("resolve runs once", async () => {
 	expect(fill.filter((frame) => frame.t === "c" && frame.k === "latest")).toEqual([])
 	expect(latest).toHaveBeenCalledOnce()
 	expect(late).toHaveBeenCalledOnce()
+})
+
+// A stored page's "resolve" value that rejects, read through useDeferred, fails after the shell. The miss answers with
+// the shared render's own output, private and unstored, and logs the failure once: the loader and the value ran once,
+// for a document and for a data request alike (BUGS.md 458).
+it("resolve rejects runs once", async () => {
+	for (const path of ["/p", "/p?_flare=data"]) {
+		const loads = vi.fn<() => void>()
+		const fails = vi.fn<() => Promise<string>>(async () => {
+			throw new Error("upstream down")
+		})
+		const page = createPage("_root_/p")
+			.cache({ isr: true, cdn: { maxAge: "60s" } })
+			.loader(({ defer }) => {
+				loads()
+				return { v: defer(fails, { key: "v", prerender: "resolve" }) }
+			})
+			.render((props) => deferredSlot(() => props.loaderData.v, "waiting"))
+		const error = vi.fn<(...args: unknown[]) => void>()
+		const { app, set } = serve(page, true, { ...quiet, error })
+		const response = await app.fetch(get(path))
+		const body = await response.text()
+		await settle()
+		expect(response.status).toBe(200)
+		expect(response.headers.get("cache-control")).toBe("private, no-store")
+		expect(response.headers.get("flare-cache")).toBe("miss")
+		expect(body).not.toBe("")
+		expect(set).not.toHaveBeenCalled()
+		expect(loads).toHaveBeenCalledOnce()
+		expect(fails).toHaveBeenCalledOnce()
+		expect(error.mock.calls.filter((call) => String(call).includes("upstream down")).length).toBe(1)
+	}
 })
 
 // A data request's miss runs the same shared render and serves the NDJSON it stored. A prefetch then reads that

@@ -217,13 +217,13 @@ export function remember(cache: MatchCache, matches: readonly CachedMatch[], lan
 	}
 }
 
-// The live promises a match's data still waits on. A raw placeholder never settles on its own.
-function deferredOf(value: unknown): Promise<unknown>[] {
-	if (Array.isArray(value)) return value.flatMap(deferredOf)
-	if (typeof value !== "object" || value === null) return []
-	if (Reflect.get(value, "__deferred") !== true) return Object.values(value).flatMap(deferredOf)
-	const promise: unknown = Reflect.get(value, "promise")
-	return [promise instanceof Promise ? promise : new Promise<never>(() => undefined)]
+// The live promises a match's data still waits on, walked as `holds` walks: a cycle is seen once, and a Map's or
+// Set's members count (BUGS.md 431). A raw placeholder never settles on its own.
+function deferredOf(data: unknown): Promise<unknown>[] {
+	return placeholders(data).map((value) => {
+		const promise: unknown = Reflect.get(value, "promise")
+		return promise instanceof Promise ? promise : new Promise<never>(() => undefined)
+	})
 }
 
 function entryOf(match: CachedMatch, landing: Landed, cachedDeps: string | undefined | null): CacheEntry {
@@ -251,16 +251,23 @@ export function clientOf(client: ClientCache | undefined): Exclude<ClientCache, 
 // A value that still holds a deferred placeholder (B80), walked without recursion, through arrays, objects, and a Map's
 // or Set's members. A wire value may hold a BigInt or a cycle (B145), so the walk keeps the objects it saw.
 export function holds(data: unknown): boolean {
+	return placeholders(data).length > 0
+}
+
+// Every deferred placeholder in a value, without recursion, through arrays, objects, and a Map's or Set's members,
+// each object once.
+function placeholders(data: unknown): object[] {
 	const seen = new Set<object>()
+	const found: object[] = []
 	const pending: unknown[] = [data]
 	while (pending.length > 0) {
 		const next = pending.pop()
 		if (typeof next !== "object" || next === null || seen.has(next)) continue
 		seen.add(next)
-		if (Reflect.get(next, "__deferred") === true) return true
-		pending.push(...(next instanceof Map || next instanceof Set ? next.values() : Object.values(next)))
+		if (Reflect.get(next, "__deferred") === true) found.push(next)
+		else pending.push(...(next instanceof Map || next instanceof Set ? next.values() : Object.values(next)))
 	}
-	return false
+	return found
 }
 
 // Route params without the optional ones that are absent.

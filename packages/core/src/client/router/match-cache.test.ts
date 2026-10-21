@@ -255,6 +255,40 @@ it("deferred filled cached", async () => {
 	expect(cache.read(gone)).toBeUndefined()
 })
 
+// A `cacheDeferred` value may hold a cycle, or its deferred inside a Map or a Set, as any wire value may (B145): the
+// commit does not crash, and the entry is filled only once every deferred inside settles (BUGS.md 431).
+it("deferred in a cycle or a map", async () => {
+	const { cache } = cacheAt({ staleTime: 60_000 })
+	const slots: Pending = new Map()
+	const deferring = page(undefined, { client: { cacheDeferred: true } })
+	const node: Record<string, unknown> = { slow: { __deferred: true, key: "d0" } }
+	node["self"] = node
+	const cyclic = revive(node, "_root_/users/[id]", slots)
+	expect(() => remember(cache, [deferring], { data: { "_root_/users/[id]": cyclic }, heads: {} })).not.toThrow()
+	const mapped = page(undefined, { id: "mapped", client: { cacheDeferred: true } })
+	const inMap = revive({ m: new Map([["x", { __deferred: true, key: "d1" }]]) }, "_root_/users/[id]", slots)
+	remember(cache, [mapped], { data: { "_root_/users/[id]": inMap }, heads: {} })
+	const inSet = page(undefined, { id: "set", client: { cacheDeferred: true } })
+	const setData = revive({ s: new Set([{ __deferred: true, key: "d2" }]) }, "_root_/users/[id]", slots)
+	remember(cache, [inSet], { data: { "_root_/users/[id]": setData }, heads: {} })
+	await Promise.resolve()
+	await Promise.resolve()
+	expect([cache.read(deferring)?.deferred, cache.read(mapped)?.deferred, cache.read(inSet)?.deferred]).toEqual([
+		true,
+		true,
+		true,
+	])
+	for (const key of ["d0", "d1", "d2"]) slots.get(`_root_/users/[id]\n${key}`)?.resolve("filled")
+	await Promise.resolve()
+	await Promise.resolve()
+	// A Set stays itself through `revive`, so its placeholder is raw and never settles: that entry stays unfilled.
+	expect([cache.read(deferring)?.deferred, cache.read(mapped)?.deferred, cache.read(inSet)?.deferred]).toEqual([
+		false,
+		false,
+		true,
+	])
+})
+
 it("cap", () => {
 	const { cache } = cacheAt()
 	for (let index = 0; index <= 100; index += 1) {

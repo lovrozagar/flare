@@ -1,13 +1,15 @@
 import { withServerContext } from "../context/ctx.ts"
 import { drawn, framed, loaderInput, type Loaded } from "../lifecycle/answers.ts"
 import { sharedInput } from "../lifecycle/policies.ts"
+import { reportLate } from "../render/projector.ts"
 import { answerQueries } from "../render/state.ts"
 import type { Exchange } from "../lifecycle/exchange.ts"
 import { runLoaders, type LoaderRun } from "../loaders/run.ts"
 import { dataBody, dataFrames } from "../navigation/index.ts"
 
 // A shared render that finished as a clean 200. `html` is the shell, `nonce` the one its tags carry, and `settled`
-// is every "resolve" value fulfilled. `startedAt` is the render's start, the entry's `storedAt`.
+// is every "resolve" value fulfilled and no fragment failed after the shell: an unsettled render is served once,
+// private, and never stored. `startedAt` is the render's start, the entry's `storedAt`.
 export type SharedRender = {
 	run: LoaderRun
 	html: string
@@ -28,7 +30,7 @@ const NOTHING_STALE: ReadonlySet<string> = new Set()
 // The loaders, the render, and `serverContext` all run on the shared request. `serverContext` is called again for
 // it with the same env, so `serverCtx()` there never holds the visitor's cookie. Its session is null, so an
 // optional-auth chain stores its anonymous render (B27). It renders as a document, so one run writes both the
-// HTML and the NDJSON. A run that is not a clean 200, or a render that fails, gives nothing to store.
+// HTML and the NDJSON. A run that is not a clean 200, or a render that fails before its shell, gives nothing.
 export function sharedRender(
 	exchange: Exchange,
 	matched: Loaded,
@@ -58,15 +60,16 @@ async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender
 		)
 		return INCOMPLETE
 	}
-	// A fragment that failed after the shell would replay its failure for the whole ttl: the visitor's answer is the
-	// live render, which logs it (plan 21 3.2).
-	if (document.late.length > 0) return undefined
+	// A fragment that failed after the shell would replay its failure for the whole ttl, so the render is unsettled:
+	// the visitor's answer is this render, private and unstored, never a second live one that runs every loader and
+	// defer again. It logs the failure, as the live render would have (plan 21 3.2, BUGS.md 458).
+	reportLate(document.late, shared.sink)
 	const project = framed(shared)
 	// A fulfilled value travels inline in its `l` frame, so only a rejection still needs a frame (BUGS.md 94).
 	const deferred = run.deferred.filter((_, index) => results[index]?.status === "rejected")
 	const queries = answerQueries(shared.sink)
 	const ndjson = await new Response(dataBody({ ...dataFrames(run, NOTHING_STALE), deferred, project, queries })).text()
-	const settled = results.every((result) => result.status === "fulfilled")
+	const settled = document.late.length === 0 && results.every((result) => result.status === "fulfilled")
 	return { run, html, ndjson, nonce: document.exchange.secured.nonce, settled, startedAt }
 }
 
