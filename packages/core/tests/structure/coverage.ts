@@ -8,17 +8,24 @@ import { join } from "node:path"
 const EXEMPT_FILES = new Set(["README.md", "observability.md"])
 
 // A row's key is `<file>#<section>#<header>:<first cell>`: the nearest heading above the table, the table's first header
-// cell, and the row's first cell, backticks and padding stripped. A `##` section's prose is `<file>#<section>#`. A
-// table or section under a `Planned` heading is not a feature v1 ships, so it has no key.
+// cell, and the row's first cell, backticks and padding stripped. A `##` section's prose is `<file>#<section>#`, and so is
+// an H1's when it has prose before its first section. A table or section under a `Planned` heading is not a feature v1
+// ships, so it has no key.
 export function dxKeys(file: string, text: string): string[] {
 	const keys: string[] = []
 	let heading = ""
 	let header: string | undefined
+	// An H1's key, until the first prose line under it claims it.
+	let intro: string | undefined
 	for (const line of text.split("\n")) {
 		const title = /^(#+) (.*)$/.exec(line)
 		if (title !== null) {
 			heading = clean(String(title[2]))
+			intro = title[1] === "#" && !planned(heading) ? `${file}#${heading}#` : undefined
 			if (title[1] === "##" && !planned(heading)) keys.push(`${file}#${heading}#`)
+		} else if (intro !== undefined && line.trim() !== "" && !line.startsWith("|")) {
+			keys.push(intro)
+			intro = undefined
 		}
 		if (!line.startsWith("|")) {
 			header = undefined

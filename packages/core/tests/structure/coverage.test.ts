@@ -51,6 +51,29 @@ it("keys", () => {
 	])
 })
 
+// An H1's prose is a key like a `##` section's, once, when the H1 has prose before its first section; a table alone
+// under it is not prose (plan 29 batch C ruling).
+it("h1 prose", () => {
+	const doc = [
+		"# head",
+		"",
+		"Intro.",
+		"",
+		"More.",
+		"",
+		"## fields",
+		"",
+		"x",
+		"",
+		"# bare",
+		"",
+		"| a | b |",
+		"| - | - |",
+		"| c | d |",
+	]
+	expect(dxKeys("head.md", doc.join("\n"))).toEqual(["head.md#head#", "head.md#fields#", "head.md#bare#a:c"])
+})
+
 // Three columns a line; several cases join with `;`; `n/a: <reason>` only in the e2e column.
 it("parse", () => {
 	const parsed = parseCoverage(
