@@ -16,6 +16,24 @@ const RELEASES: readonly Release[] = [
 	{ version: "0.8.0", date: "2026-07-20", note: "Cross-tab theme, direction, and locale." },
 ]
 
+// A release card's placeholder: the card's own box and line heights, so the cards that replace it take its place and
+// push nothing below them down (docs-perf `layout shift`).
+function ReleasesSkeleton(): JSX.Element {
+	return (
+		<div id="releases-loading" class="space-y-4">
+			<For each={RELEASES}>
+				{() => (
+					<div class="rounded-xl border border-stone-200 p-4 dark:border-ink-800">
+						<div class="h-5 w-16 animate-pulse rounded bg-stone-200 dark:bg-ink-800" />
+						<div class="mt-1 h-6 animate-pulse rounded bg-stone-200 dark:bg-ink-800" />
+						<div class="mt-1 h-4 w-24 animate-pulse rounded bg-stone-200 dark:bg-ink-800" />
+					</div>
+				)}
+			</For>
+		</div>
+	)
+}
+
 function Skeleton(props: { id: string; lines: number }): JSX.Element {
 	return (
 		<div id={props.id} class="space-y-2">
@@ -54,13 +72,17 @@ export const route = createPage("[[locale]]/_root_/changelog")
 				<p class="mt-1 text-xs text-stone-500">
 					rendered by <code id="changelog-rendered-by">{props.loaderData.renderedBy}</code>
 				</p>
-				<Loading fallback={<Skeleton id="latest-loading" lines={1} />}>
+				<Loading
+					fallback={
+						<div id="latest-loading" class="mt-3 h-7 w-40 animate-pulse rounded bg-stone-200 dark:bg-ink-800" />
+					}
+				>
 					<p id="latest" class="mt-3 text-lg">
 						Latest: <strong>{latest()?.version}</strong>
 					</p>
 				</Loading>
 				<div class="mt-8 grid gap-6 md:grid-cols-[1fr_16rem]">
-					<Loading fallback={<Skeleton id="releases-loading" lines={6} />}>
+					<Loading fallback={<ReleasesSkeleton />}>
 						<ol id="releases" class="space-y-4">
 							<For each={releases()} keyed={(release) => release.version}>
 								{(release) => (
