@@ -1,5 +1,6 @@
 import { createServer as createViteServer, type ViteDevServer } from "vite"
 import { afterAll, beforeAll, expect, it } from "vitest"
+import { freePort } from "../free-port.ts"
 import { flare } from "../../src/vite/plugin/flare.ts"
 import { builtServer, fixtureApps, rootLayout, type Server } from "./vite-app.ts"
 
@@ -35,7 +36,7 @@ beforeAll(async () => {
 		configFile: false,
 		logLevel: "silent",
 		plugins: [flare()],
-		server: { host: "127.0.0.1", port: 0 },
+		server: { host: "127.0.0.1", port: await freePort(), strictPort: true },
 	})
 	await vite.listen()
 	origin = vite.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? ""

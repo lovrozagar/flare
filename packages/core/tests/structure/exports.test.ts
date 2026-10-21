@@ -1,9 +1,10 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process"
-import { connect, createServer as createNetServer } from "node:net"
+import { connect } from "node:net"
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import { parseSync } from "oxc-parser"
+import { freePort } from "../free-port.ts"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { packCore, type Packed } from "../../../../scripts/release.ts"
 import { identifiers, marked, quickStart, readme, tableRows } from "./readme.ts"
@@ -404,15 +405,6 @@ it("not a peer", () => {
 		expect(keys).not.toContain(name)
 	}
 })
-
-function freePort(): Promise<number> {
-	return new Promise((resolve) => {
-		const probe = createNetServer().listen(0, "127.0.0.1", () => {
-			const address = probe.address()
-			probe.close(() => resolve(typeof address === "object" && address !== null ? address.port : 0))
-		})
-	})
-}
 
 // A request with the target exactly as written: fetch would normalize a malformed escape away. The status, or the
 // socket error when the server died.

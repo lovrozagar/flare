@@ -26,6 +26,26 @@ it(
 	VITE_BOOT,
 )
 
+// Vite 8 reads `--port 0` as no port and walks up from 5173, where other servers on the machine live (a peer's dev
+// server held 5174, and boot.test `serves` met a socket closed under it): each dev boot listens on a port the OS
+// assigned, and Vite takes it strictly.
+it(
+	"dev port",
+	async () => {
+		// Workers dev only where the Cloudflare plugin runs, as every Workers case (B109).
+		for (const runtime of ["node", "bun", ...(HOOKS ? ["workers"] : [])]) {
+			const session = await boot({ app: "minimal", runtime, mode: "dev" })
+			try {
+				const port = Number(new URL(session.origin).port)
+				expect(port < 5173 || port > 5199, `${runtime} dev on ${port}`).toBe(true)
+			} finally {
+				await session.close()
+			}
+		}
+	},
+	VITE_BOOT * 3,
+)
+
 it(
 	"port",
 	async () => {

@@ -1,10 +1,10 @@
 import { spawn, spawnSync } from "node:child_process"
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { rcompare, satisfies } from "semver"
+import { freePort } from "../free-port.ts"
 import { nodeAt, type PinnedNode } from "../../../../scripts/node-at.ts"
 import { packTarball, stagePackage } from "../../../../scripts/release.ts"
 import { marked, readme } from "../structure/readme.ts"
@@ -174,17 +174,6 @@ export function buildApp(node: PinnedNode, dir: string, env: Record<string, stri
 	})
 	if (codegen.status !== 0) return codegen
 	return run(node, { cwd: dir, args: [join(dir, "node_modules/vite/bin/vite.js"), "build"], env })
-}
-
-export function freePort(): Promise<number> {
-	return new Promise((resolve, reject) => {
-		const server = createServer()
-		server.once("error", reject)
-		server.listen(0, "127.0.0.1", () => {
-			const address = server.address()
-			server.close(() => resolve(typeof address === "object" && address !== null ? address.port : 0))
-		})
-	})
 }
 
 export type Served = { origin: string; output: () => string; stop: () => Promise<void> }
