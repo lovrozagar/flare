@@ -1687,6 +1687,14 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 433.1 [x] Found by plan 29's batch C review (2026-10-21, features D2): Bun's ICU does not alias the deprecated `prs` to `fa-AF`, so `maximize()` gave no script.
 433.2 [x] Fix: an alias table maps `prs` to `fa-AF` before `maximize()`. Red first: script-of.test `dari` and `no likely script`, under Bun too.
 
+435 [x] onInteraction missed a first event whose target stopped its propagation
+435.1 [x] Found by plan 29's batch C review (2026-10-21, client D1): the listeners were in the bubble phase.
+435.2 [x] Fix: the listeners capture. Red first: ready.test `interaction under a stopped event`.
+
+436 [x] An async createClient callback that rejected was an uncaught page error
+436.1 [x] Found by plan 29's batch C review (2026-10-21, client D3): `guarded` caught a synchronous throw only.
+436.2 [x] Fix: a returned promise's rejection is logged as a throw is, overlay included. Red first: ready.test `async callback rejects`.
+
 437 [x] `disableTransitionOnChange` did not stop transitions
 437.1 [x] Found by plan 29's batch C review (2026-10-21, features D1): the no-transition style was removed on the next animation frame, before the frame's style pass computed the new theme, so every switch animated (Chromium 1 of 4, Firefox 4 of 4 in the red case).
 437.2 [x] Fix: a computed-style read after the attribute write makes the browser compute the new theme under the rule. Red first: features-client.test `theme no transition`, with a control that transitions 4 of 4.

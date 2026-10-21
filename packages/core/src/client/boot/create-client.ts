@@ -8,8 +8,7 @@ import { loadChain } from "../../shared/router/load-chain.ts"
 import type { Location } from "../../shared/url/index.ts"
 import { createHistory, type FlareHistory } from "../history/index.ts"
 import { createBlockers, placeIn, type Blockers } from "../navigation/blocker.ts"
-import { revive, type Pending } from "../navigation/frames.ts"
-import { settleDocumentValues } from "./document-values.ts"
+import { holesOf } from "./document-values.ts"
 import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts"
 import { createArrival } from "../navigation/arrival.ts"
 import { createNavigationState } from "../navigation/pending.ts"
@@ -102,7 +101,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	const location = windowLocation()
 	const match = router.match(location.pathname)
 	const chain = await loadChain(match.chain)
-	const { matches, pending } = holesOf(state)
+	const { matches, pending } = holesOf(state.matches)
 	const phase = { hydrating: false }
 	const store = createRouterStore(
 		snapshotFromState({ matches, chain, unknown: match.id === undefined, location }),
@@ -279,16 +278,6 @@ function windowLocation(): Location {
 
 function here(): string {
 	return `${window.location.pathname}${window.location.search}${window.location.hash}`
-}
-
-// Every deferred field of the document is a live value with its own slot, so a read that mounts after hydration has one
-// to wait on: a stored page's inline value settles it at once, a live document's value through Solid's channel, and a
-// stored hole through the fill after hydrate (dx/defer.md, BUGS.md 375).
-function holesOf(state: ClientState): { matches: ClientState["matches"]; pending: Pending } {
-	const pending: Pending = new Map()
-	const matches = state.matches.map((match) => ({ ...match, data: revive(match.data, match.id, pending) }))
-	settleDocumentValues(pending)
-	return { matches, pending }
 }
 
 // The hydration mount is over: the document says so, the app's hydrated callbacks run, and a query the document filled

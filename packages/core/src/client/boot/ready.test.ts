@@ -141,3 +141,36 @@ it("throwing callback", async () => {
 	expect(errors).toHaveBeenCalledExactlyOnceWith("[flare] a createClient callback threw", expect.any(Error))
 	errors.mockRestore()
 })
+
+// An element that stops its event's propagation does not hide the first interaction: the listener sees it on the way
+// down (dx/client.md, BUGS.md 435).
+it("interaction under a stopped event", () => {
+	const log: string[] = []
+	const ready = createReady()
+	ready.api.onInteraction(() => log.push("interaction"))
+	ready.close()
+	const widget = document.createElement("div")
+	document.body.append(widget)
+	widget.addEventListener("pointerdown", (event) => event.stopPropagation())
+	ready.interaction(document)
+	widget.dispatchEvent(new Event("pointerdown", { bubbles: true }))
+	widget.dispatchEvent(new Event("pointerdown", { bubbles: true }))
+	widget.remove()
+	expect(log).toEqual(["interaction"])
+})
+
+// An `async` callback that rejects is reported as a throwing one is, never an unhandled rejection (dx/client.md,
+// BUGS.md 436).
+it("async callback rejects", async () => {
+	const reported: unknown[] = []
+	const ready = createReady()
+	ready.api.onHydrated(async () => {
+		throw new Error("async boom")
+	})
+	ready.close()
+	ready.reportTo((error) => reported.push(error))
+	ready.hydrated()
+	await Promise.resolve()
+	await Promise.resolve()
+	expect(reported).toEqual([new Error("async boom")])
+})
