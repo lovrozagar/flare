@@ -29,11 +29,28 @@ export function inLoaderScope<T>(kind: ScopeKind, source: ScopeSource, run: () =
 	return provideRequestEvent(child, run)
 }
 
-// The request's own event under any loader or preloader child: the one place request-wide state lives, so every
-// loader, preloader, and the render of one request share it (dx/server.md withFetchDedupe, BUGS.md B21).
+// Runs a deferred function under a child of the request event that marks it, so a `defer` it calls finds the mark
+// after an await too, which a flag set only while the function runs cannot (BUGS.md 459). Outside a request, as on a
+// runtime with no async-local storage, there is no mark.
+export function inDeferred<T>(run: () => T): T {
+	const parent: RequestEvent | undefined = getRequestEvent()
+	if (parent === undefined) return run()
+	return provideRequestEvent(Object.assign(Object.create(parent), { flareDeferred: true }), run)
+}
+
+// Whether a deferred function is running now, by its scope's mark.
+export function insideDeferred(): boolean {
+	const event: RequestEvent | undefined = getRequestEvent()
+	return event !== undefined && "flareDeferred" in event
+}
+
+// The request's own event under any loader, preloader, or deferred child: the one place request-wide state lives, so
+// every loader, preloader, and the render of one request share it (dx/server.md withFetchDedupe, BUGS.md B21).
 export function requestEvent(event: RequestEvent): RequestEvent {
 	let current: object = event
-	while (Object.hasOwn(current, "flareLoader")) current = Object.getPrototypeOf(current)
+	while (Object.hasOwn(current, "flareLoader") || Object.hasOwn(current, "flareDeferred")) {
+		current = Object.getPrototypeOf(current)
+	}
 	return current as RequestEvent
 }
 

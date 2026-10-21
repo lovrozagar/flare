@@ -1665,6 +1665,18 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 428.1 [x] Found by plan 29's batch C review (2026-10-21, head D3 and D4): the client fell back to the held head for a match whose response sent none, so a hard load and a navigation to the same URL differed.
 428.2 [x] Fix: a match that landed, failed, or sits under the failure has the head the response sent or none; only a match the response skipped keeps the held head. A merge with no title writes an empty one. Red first: head-client.test `head after navigation`, all three engines.
 
+429 [x] A synchronous throw from a deferred function failed the whole loader
+429.1 [x] Found by plan 29's batch C review (2026-10-21, defer D2): `defer` called `fn()` unguarded, so a throw before its promise escaped the loader and every other value failed with it.
+429.2 [x] Fix: a throw before the function returns its promise is that value's rejection; the dev guard's nested-defer error stays the loader's. Red first: defer.test `sync throw`.
+
+430 [x] An explicit defer key equal to a default key took another call's value
+430.1 [x] Found by plan 29's batch C review (2026-10-21, defer D1): `d0`, `d1`, … are the default keys, and a key is the value's identity, so `{ key: "d1" }` and the second default call shared one value.
+430.2 [x] Fix (ruling 2): an explicit key matching `/^d\d+$/` throws at the `defer` call, naming the key. Red first: defer.test `reserved key`.
+
+431 [x] cacheDeferred overflowed the stack on a cyclic value and marked an entry filled with a deferred still inside a Map
+431.1 [x] Found by plan 29's batch C review (2026-10-21, defer D3 and D4): `deferredOf` walked arrays and plain objects only, with no `seen` set.
+431.2 [x] Fix: one `placeholders()` walker, shared with `holds`, sees a cycle once and walks Map members; a placeholder in a Set stays raw, so that entry stays unfilled. Red first: match-cache.test `deferred in a cycle or a map`.
+
 447 [x] A `null` or `""` child title erased the parent's
 447.1 [x] Found by plan 29's batch C review (2026-10-21, head D5).
 447.2 [x] Fix (ruling 1): `null`, `undefined`, and `""` keep the parent's title. Red first: merge.test `empty child title`.
@@ -1692,6 +1704,14 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 453 [ ] minimal.test `basepath › cdn page fresh` fails on CI's macOS runners on node-dev-webkit and bun-dev-webkit, about 2 runs in 4 since group 5; it never fails on Linux WebKit (0 in 60 local runs at 3ca6e015)
 453.1 [ ] Found by CI after group 5 (2026-10-21, runs 39497487553 and 39519606173): the second document navigation to /app/cdn never shows the new render. The code rules out the 304 path and BUGS.md 411's drain wait on module requests, and BUGS.md 452 was a separate waste; the failed cases' server logs were empty, so nothing shows whether the request reached the server.
 453.2 [x] The trace, so the next Mac failure names its stage: under FLARE_E2E_TRACE=1, which CI sets for the e2e steps, a dev boot's vite.config puts tests/e2e/trace.ts's middleware first, and it logs each request's arrival, a document's head and first bytes, its finish, and its close; every failed case attaches what the live boots logged during it as its server log (crash.ts, server-log.ts). Off by default: unset, the boot names no module and the app loads none (trace.test `trace off`).
+
+458 [x] A stored page whose value failed after the shell ran every loader and defer twice
+458.1 [x] Found by plan 29's batch C review (2026-10-21, defer D5): a late fragment failure made the shared render give nothing, so the visitor got a second, live render.
+458.2 [x] Fix (ruling 3): the render is unsettled, so the visitor gets the shared render's own output, `private, no-store`, never stored; the failure is logged once. Red first: serve.test `resolve rejects runs once`, a document and a data request.
+
+459 [x] The dev guard missed a nested `defer` after an `await`
+459.1 [x] Found by plan 29's batch C review (2026-10-21, defer D6): the guard's flag was set only during the synchronous part of the function, so the inner function ran and the client got a dead placeholder.
+459.2 [x] Fix (ruling 4): the deferred function runs in its own child of Solid's request event, whose async-local storage the guard reads after any await; on a runtime without it the await form stays unguarded, which the doc says. Red first: defer.test `nested after await`.
 
 460 [x] A served inline head script ran again at hydration, and custom links, scripts, and styles outlived their page
 460.1 [x] Found by plan 29's batch C review (2026-10-21, head D2): Solid's useHead adopts and removes only title and meta, so the client inserted its own copies and never removed the server's.
