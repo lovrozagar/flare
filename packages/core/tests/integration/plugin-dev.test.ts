@@ -1,3 +1,5 @@
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 import { createServer as createViteServer, type ViteDevServer } from "vite"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { freePort } from "../free-port.ts"
@@ -25,12 +27,13 @@ const PAGES: Record<string, string> = {
 type Payload = { type: string; err?: { message?: string; stack?: string } }
 
 let vite: ViteDevServer | undefined
+let root = ""
 let origin = ""
 let tab: WebSocket | undefined
 const received: Payload[] = []
 
 beforeAll(async () => {
-	const root = apps.make(PAGES)
+	root = apps.make(PAGES)
 	vite = await createViteServer({
 		root,
 		configFile: false,
@@ -109,3 +112,56 @@ it("production error", async () => {
 	expect(safeBody).toContain("safe-message")
 	expect(safeBody).not.toContain("safe.page")
 })
+
+// The generated routes file and its last write.
+function generated(): { text: string; written: number } {
+	const path = join(root, "src/_gen/routes.gen.ts")
+	return { text: readFileSync(path, "utf8"), written: statSync(path).mtimeMs }
+}
+
+// Polls `check` until it holds or `ms` pass.
+async function until(check: () => boolean, ms: number): Promise<boolean> {
+	for (const end = Date.now() + ms; Date.now() < end; await new Promise((resolve) => setTimeout(resolve, 50))) {
+		if (check()) return true
+	}
+	return check()
+}
+
+// A source written under the app, and the event Vite's watcher gives flare for it. The fixture app lives under
+// node_modules, which Vite's watcher always ignores, so the case hands it the event chokidar would emit.
+function written(path: string, source: string, event: "add" | "change"): void {
+	writeFileSync(join(root, path), source)
+	vite?.watcher.emit("all", event, join(root, path))
+}
+
+// `vite dev` writes the generated files again after a short debounce when a source under src changes: a new route
+// appears in routes.gen.ts. An edit that changes nothing it generates leaves the file unwritten, and a write to a
+// generated file is no source (dx/plugin.md Codegen watch).
+it("codegen watch", async () => {
+	expect(generated().text).not.toContain("_root_/later")
+	const page =
+		'import { createPage } from "@lovrozagar/flare";\nexport const route = createPage("_root_/later").render(() => <p>later</p>);\n'
+	mkdirSync(join(root, "src/routes/_root_/later"))
+	written("src/routes/_root_/later/later.page.tsx", page, "add")
+	expect(await until(() => generated().text.includes("_root_/later"), 5000)).toBe(true)
+	const before = generated()
+	const seen = new Set([before.written])
+	// Every routes.gen.ts write from here, polled well inside the 50 ms debounce, until `check` holds.
+	const watch = async (check: () => boolean, ms: number): Promise<boolean> => {
+		for (const end = Date.now() + ms; Date.now() < end; await new Promise((resolve) => setTimeout(resolve, 5))) {
+			seen.add(generated().written)
+			if (check()) return true
+		}
+		return false
+	}
+	written("src/routes/_root_/later/later.page.tsx", page.replace("<p>later</p>", "<p>later, edited</p>"), "change")
+	await watch(() => false, 250)
+	vite?.watcher.emit("all", "change", join(root, "src/_gen/routes.gen.ts"))
+	await watch(() => false, 250)
+	// An edit that changes the output: its write shows the watcher handled the two events before it, each past its
+	// own debounce, and neither of those wrote.
+	mkdirSync(join(root, "src/routes/_root_/later2"))
+	written("src/routes/_root_/later2/later2.page.tsx", page.replaceAll("later", "later2"), "add")
+	expect(await watch(() => generated().text.includes("_root_/later2"), 5000)).toBe(true)
+	expect(seen.size).toBe(2)
+}, 20_000)

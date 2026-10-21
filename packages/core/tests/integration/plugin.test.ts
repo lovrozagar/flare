@@ -49,6 +49,19 @@ const ROUTES: Record<string, string> = {
 		'export const route = createPage("_root_/").render(() => <main><Image src={hero} alt="hero" sizes="100vw" /><Image src={raw} alt="raw" /><img id="logo" src={logo} alt="" /></main>);',
 		"",
 	].join("\n"),
+	"src/routes/_root_/turned/turned.page.tsx": [
+		'import { createPage, Image } from "@lovrozagar/flare";',
+		'import turned from "../../../assets/turned.jpg?image";',
+		'export const route = createPage("_root_/turned").render(() => <main><Image src={turned} alt="turned" /><p id="size">{turned.width}x{turned.height}</p></main>);',
+		"",
+	].join("\n"),
+	"src/components/plain.jsx": 'export function Plain() {\n\treturn <b id="plain">from jsx</b>;\n}\n',
+	"src/routes/_root_/jsx/jsx.page.tsx": [
+		'import { createPage } from "@lovrozagar/flare";',
+		'import { Plain } from "../../../components/plain.jsx";',
+		'export const route = createPage("_root_/jsx").render(() => <main><Plain /></main>);',
+		"",
+	].join("\n"),
 	"src/routes/_root_/b/b.page.tsx": slow("_root_/b"),
 	"src/routes/_root_/c/c.page.tsx": slow("_root_/c"),
 	"src/routes/_root_/d/d.page.tsx": slow("_root_/d"),
@@ -116,6 +129,12 @@ async function made(files: Record<string, string>): Promise<App> {
 		.png()
 		.toBuffer()
 	writeFileSync(join(root, "src/assets/hero.png"), png)
+	// 1200 by 800 pixels, stored turned: EXIF orientation 6 shows it 800 wide and 1200 tall.
+	const jpeg = await sharp({ create: { width: 1200, height: 800, channels: 3, background: "#cc6633" } })
+		.withMetadata({ orientation: 6 })
+		.jpeg()
+		.toBuffer()
+	writeFileSync(join(root, "src/assets/turned.jpg"), jpeg)
 	writeFileSync(join(root, "src/assets/raw.png"), png)
 	// Over Vite's 4 KiB inline limit, so it is a file.
 	writeFileSync(
@@ -169,7 +188,8 @@ async function home(app: App | undefined): Promise<{ html: string; entry: string
 }
 
 // Built files and the document's client import under `assetsBase`; `/assets` by default. The URL the server renders
-// for an imported asset is a file the client build wrote (BUGS.md 132).
+// for an imported asset is a file the client build wrote (BUGS.md 132). Also the client entry's and chunks' names and the build id (dx/plugin.md
+// Build output, Client entry, Build id).
 it("assets base", async () => {
 	const entry = clientFiles(options).find((path) => /^static\/client-[\w-]+\.js$/.test(path))
 	expect(entry).toBeDefined()
@@ -180,6 +200,40 @@ it("assets base", async () => {
 	}
 	expect(clientFiles(options).filter((path) => path.startsWith("assets/"))).toEqual([])
 	expect((await home(defaults)).html).toMatch(/import\("\/assets\/client-[\w-]+\.js"\)/)
+	// The build id is 12 hex digits of a hash over what the build wrote, so two apps whose client files differ differ
+	// (dx/plugin.md Build id).
+	const ids = await Promise.all(
+		[options, defaults].map(async (app) =>
+			(await built(app).server.fetch(new Request("https://flare.test/"))).headers.get("flare-build"),
+		),
+	)
+	expect(ids.map((id) => /^[\da-f]{12}$/.test(String(id)))).toEqual([true, true])
+	expect(ids[0]).not.toBe(ids[1])
+})
+
+// A source stored turned, EXIF orientation 6, is upright in the build: each variant is as tall as the original is shown
+// and carries no orientation of its own, and the import's intrinsic size is the upright one (dx/plugin.md Image
+// orientation, BUGS.md 191).
+it("image orientation", async () => {
+	const turned = clientFiles(options).filter((path) => /^static\/turned-\d+-[\da-f]{8}\.webp$/.test(path))
+	expect(turned).toHaveLength(2)
+	for (const path of turned) {
+		const meta = await sharp(clientFile(options, path)).metadata()
+		expect([path, meta.height > meta.width, meta.orientation]).toEqual([path, true, undefined])
+	}
+	const html = await (await built(options).server.fetch(new Request("https://flare.test/turned"))).text()
+	expect(/<p[^>]*id="size"[^>]*>(.*?)<\/p>/.exec(html)?.[1]?.replaceAll(/<!--.*?-->/g, "")).toBe("800x1200")
+})
+
+// flare() calls solid() itself, with `ssr: true` and `.jsx` among its extensions: a `.jsx` component compiles and renders,
+// and the served markup carries the hydration keys an SSR compile writes (dx/plugin.md Solid). `solid` is no flare()
+// option: options.test types it out and `options checked` refuses it.
+it("solid", async () => {
+	for (const app of [options, defaults]) {
+		const html = await (await built(app).server.fetch(new Request("https://flare.test/jsx"))).text()
+		expect(html).toMatch(/<b [^>]*id="plain"[^>]*>from jsx<\/b>/)
+		expect(/<b [^>]*id="plain"[^>]*>/.exec(html)?.[0]).toMatch(/ _hk=/)
+	}
 })
 
 // `entry.client` and `entry.server` are the app's files: the built server is app/server.ts, and the client bundle holds
@@ -195,7 +249,7 @@ it("entries", async () => {
 it("image", async () => {
 	const webp = (app: App | undefined) => clientFiles(app).filter((path) => path.endsWith(".webp"))
 	const names = (app: App | undefined) => webp(app).map((path) => path.replace(/-[\da-f]{8}\.webp$/, ""))
-	expect(names(options)).toEqual(["static/hero-320", "static/hero-640"])
+	expect(names(options)).toEqual(["static/hero-320", "static/hero-640", "static/turned-320", "static/turned-640"])
 	expect(clientFiles(options).filter((path) => path.endsWith(".png"))).toHaveLength(1)
 	const html = (await home(options)).html
 	expect(html).toMatch(/\/static\/hero-320-[\da-f]{8}\.webp 320w, \/static\/hero-640-[\da-f]{8}\.webp 640w/)
@@ -207,6 +261,8 @@ it("image", async () => {
 	expect(names(defaults)).toEqual([
 		...widths.map((width) => `assets/hero-${width}`),
 		...widths.map((width) => `assets/raw-${width}`),
+		"assets/turned-640",
+		"assets/turned-750",
 	])
 	const at640 = (app: App | undefined) =>
 		clientFile(
