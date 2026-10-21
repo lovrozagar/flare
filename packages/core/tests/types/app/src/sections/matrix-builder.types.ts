@@ -149,6 +149,12 @@ it("method order", () => {
 		.cache({ cdn: { maxAge: "1m" } })
 })
 
+// dx/cache.md: `.cache()` takes one of ssr, ssg, or isr, and there is no `csr` key (B66).
+it("no csr key", () => {
+	// @ts-expect-error a page renders on the server; `csr` is not a cache mode
+	void createPage("_root_/about").cache({ csr: true })
+})
+
 it("boundary remains", () => {
 	const once = createPage("_root_/about").render(nothing).errorRender(nothing)
 	expectTypeOf(once).toHaveProperty("notFoundRender")
