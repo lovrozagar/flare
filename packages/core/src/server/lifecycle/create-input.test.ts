@@ -96,9 +96,31 @@ it("router required", () => {
 it("planned options", () => {
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [] })
 	for (const key of ["logger", "onError", "requestLog", "tracer"]) {
-		expect(() => createServer({ router, [key]: () => undefined } as Parameters<typeof createServer>[0])).toThrow(
-			`createServer: ${key} is planned (dx/observability.md) and not in v1`,
-		)
+		// The key's presence is what throws, a value of `undefined` included.
+		for (const value of [() => undefined, undefined]) {
+			expect(() => createServer({ router, [key]: value } as Parameters<typeof createServer>[0])).toThrow(
+				`createServer: ${key} is planned (dx/observability.md) and not in v1`,
+			)
+		}
 	}
 	expect(() => createServer({ router })).not.toThrow()
+})
+
+// Any other key `ServerOptions` does not have throws too, naming it: an adapter's own, which createServer would
+// otherwise ignore, says whose it is, and a misspelling is not dropped (BUGS.md 478).
+it("unknown options", () => {
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [] })
+	expect(() => createServer({ router, trustProxy: 1 } as never)).toThrow(
+		"createServer: trustProxy is an adapter option, createNodeListener's or createBunFetch's (dx/adapters.md)",
+	)
+	// A misspelled key is named before any other check reads the options: `Site` with a store is the typo, not a
+	// missing `site`.
+	expect(() => createServer({ router, Site: "https://flare.test", store: {} } as never)).toThrow(
+		"createServer: Site is not an option (dx/server.md)",
+	)
+	for (const key of ["sites", "basePath", "onerror"]) {
+		expect(() => createServer({ router, [key]: undefined } as never)).toThrow(
+			`createServer: ${key} is not an option (dx/server.md)`,
+		)
+	}
 })

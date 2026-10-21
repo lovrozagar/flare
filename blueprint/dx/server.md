@@ -6,6 +6,8 @@ createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewr
 
 The return value's `fetch(request, env, ctx)` is the production entry, and its `bodyLimit` is the cap in bytes. `buildId` is the id of the build that serves, the one `flare-build` names on every answer, and `cache.key({ to, params })` is the store key a request to that page stores under, for a key purge outside a request (`store.md` revalidate, plan 21 4.5). `ctx.waitUntil` is how background work is scheduled. On Node and Bun the adapter tracks that promise. On Workers it is `ctx.waitUntil`.
 
+A key the options do not have throws at the call, naming it, before any other check reads the options, rather than being ignored: a misspelling, an adapter's own `trustProxy`, and the options `observability.md` plans (`create-input.test.ts` `unknown options`, `planned options`, BUGS.md 478).
+
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
 | `router` | yes | — | the object from `createRouter` | | anything else throws at the call, naming `router` (BUGS.md 477) | `tests/integration/skeleton.test.ts`; `create-input.test.ts` `router required` |
@@ -309,4 +311,4 @@ Each visit checks the registered worker's script for an update. That fetch now g
 
 ## Logger
 
-Only `server/lifecycle/logger.ts` may call `console` on the server, the adapters included (`tests/structure/logger.test.ts` `console only in the logger`, BUGS.md 344) (plan 15 moves it to `server/observe/logger.ts` with its files.tsv rows) (`00-rules.md`). The logger, its levels and formats, `ctx.log`, `log()`, and every field are `observability.md` (B98).
+Only `server/lifecycle/logger.ts` may call `console` on the server, the adapters included (`tests/structure/logger.test.ts` `console only in the logger`, BUGS.md 344) (plan 15 moves it to `server/observe/logger.ts` with its files.tsv rows) (`00-rules.md`). The public logger, its levels and formats, `ctx.log`, `log()`, and every field are planned in `observability.md` (plan 15, B98); none is in v1.

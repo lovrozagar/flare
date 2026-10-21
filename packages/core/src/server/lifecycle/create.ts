@@ -24,7 +24,7 @@ import type { MiddlewareKind } from "../middleware/types.ts"
 import { applyMethod, checkResponseMethods, refusedChannel, routeMethod, type MethodMatch } from "./methods.ts"
 import { decodedHeaders, responseHeaders } from "./policies.ts"
 import { effectiveAuth } from "../auth/effective.ts"
-import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts"
+import { checkKeys, type FlareServer, type RuntimeOptions, type ServerOptions } from "./options.ts"
 import { loaderInput, notFound, renderFailed, type Loaded } from "./answers.ts"
 import { prerenderer, type Capture } from "../cache/prerender.ts"
 import { checkSite } from "../cache/scrub.ts"
@@ -53,11 +53,12 @@ const STYLES = devStyles(import.meta.hot)
 
 // The dev flag and the overlay sender come from Vite (B93). Tests pass their own sink. No entry exports this.
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
+	// A misspelled key is named before any check reads the options it was meant for (BUGS.md 478).
+	checkKeys(options)
 	checkRouter("createServer", options.router)
 	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev })
 	checkLocale(options.locale, options.router)
 	checkResponseMethods(options.router)
-	checkPlanned(options)
 	checkRetired(options.retireServiceWorker)
 	const { trailingSlash, caseSensitive } = options.router
 	const bodyLimit = bodyLimitOf(options.bodyLimit)
@@ -71,15 +72,6 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	const prerender = prerenderer(options, (request, env, capture) => serveOne(at, { request, env, prerender: capture }))
 	const refused = refusedChannel(at, (request) => canonicalStep(at, request))
 	return Object.assign(server, { [PRERENDER]: prerender }, refused)
-}
-
-// The observability options dx/observability.md plans, which v1 does not have: one passed from JavaScript, or through
-// a cast past `ServerOptions`, throws instead of being ignored (plan 21 13.14).
-const PLANNED = ["logger", "onError", "requestLog", "tracer"]
-
-function checkPlanned(options: object): void {
-	const given = PLANNED.find((key) => Object.hasOwn(options, key))
-	if (given !== undefined) throw new Error(`createServer: ${given} is planned (dx/observability.md) and not in v1`)
 }
 
 type Serving = { options: RuntimeOptions; sink: ErrorSink; mounts: ReturnType<typeof mountTable> }
