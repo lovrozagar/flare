@@ -446,3 +446,11 @@ it("pageshow", async () => {
 	flush()
 	expect(host.textContent).toBe("root[about:back]")
 })
+
+// `router` is required and is the object createRouter returns: anything else throws at the call, naming it, before any
+// boot is queued, with the check createServer and createTestServer make (dx/client.md, BUGS.md 434).
+it("router required", () => {
+	for (const value of [undefined, {}, "router", { match: "no" }]) {
+		expect(() => createClient(value as never)).toThrow("createClient: router is required")
+	}
+})

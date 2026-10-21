@@ -4,7 +4,7 @@ import { RedirectError } from "../../shared/errors/redirect.ts"
 import { redirectLocation } from "../redirect/index.ts"
 import { PRERENDER } from "../../shared/protocol/prerender.ts"
 import type { FlareRegister } from "../../shared/route-builder/register.ts"
-import type { Match } from "../../shared/router/create-router.ts"
+import { checkRouter, type Match } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
 import { serverCtx, withoutIdentity, withServerContext } from "../context/ctx.ts"
 import { runLoaders } from "../loaders/run.ts"
@@ -53,6 +53,7 @@ const STYLES = devStyles(import.meta.hot)
 
 // The dev flag and the overlay sender come from Vite (B93). Tests pass their own sink. No entry exports this.
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
+	checkRouter("createServer", options.router)
 	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev })
 	checkLocale(options.locale, options.router)
 	checkResponseMethods(options.router)

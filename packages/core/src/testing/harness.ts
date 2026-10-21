@@ -1,7 +1,7 @@
 import { createServer } from "../server/lifecycle/create.ts"
 import type { ServerOptions } from "../server/lifecycle/options.ts"
 import type { FlareRegister, RegisterField } from "../shared/route-builder/register.ts"
-import type { Router } from "../shared/router/create-router.ts"
+import { checkRouter, type Router } from "../shared/router/create-router.ts"
 
 export type TestServer = { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> }
 
@@ -21,6 +21,7 @@ export function createTestServer<R extends FlareRegister = FlareRegister>(
 	router: Router,
 	...args: TestArgs<R>
 ): TestServer {
+	checkRouter("createTestServer", router)
 	const options: object = args[0] ?? {}
 	const other = Object.keys(options).find((key) => key !== "serverContext")
 	if (args.length > 1 || other !== undefined) {
