@@ -1733,6 +1733,14 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 477.1 [x] Found by plan 29's batch D review (2026-10-21, testing D6, 6.1-testing.md): `createTestServer(undefined)` threw `Cannot read properties of undefined (reading 'routeTree')`, and `{}` threw `router.routeTree is not iterable`, naming neither the helper nor `router`.
 477.2 [x] Fix: both check the router at the call with the check createClient uses (BUGS.md 434), `checkRouter` in shared/router/create-router.ts. Red first: harness.test and create-input.test `router required`.
 
+478 [x] createServer ignored a key its options do not have
+478.1 [x] Found by plan 29's batch D review (2026-10-21, observability D1, 6.1-observability.md): dx/observability.md showed `trustProxy` as a createServer option, and `createServer({ trustProxy: 1 })` was silently ignored; it is the Node listener's and the Bun fetch's option (B51). Only the four planned keys threw.
+478.2 [x] Fix (ruled: reject): createServer throws on every key `ServerOptions` does not have, naming it; `trustProxy` names the two adapters, the planned keys keep their message. The known keys are a `Record<keyof RuntimeOptions, true>`, so a new option that is not listed fails to compile. Red first: create-input.test `unknown options`. dx/server.md and dx/observability.md say so. Batch D review item 14: the key check runs before every other, so `Site` beside a `store` names the typo, not a missing `site` (red first: create-input.test `unknown options`); a planned key throws with the value `undefined` too (`planned options`).
+
+479 [x] dx/observability.md read as v1 and cited tests and a bit file that do not exist
+479.1 [x] Found by plan 29's batch D review (2026-10-21, observability D2 to D4, 6.1-observability.md): the planned marking was one intro sentence while the table and sections read in the present tense and cited plan 15's tests; "verified on workerd in `logger.test.ts` `workers object`" and Silent failures' `bits/16-observability.md` and `silent.test.ts` named nothing that exists; dx/README's row had no planned tag.
+479.2 [x] Fix: the intro says what v1 does (the refused keys, `flare({ devLogs })`, the internal logger's names), every section moved under `## Planned (plan 15)`, `trustProxy` left the createServer signature and table, the two dead claims became plan 15's to make, dx/README's row and dx/server.md's Logger sentence say planned.
+
 ## Verify
 
 97 [x] Verify

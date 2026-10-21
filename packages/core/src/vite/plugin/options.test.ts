@@ -101,6 +101,8 @@ const banned = [
 	"alias",
 	"codegen",
 	"dev",
+	// Planned (dx/observability.md); v1 refuses it as any key flare() does not know.
+	"devLogs",
 	"ignorePrefix",
 	"logLevel",
 	"port",

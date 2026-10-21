@@ -103,3 +103,41 @@ export type FlareServer = {
 	// The store key of a page with these params, for a key purge outside a request (dx/store.md revalidate).
 	readonly cache: { key: <Id extends To<FlareRegister>>(target: UrlTarget<FlareRegister, Id>) => string }
 }
+
+// Every key `ServerOptions` has: the type fails to compile when the options gain a key this does not list.
+const KNOWN: Record<keyof RuntimeOptions, true> = {
+	router: true,
+	sameSite: true,
+	bodyLimit: true,
+	serverFns: true,
+	mounts: true,
+	rewrite: true,
+	middleware: true,
+	locale: true,
+	documentResponseDefer: true,
+	site: true,
+	store: true,
+	static: true,
+	retireServiceWorker: true,
+	authenticate: true,
+	serverContext: true,
+	security: true,
+}
+
+// The observability options dx/observability.md plans, which v1 does not have (plan 21 13.14).
+const PLANNED = new Set(["logger", "onError", "requestLog", "tracer"])
+
+// A key `ServerOptions` does not have, passed from JavaScript or through a cast, throws naming it instead of being
+// ignored: a planned option, an adapter's own (`trustProxy`, B51), and a misspelling alike (BUGS.md 216, 478).
+export function checkKeys(options: object): void {
+	for (const key of Object.keys(options)) {
+		if (Object.hasOwn(KNOWN, key)) continue
+		if (PLANNED.has(key)) throw new Error(`createServer: ${key} is planned (dx/observability.md) and not in v1`)
+		if (key === "trustProxy") {
+			throw new Error(
+				"createServer: trustProxy is an adapter option, createNodeListener's or createBunFetch's (dx/adapters.md)",
+			)
+		}
+		throw new Error(`createServer: ${key} is not an option (dx/server.md)`)
+	}
+}

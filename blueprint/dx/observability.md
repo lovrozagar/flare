@@ -1,9 +1,15 @@
 # Observability
 
-What a Flare server reports about itself: log lines, errors, a request log, a request id, traces, and the dev log bridge. **Planned (plan 15), not in v1.** `ServerOptions` has no `logger`, `onError`, `requestLog`, or `tracer` key, so passing one is a type error, and `createServer` given one anyway, from JavaScript or through a cast, throws `createServer: <key> is planned (dx/observability.md) and not in v1` instead of ignoring it (`create-input.test.ts` `planned options`, BUGS.md 113, 216). Every option below is a `createServer` option except `devLogs`, which is a `flare()` option (`plugin.md`). Core imports no logging or tracing package (B98, B99, B100).
+What a Flare server reports about itself: log lines, errors, a request log, a request id, traces, and the dev log bridge. **Planned (plan 15), not in v1:** everything under Planned below describes plan 15, and none of its tests exist yet.
+
+What v1 does: `ServerOptions` has no `logger`, `onError`, `requestLog`, or `tracer` key, so passing one is a type error, and `createServer` given the key anyway, from JavaScript or through a cast, throws `createServer: <key> is planned (dx/observability.md) and not in v1` instead of ignoring it, even with the value `undefined` (`create-input.test.ts` `planned options`, BUGS.md 113, 216). Any other key `ServerOptions` does not have throws too, `createServer: <key> is not an option (dx/server.md)`, and `trustProxy` says it is an adapter option, `createNodeListener`'s or `createBunFetch`'s (`adapters.md`, B51) (`create-input.test.ts` `unknown options`, BUGS.md 478). `flare({ devLogs })` throws as any key `flare()` does not know, its message the bare key (`plugin.md`). The server's internal logger, `server/lifecycle/logger.ts`, has a `createLogger({ dev })` and a `Logger` of its own; neither is exported, and plan 15 renames or replaces them so they do not share names with the public ones below. Core imports no logging or tracing package (B98, B99, B100).
+
+## Planned (plan 15)
+
+Every option below is a `createServer` option except `devLogs`, which is a `flare()` option (`plugin.md`). `trustProxy`, which the request id and tracing read, is an adapter option, the Node listener's and the Bun fetch's (`adapters.md`).
 
 ```ts
-createServer({ router, logger?, onError?, requestLog?, tracer?, trustProxy? })
+createServer({ router, logger?, onError?, requestLog?, tracer? })
 flare({ devLogs? })
 ```
 
@@ -13,9 +19,8 @@ flare({ devLogs? })
 | `onError` | no | absent | `(report: ErrorReport) => void \| Promise<void>` | called once for every server error, whatever the logger | a returned promise goes to `waitUntil` and is never awaited before the response. A throw or rejection is logged once at `error` and never calls `onError` again | `server/observe/on-error.test.ts` `once`, `async`, `throws` |
 | `requestLog` | no | `false` | `true`, or `{ skip?(entry): boolean }` | one `info` line per request after its body ends | `requestLog` with `logger: false` throws at `createServer` and names both options | `server/observe/request-log.test.ts` `on`, `skip`, `off by default`; `create.test.ts` `request log without logger` |
 | `tracer` | no | absent | a `Tracer` (Tracing below) | one span tree per request | absent means no span object is created | `server/observe/trace.test.ts` `no tracer` |
-| `trustProxy` | no | `0` | `server.md` | also decides whether an incoming `x-request-id` or `traceparent` is trusted (Request id, Tracing) | | `request-id.test.ts` `trusted reuse`, `untrusted ignored` |
 
-## Logger
+### Logger
 
 ```ts
 type Logger = {
@@ -28,9 +33,9 @@ The shape is pino's: a method takes a fields object then a message, or a message
 
 `createLogger({ level?, format? })` builds the default logger. `level` is `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `silent`. The default is `debug` in dev and `info` in production. `format` is `pretty` or `json`. The default is `pretty` in dev and `json` in production. `json` writes one JSON object per line: `time` (ISO), `level` (the name), `msg`, then the fields. `pretty` writes `HH:MM:SS LEVEL [tag] msg key=value`, colored only when the output is a terminal. Below the level, nothing is built: a field getter is never read (`logger.test.ts` `levels`, `format json`, `format pretty`, `defaults`). `createServer` has no `logLevel` (B89). An app that wants the default sink at another level passes `logger: createLogger({ level: "warn" })`.
 
-On Workers, `json` writes the object itself with `console.log`, so Workers Logs indexes its fields (verified on workerd in `logger.test.ts` `workers object`).
+On Workers, `json` writes the object itself with `console.log`, so Workers Logs indexes its fields (plan 15 verifies it on workerd).
 
-## LogFields
+### LogFields
 
 Every line Flare writes has `tag` and, inside a request, the request child's bindings. The fields are plain data. No field holds pre-formatted text.
 
@@ -48,7 +53,7 @@ Every line Flare writes has `tag` and, inside a request, the request child's bin
 | `durationMs` | the request log and spans | one measurement per request |
 | `cache` | the request log | `hit`, `stale`, `miss`, `bypass`, or `none` |
 
-## Request id
+### Request id
 
 Every request has an id, set before middleware runs and echoed as the response header `x-request-id` on every answer, errors and mounts included (`request-id.test.ts` `echoed`).
 
@@ -59,7 +64,7 @@ Every request has an id, set before middleware runs and echoed as the response h
 
 An incoming value that fails the pattern, or arrives with `trustProxy` 0, is ignored, so a client never writes text into the logs or picks the id (`request-id.test.ts` `generated`, `trusted reuse`, `untrusted ignored`, `unsafe replaced`, `trace id wins`). `requestId()` from `@lovrozagar/flare/server` returns it, and throws outside a request.
 
-## onError
+### onError
 
 ```ts
 type ErrorReport = {
@@ -75,11 +80,11 @@ type ErrorReport = {
 
 It receives the error the app threw, with its stack, in dev and in production. A named status (`notFound()`, `unauthenticated()`, `unauthorized()`, `redirect()`, an input failure) is not an error and does not call it. A thrown `markSafeError` does. Each bug calls it exactly once, even when the same error is also logged and painted by `errorRender` (`on-error.test.ts` one case per phase). The error never reaches the client through this hook. What the client receives is unchanged (B76).
 
-## Request log
+### Request log
 
 With `requestLog`, the request's child writes one `info` line, with message `request`, when the body ends or the client disconnects. Its fields: `method`, `path`, `status` (or `aborted`), `durationMs`, `routeId`, `kind` (`document`, `data`, `prefetch`, `fill`, `server-fn`, `mount`, `static`, `asset`), `cache`, `bytes` when known, `requestId`, and `runtime` (`node`, `bun`, `workers`). `skip(entry)` returning `true` drops the line. The duration is the root span's, when a tracer is set (`request-log.test.ts` `on`, `aborted`, `skip`, `one duration`).
 
-## Tracing
+### Tracing
 
 ```ts
 type Tracer = {
@@ -116,7 +121,7 @@ A stored hit has `http.request` and `flare.store` only. An error sets that span'
 
 `@lovrozagar/flare/otel` exports `otelTracer(tracer)`, which maps this interface onto `@opentelemetry/api` (an optional peer). Importing it without that package throws at import, with the install command in the message (`otel.test.ts` `maps`, `missing peer`).
 
-## Dev log bridge
+### Dev log bridge
 
 Only `vite dev` has it. A production bundle contains no bridge code (`log-bridge.test.ts` `prod empty`).
 
@@ -127,7 +132,7 @@ Only `vite dev` has it. A production bundle contains no bridge code (`log-bridge
 
 The bridge reads lines before the app's logger, so it works with a custom logger and with `logger: false`. It does not use the NDJSON wire (B6). `flare({ devLogs })` is `{ server?: boolean, browser?: false | "error" | "warn" | "all" }`, default `{ server: true, browser: "warn" }` (`plugin.md`).
 
-## Configuration matrix
+### Configuration matrix
 
 Each option is independent. The rules that join them:
 
@@ -143,14 +148,14 @@ Each option is independent. The rules that join them:
 
 `tests/integration/observability-matrix.test.ts` runs every combination of `logger` (default, custom, `false`), `onError` (absent, present), `requestLog` (off, on), `tracer` (absent, present), and `trustProxy` (0, 1), in dev and production: 96 cases, in process. Each serves a document, a data request, a server-function call, a loader bug, and a stored hit. In every case the status and body equal the unconfigured server's, nothing throws or rejects unhandled, `x-request-id` is present and matches the pattern, each line reaches the sink these rules name, `onError` fires once per bug, the span set matches, and Privacy holds.
 
-## Privacy
+### Privacy
 
 No log field and no span attribute holds a cookie, an `Authorization` value, a `Set-Cookie` value, a query string, a request body, or a server-function input. Paths are logged without the query. Spans and route series are named by route id, never by raw path. `onError` receives the request object itself, because the app reports from it. The app's own logger receives only the fields above (`privacy.test.ts` `no cookie`, `no query`, `no body`, `no fn input`).
 
-## Silent failures
+### Silent failures
 
-No error Flare catches is dropped without a report. A catch either logs one `warn` or `error` line with its `tag` (and calls `onError` when it is a server error), or carries a comment naming who reports that error instead. The classified list is in `bits/16-observability.md` (`silent.test.ts`).
+No error Flare catches is dropped without a report. A catch either logs one `warn` or `error` line with its `tag` (and calls `onError` when it is a server error), or carries a comment naming who reports that error instead. Plan 15 classifies every catch and adds the test that holds the list.
 
-## Performance
+### Performance
 
 `scripts/bench-observe.ts` serves the minimal app's `/` 10,000 times in process in four configurations: nothing configured, a logger at `info`, a logger with the request log, and a logger with a no-op tracer. Nothing configured stays within 2% of the throughput before plan 15. A regression past that fails the gate.
