@@ -40,9 +40,11 @@ export function createReady(): {
 	const readies: ((ctx: ReadyContext) => void)[] = []
 	const runs: Record<Phase, (() => void)[]> = { hydrated: [], idle: [], interaction: [] }
 	const state = { closed: false, report: logged }
-	const guarded = (run: () => void): void => {
+	// An `async` callback's rejection is reported as a throw is (BUGS.md 436).
+	const guarded = (run: () => unknown): void => {
 		try {
-			run()
+			const result = run()
+			if (result instanceof Promise) result.catch((error: unknown) => state.report(error))
 		} catch (error) {
 			state.report(error)
 		}
@@ -92,15 +94,16 @@ export function whenIdle(env: IdleEnv, run: () => void): void {
 	else env.requestIdle(run, { timeout: IDLE_TIMEOUT })
 }
 
-// The first pointerdown or keydown, once. A programmatic navigation is not an interaction.
+// The first pointerdown or keydown, once. A programmatic navigation is not an interaction. The listeners capture, so an
+// element that stops its event's propagation does not hide it (BUGS.md 435).
 function onFirstInteraction(target: EventTarget, run: () => void): void {
 	const once = (): void => {
-		target.removeEventListener("pointerdown", once)
-		target.removeEventListener("keydown", once)
+		target.removeEventListener("pointerdown", once, true)
+		target.removeEventListener("keydown", once, true)
 		run()
 	}
-	target.addEventListener("pointerdown", once)
-	target.addEventListener("keydown", once)
+	target.addEventListener("pointerdown", once, true)
+	target.addEventListener("keydown", once, true)
 }
 
 // `modules: "all"` waits for the window's load event, then idle (dx/link.md). A document already loaded runs now.
