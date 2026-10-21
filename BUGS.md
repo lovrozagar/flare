@@ -1893,6 +1893,10 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 481.1 [x] Found from the user's playground questions (2026-10-21, reported by flare-5b): dx/head.md says `<Stylesheet />` is rendered once, but nothing enforced it. In dev each one wrote every CSS module's `<style data-vite-dev-id>` again, and in a client-only render each wrote the preload link again, so two elements had `id="flare-stylesheet"`. A production document render already wrote it once.
 481.2 [x] Fix: the render's first `<Stylesheet />` claims it and a later one renders nothing: in a document render on the request scope, in a client-only render on the page's document while the first is mounted, released when it unmounts; a render with neither keeps no claim. Server and client agree, so hydration matches. Red first: stylesheet.test `one per render` (a dev document, a production document, a client-only render, and a new mount after the first unmounts).
 
+482 [x] The idle `"all"` prefetch fetched again modules an intent or viewport prefetch was still importing
+482.1 [x] Found by plan 32's docs-perf `requests` (2026-10-21, plan 21 15.6), and seen before as CI 39093904905's 5298 bytes counted twice in docs-perf: the warm-up lists every route chunk whose module has not loaded, and a module still importing has not, so a `rel=prefetch` link (or, without rel=prefetch, a second import) went out for files already on their way. On the docs home page three route chunks were fetched twice in the first load's window.
+482.2 [x] Fix: `load()` marks a lazy module importing until it settles, and the warm-up skips any module whose import has started (`importStarted`), loaded or in flight. Red first: prefetch.test `all skips an import in flight` (a link, and a second import without rel=prefetch, for a route still importing).
+
 ## Verify
 
 97 [x] Verify

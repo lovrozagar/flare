@@ -3,7 +3,7 @@ import { parseDuration } from "../../shared/duration/index.ts"
 import { BUILD_HEADER } from "../../shared/protocol/index.ts"
 import type { PrefetchTrigger, RoutePrefetch } from "../../shared/route-builder/index.ts"
 import type { ChainEntry, Match, ModuleRef, Router } from "../../shared/router/create-router.ts"
-import { loadChain, loadedModule } from "../../shared/router/load-chain.ts"
+import { importStarted, loadChain } from "../../shared/router/load-chain.ts"
 import type { Location } from "../../shared/url/index.ts"
 import { clientOf } from "../router/match-cache.ts"
 import { framesOf, landFrames, type Landed, type LandOptions } from "./frames.ts"
@@ -129,7 +129,7 @@ function unloadedChunks(router: Router): Set<string> {
 		entries
 			.filter(([id]) => {
 				const ref = modules.get(id)
-				return ref !== undefined && loadedModule(ref) !== undefined
+				return ref !== undefined && importStarted(ref)
 			})
 			.flatMap(([, files]) => files),
 	)
@@ -144,7 +144,7 @@ function unloadedChunks(router: Router): Set<string> {
 function unloadedEntries(router: Router): ChainEntry[] {
 	const layouts = Object.entries(router.layouts).map(([id, module]) => ({ id, kind: "layout" as const, module }))
 	const pages = router.routeTree.map((node) => ({ id: node.id, kind: "page" as const, module: node.module }))
-	return [...layouts, ...pages].filter((entry) => typeof entry.module === "function" && !loadedModule(entry.module))
+	return [...layouts, ...pages].filter((entry) => typeof entry.module === "function" && !importStarted(entry.module))
 }
 
 // The page a watched Link names: a data target's match, or the page of a hash move on screen now, which is a navigation

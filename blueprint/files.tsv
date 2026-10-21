@@ -180,7 +180,7 @@ packages/core/src/shared/router/create-router.ts	P1	src	shared	createRouter. Hol
 packages/core/src/shared/router/create-router.test.ts	P1	test	shared	Unit cases for create-router.ts
 packages/core/src/shared/router/behavior.ts	P1	src	shared	createRouter's URL and scroll behavior and its client cache, each at its dx/router.md default, counts range-checked (BUGS.md 106)
 packages/core/src/shared/router/behavior.test.ts	P1	test	shared	Unit cases for behavior.ts
-packages/core/src/shared/router/load-chain.ts	P6	src	shared	loadChain awaits a chain's lazy route modules and reads a namespace's `route`, waiting for it in dev (BUGS.md 73); loadedModule
+packages/core/src/shared/router/load-chain.ts	P6	src	shared	loadChain awaits a chain's lazy route modules and reads a namespace's `route`, waiting for it in dev (BUGS.md 73); loadedModule; importStarted, so a warm-up skips an import in flight (BUGS.md 482)
 packages/core/src/shared/router/load-chain.test.ts	P6	test	shared	Unit cases for load-chain.ts
 packages/core/src/shared/router/features.ts	P13	src	shared	Parse the theme, direction, and locale configs createRouter stores. A bad value throws at createRouter
 packages/core/src/shared/router/features.test.ts	P13	test	shared	Unit cases for features.ts
@@ -465,6 +465,8 @@ packages/core/src/client/navigation/overlay.ts	P6	src	dom	When a navigation open
 packages/core/src/client/navigation/overlay.test.ts	P6	test	dom	Unit cases for overlay.ts
 packages/core/src/client/navigation/prefetch.ts	P6	src	dom	Intent and viewport prefetch of the module and the data URL
 packages/core/src/client/navigation/prefetch.test.ts	P6	test	dom	Unit cases for prefetch.ts
+packages/core/src/client/navigation/prefetch-all.test.ts	P6	test	dom	Unit cases for prefetch.ts's idle warm-up, `modules: "all"`: links, closures, loaded chunks, an import in flight (BUGS.md 482)
+packages/core/src/client/navigation/prefetch.fixture.ts	P6	test	dom	The routes, router, and prefetcher prefetch.test and prefetch-all.test share
 packages/core/src/client/navigation/index.ts	P6	index	client	Re-exports
 packages/core/src/client/history/history.ts	P6	src	dom	Stamp a per-document history index. Adopt the existing entry on hydrate
 packages/core/src/client/history/history.test.ts	P6	test	dom	Unit cases for history.ts

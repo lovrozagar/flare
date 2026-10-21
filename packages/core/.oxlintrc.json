@@ -38,6 +38,13 @@
 			}
 		},
 		{
+			"files": ["**/*.fixture.ts"],
+			"rules": {
+				"flare/funnel-only": "off",
+				"flare/no-flare-header-branching": "off"
+			}
+		},
+		{
 			"files": ["tests/**"],
 			"rules": {
 				"flare/no-flare-header-branching": "off"
