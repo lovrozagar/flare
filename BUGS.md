@@ -1907,6 +1907,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 490 [x] The README's npm install failed with ERESOLVE once `@solidjs/vite-plugin` 3.0.0-next.51 shipped
 490.1 [x] Found by CI's consumers job on ecd989a0 (run 39689680819, readme.consumer `readme install, npm`, reproduced on the rerun): next.51 (published 2026-10-21 20:44Z) peers `solid-js` and `@solidjs/web` at `^2.0.0-rc.16`, where next.50 peered `^2.0.0-rc.14`. The plugin's peer was `>=3.0.0-next.50`, so the README's install resolved it to next.51 beside the Solid pair capped below rc.16 (426), and npm stopped with ERESOLVE. bun installed next.51 beside rc.15 without a word. A reader following the README could not install with npm.
 490.2 [x] Fix: the `@solidjs/vite-plugin` peer is `>=3.0.0-next.50 <3.0.0-next.51` in package.json, bun.lock's workspace entry, the README's install line and peer table, 00-rules.md, and dx/plugin.md; exports.test `peer floors` names the cap with this row, and readme.consumer checks the installed plugin is the tested next.50 on bun and npm too. Lifting the Solid cap once a release carries #4189's fix (426, 716c147e) lifts this one with it.
+492 [ ] exports.test `readme node serve` failed once with no answer for its whole 10 s poll and no word why
+492.1 [x] Found on a Bun run of exports.test at load average 37 (2026-10-22, BUGS 490's gates): "expected 0 to be 404". The case takes 76 to 113 ms on Node and Bun here, so the poll's margin is about 100 times; a server that never answers died, which a longer wait would hide. The poll now reports the child's exit and output (forced with PORT=1: "no answer; exit 1; output: node:events…", EACCES).
+492.2 [ ] Expected follow-up: if the next failure shows EADDRINUSE, another process took the port between `freePort` and the child's listen. The root fix is BUGS 486's pattern: the child listens on port 0 and reports the port it bound, which the README's serve.js would print.
 
 ## Verify
 
