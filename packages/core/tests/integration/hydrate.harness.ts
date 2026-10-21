@@ -73,14 +73,16 @@ export async function startHarness(core: string): Promise<Harness> {
 	})
 	answerStyles(vite)
 	const origin = `http://127.0.0.1:${portOf(await listen(http, vite, { cases, apps }))}`
-	const endpoint = await browserEndpoint()
+	const endpoints = await browserEndpoint()
 	const browsers = new Map<Engine, Browser>()
 	const browser = async (engine: Engine): Promise<Browser> => {
+		// Chromium connects to its own run-server, routed through the loopback proxy (BUGS.md 484).
+		const at = engine === "chromium" ? endpoints?.chromium : endpoints && { endpoint: endpoints.endpoint, headers: {} }
 		const open =
 			browsers.get(engine) ??
-			(endpoint === undefined
+			(at === undefined
 				? await TYPES[engine].launch()
-				: await TYPES[engine].connect(endpoint, { timeout: 60_000 }))
+				: await TYPES[engine].connect(at.endpoint, { timeout: 60_000, headers: at.headers }))
 		browsers.set(engine, open)
 		return open
 	}
