@@ -19,7 +19,7 @@ export function mergeHead(parent: HeadConfig, child: HeadConfig, replace = false
 	const parentCustom = parent.custom ?? {}
 	const childCustom = child.custom ?? {}
 	return {
-		title: pick(child.title, parent.title),
+		title: child.title === null || child.title === "" ? parent.title : pick(child.title, parent.title),
 		description: pick(child.description, parent.description),
 		keywords: pick(child.keywords, parent.keywords),
 		canonical: pick(child.canonical, parent.canonical),
@@ -43,10 +43,12 @@ export function mergeHead(parent: HeadConfig, child: HeadConfig, replace = false
 
 const pick = <T>(child: T | undefined, parent: T | undefined): T | undefined => (child === undefined ? parent : child)
 
-// A record neither side set stays absent: an empty `openGraph` or `robots` would still write its defaults.
+// A record neither side set stays absent: an empty `openGraph` or `robots` would still write its defaults. A child key
+// set to `undefined` keeps the parent's, as a top-level field does (BUGS.md 448).
 function shallow<T extends object>(parent: T | undefined, child: T | undefined): T | undefined {
 	if (parent === undefined) return child
 	if (child === undefined) return parent
-	return { ...parent, ...child }
+	const set = Object.fromEntries(Object.entries(child).filter(([, value]) => value !== undefined))
+	return { ...parent, ...set }
 }
 const list = <T>(value: readonly T[] | undefined): T[] => (value ? [...value] : [])

@@ -1,4 +1,5 @@
 import type { HeadConfig, HeadScript, OgAudio, SeoImage } from "../route-builder/types.ts"
+import { keepOpen } from "./script-text.ts"
 
 type Tag = { tag: "title" | "meta" | "link" | "script" | "style"; props: Record<string, string | boolean> }
 
@@ -96,16 +97,26 @@ function property(name: string, content: string): Tag {
 	return { tag: "meta", props: { property: name, content } }
 }
 
+// An absolute https URL, its scheme in any case, written as parsed. Anything else, `https://` alone and "" among them,
+// throws as a relative one does (BUGS.md 449). `URL.canParse` is above the browser floor, so the parse is caught.
 function canonical(url: string | undefined): Tag[] {
-	if (!url) return []
-	if (!url.startsWith("https://")) throw new Error("canonical")
-	return [{ tag: "link", props: { rel: "canonical", href: url } }]
+	if (url === undefined) return []
+	let parsed: URL | undefined
+	try {
+		parsed = new URL(url)
+	} catch {
+		parsed = undefined
+	}
+	if (parsed?.protocol !== "https:" || parsed.host === "") throw new Error("canonical")
+	return [{ tag: "link", props: { rel: "canonical", href: parsed.href } }]
 }
 
 function stylesheets(css: HeadConfig["css"]): Tag[] {
 	const hrefs = css === undefined ? [] : Array.isArray(css) ? css : [css]
+	// Written trimmed, a blank one dropped: an empty href is the page itself, fetched again as CSS (BUGS.md 450).
 	return hrefs
-		.filter((href) => !href.trim().toLowerCase().startsWith("javascript:"))
+		.map((href) => href.trim())
+		.filter((href) => href !== "" && !href.toLowerCase().startsWith("javascript:"))
 		.map((href) => ({ tag: "link", props: { rel: "stylesheet", href } }))
 }
 
@@ -216,7 +227,11 @@ function metaTags(value: HeadConfig["meta"]): Tag[] {
 function jsonLd(blocks: HeadConfig["jsonLd"], nonce: string | undefined): Tag[] {
 	return list(blocks).map((block) => ({
 		tag: "script",
-		props: { type: "application/ld+json", ...nonceProp(nonce), children: keepOpen(JSON.stringify(block), "script") },
+		props: {
+			type: "application/ld+json",
+			...nonceProp(nonce),
+			children: keepOpen(JSON.stringify(block), "script", "application/ld+json"),
+		},
 	}))
 }
 
@@ -236,16 +251,18 @@ function customTags(custom: HeadConfig["custom"], nonce: string | undefined): Ta
 // `type` and `extra` are written on either kind (dx/head.md). An external script carries no nonce, and `extra.nonce`
 // is ignored (dx/server.md). `nonce: false` stops Solid from stamping the request nonce on it.
 function scriptTag(script: HeadScript, nonce: string | undefined): Tag[] {
-	if (script.src !== undefined && script.children !== undefined) throw new Error("src and children")
+	// An empty `src` is no source (BUGS.md 451).
+	const src = script.src === "" ? undefined : script.src
+	if (src !== undefined && script.children !== undefined) throw new Error("src and children")
 	const type: Record<string, string> = script.type === undefined ? {} : { type: script.type }
-	if (script.src !== undefined) {
-		const props: Record<string, string | boolean> = { src: script.src, ...type }
+	if (src !== undefined) {
+		const props: Record<string, string | boolean> = { src, ...type }
 		if (script.async) props["async"] = true
 		return [{ tag: "script", props: { ...props, ...allowed(script.extra, SCRIPT_EXTRA), nonce: false } }]
 	}
 	if (script.children === undefined) return []
 	const props = { ...type, ...allowed(script.extra, SCRIPT_EXTRA), ...nonceProp(nonce) }
-	return [{ tag: "script", props: { ...props, children: keepOpen(script.children, "script") } }]
+	return [{ tag: "script", props: { ...props, children: keepOpen(script.children, "script", script.type) } }]
 }
 
 const nonceProp = (nonce: string | undefined): Record<string, string> => (nonce ? { nonce } : {})
@@ -265,11 +282,4 @@ function allowed(record: Record<string, string> | undefined, skip: readonly stri
 function allowedName(name: string): boolean {
 	if (name.toLowerCase().startsWith("on")) return false
 	return NAME.test(name) || DATA.test(name)
-}
-
-// A case-insensitive `</script` or `</style` in the text is rewritten so it cannot close the tag (B83), in its own
-// spelling, so a JSON-LD value or a JS string reads back exactly (BUGS.md 143). The client sets text as a DOM property,
-// where `<\/` reads the same.
-function keepOpen(value: string, tag: "script" | "style"): string {
-	return value.replaceAll(new RegExp(`</(${tag})`, "gi"), "<\\/$1")
 }

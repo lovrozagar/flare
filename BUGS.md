@@ -1656,6 +1656,35 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 434.1 [x] Found by plan 29's batch C review (2026-10-21, client D4): the boot failed later, far from the call.
 434.2 [x] Fix: createClient throws at the call, naming `router`, unless it is given a router, with the check createServer and createTestServer make (`checkRouter`, BUGS.md 477; moved into batch D, which lands first). Red first: create-client.test `router required`.
 
+427 [x] An inline head script holding `<!--<script` swallowed the rest of the document
+427.1 [x] Found by plan 29's batch C review (2026-10-21, head D1): `<!--` followed by `<script` sends the HTML parser into a script's double-escaped state, where the element's own `</script>` no longer closes it, so the page after it became script text.
+427.2 [x] Fix: keepOpen rewrites `<!--` in script text as `<\x21--`, and in JSON-LD as `\u003c!--`; `<script` stays as written, so a regex literal keeps its meaning. Red first: integration head.test `comment open`, parsed with jsdom.
+427.3 [x] The review of the fix found every non-JSON-LD script took the JavaScript form, so a `type: "application/json"` script (or an import map, or speculation rules) failed JSON.parse, and a data block such as a text/html template was corrupted. Fix: the rewrite follows the type: JavaScript types take `<\x21--`, JSON types `\u003c!--`, and any other type holding `<!--` throws at render, naming it. Red first: script-text.test `json types`, `data types` (`js types` pins the JavaScript forms).
+
+428 [x] A navigation into a failed match or a `.head()` throw kept the previous URL's head, and a merge with no title kept the previous title
+428.1 [x] Found by plan 29's batch C review (2026-10-21, head D3 and D4): the client fell back to the held head for a match whose response sent none, so a hard load and a navigation to the same URL differed.
+428.2 [x] Fix: a match that landed, failed, or sits under the failure has the head the response sent or none; only a match the response skipped keeps the held head. A merge with no title writes an empty one. Red first: head-client.test `head after navigation`, all three engines.
+
+447 [x] A `null` or `""` child title erased the parent's
+447.1 [x] Found by plan 29's batch C review (2026-10-21, head D5).
+447.2 [x] Fix (ruling 1): `null`, `undefined`, and `""` keep the parent's title. Red first: merge.test `empty child title`.
+
+448 [x] An own `undefined` in a shallow-merged head record erased the parent's key
+448.1 [x] Found by plan 29's batch C review (2026-10-21, head D6).
+448.2 [x] Fix: the shallow merge skips own `undefined` values, as the top-level pick does. Red first: merge.test `undefined record key`.
+
+449 [x] Canonical refused `HTTPS://`, accepted `https://` alone, and dropped `""`
+449.1 [x] Found by plan 29's batch C review (2026-10-21, head D7).
+449.2 [x] Fix: parsed with URL; an absolute https URL in any case is written as parsed, and anything else throws. Red first: tags.test `canonical parsed`.
+
+450 [x] `css: [""]` wrote `href=""`, and a leading space moved an href in the order
+450.1 [x] Found by plan 29's batch C review (2026-10-21, head D8).
+450.2 [x] Fix: hrefs are trimmed, a blank one dropped, and array order kept. Red first: tags.test `css hrefs`.
+
+451 [x] A custom script with `src: ""` was written
+451.1 [x] Found by plan 29's batch C review (2026-10-21, head D9).
+451.2 [x] Fix: an empty `src` is no source. Red first: tags.test `empty src`.
+
 452 [x] A client that left before the Node listener's answer started had its body read through into the closed answer
 452.1 [x] Found while tracing the group 5 Mac flake (2026-10-21, minimal.test `basepath › cdn page fresh`, CI runs 39497487553 and 39519606173): writeBody cancels the body's reader from the request signal's `abort` listener, and an already aborted signal never fires a listener added after. A client that left while the server was still answering got a body nobody cancelled; before BUGS.md 411 the first backpressured write parked forever, after it the drain wait returns at once and the loop reads the whole body into the closed answer. Wasted work, not the flake's cause as far as the code shows.
 452.2 [x] Fix: writeBody cancels the reader at once when the signal is already aborted. Red first: listener-answers.test `left before the answer` (a 100-chunk body: cancelled, under 5 pulls).
@@ -1663,6 +1692,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 453 [ ] minimal.test `basepath › cdn page fresh` fails on CI's macOS runners on node-dev-webkit and bun-dev-webkit, about 2 runs in 4 since group 5; it never fails on Linux WebKit (0 in 60 local runs at 3ca6e015)
 453.1 [ ] Found by CI after group 5 (2026-10-21, runs 39497487553 and 39519606173): the second document navigation to /app/cdn never shows the new render. The code rules out the 304 path and BUGS.md 411's drain wait on module requests, and BUGS.md 452 was a separate waste; the failed cases' server logs were empty, so nothing shows whether the request reached the server.
 453.2 [x] The trace, so the next Mac failure names its stage: under FLARE_E2E_TRACE=1, which CI sets for the e2e steps, a dev boot's vite.config puts tests/e2e/trace.ts's middleware first, and it logs each request's arrival, a document's head and first bytes, its finish, and its close; every failed case attaches what the live boots logged during it as its server log (crash.ts, server-log.ts). Off by default: unset, the boot names no module and the app loads none (trace.test `trace off`).
+
+460 [x] A served inline head script ran again at hydration, and custom links, scripts, and styles outlived their page
+460.1 [x] Found by plan 29's batch C review (2026-10-21, head D2): Solid's useHead adopts and removes only title and meta, so the client inserted its own copies and never removed the server's.
+460.2 [x] Fix (ruling, option a): title and meta stay Solid's; every link, script, and style is Flare's, written with a `data-fh` key and adopted, inserted, and removed when the commit is on screen. Red first: owned.test `adopt`, `reconcile`, `insert`; head-client.test `custom tags owned`, red with the fix flipped off.
+460.3 [x] The review of the fix found three gaps in applyOwned. A kept element had its nonce set again, which shows the nonce the browser hid to CSS selectors; only a created element gets it now. Two live elements with one key collapsed into one entry and the other stayed; it is removed. An inserted external script ran after the inline scripts after it, unlike a hard load; it keeps document order (`async` off), and the tags created after it wait until it loads or fails, a newer merge dropping what waited. Red first: owned.test `kept nonce`, `duplicate key`, `script order`; head-client.test `custom tags owned`'s /o step, red on all three engines with the ordering off.
 
 461 [x] A server-only body reached through an app barrel or a dynamic import shipped in the client chunk
 461.1 [x] Found by plan 29's batch D review (2026-10-21, env D1 and D2, 6.1-env.md): the rewrite and the B45 tripwire read only a module's own `import ... from "@lovrozagar/flare"`, so `export { createServerOnlyFn } from "@lovrozagar/flare"` in `src/helpers.ts`, imported from there, and `const { createServerOnlyFn } = await import("@lovrozagar/flare")` both left the body in the client chunk, and the build passed (real flare() builds, `SECRET_BARREL` and `SECRET_DYNAMIC` in the chunk).

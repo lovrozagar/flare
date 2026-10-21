@@ -218,14 +218,20 @@ export function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 		const values = (landed ? landing.values?.[entry.id] : held[index]?.values) ?? { params, search }
 		return { id: entry.id, kind: entry.kind, module: entry.module, ...values, data, preloader: kept ?? {} }
 	})
-	const heads = next.chain.map(
-		(entry, index) => landing.heads[entry.id] ?? held[index]?.head ?? next.previous.heads[earlier(entry.id)],
-	)
-	const snapshot: StoreSnapshot = { matches, heads, location: next.target.location }
 	const failure =
 		next.arrival.kind === "status"
 			? statusFailure(next.arrival.status, failedIndex(matches, next.arrival.failed))
 			: landedFailure(landing, matches)
+	// A match that landed, or failed or sits under the failure, has the head this response sent or none: its `.head()`
+	// threw or never ran, as on a hard load. Only a match the response skipped keeps the head the client holds
+	// (BUGS.md 428).
+	const heads = next.chain.map((entry, index) => {
+		const own = landing.heads[entry.id]
+		const failed = failure !== undefined && index >= failure.index
+		if (own !== undefined || entry.id in landing.data || failed) return own
+		return held[index]?.head ?? next.previous.heads[earlier(entry.id)]
+	})
+	const snapshot: StoreSnapshot = { matches, heads, location: next.target.location }
 	if (failure !== undefined) snapshot.failure = failure
 	remember(deps.cache, cached, landing)
 	return snapshot

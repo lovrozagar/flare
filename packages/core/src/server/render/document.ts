@@ -8,7 +8,7 @@ import type { Router } from "../../shared/router/create-router.ts"
 import { raceAbort, renderStop } from "./abort.ts"
 import { criticalContext, withCritical } from "./critical-style.ts"
 import { clientScript } from "./client-script.ts"
-import { headTags, type HeadTag } from "../../shared/head/index.ts"
+import { headTags, isOwned, ownedHtml, type HeadTag } from "../../shared/head/index.ts"
 import { DocumentHead, type Head } from "./head.ts"
 import { headSequence } from "./head-sequence.ts"
 import { registeredQuery, type DevStyle } from "../../shared/protocol/index.ts"
@@ -90,7 +90,9 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 		nonce,
 		...(input.preloads && { table: input.preloads }),
 	})
-	const headed = withHead(first, `${head}${links}`)
+	// The route's links, scripts, and styles, keyed for the client's applyOwned (BUGS.md 460).
+	const owned = ownedHtml((tags ?? []).filter(isOwned))
+	const headed = withHead(first, `${head}${links}${owned}`)
 	const critical = { css: input.sheet ?? "", nonce, ctx: criticalContext(input.router), stylesheet: stylesheet.href }
 	const page = withDoctype(withCritical(headed, critical))
 	// The client keeps every `<head>` node outside this sequence out of hydration (B120).
