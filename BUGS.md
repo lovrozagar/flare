@@ -1677,6 +1677,34 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 464.1 [x] Found by plan 29's batch D review (2026-10-21, env D5, 6.1-env.md): `typeof createServerOnlyFn` and `import type { createIsomorphicFn }` failed with "must be called directly", while dx/env.md says a type position is not a read (and `typeof flare.createIsomorphicFn` through the namespace passed).
 464.2 [x] Fix: a type-only import, `import type` or `import { type x }`, names no helper, and an identifier in a type query (`typeof x`, `typeof ns.x`) is no read. Red first: boundary/env.test `type positions`. dx/env.md states the rule for named imports and gives the test paths from `src/`.
 
+465 [x] A `site` with a trailing slash wrote `//` into every sitemap URL and the robots line
+465.1 [x] Found by plan 29's batch D review (2026-10-21, seo D1, 6.1-seo.md): `createServer({ site: "https://flare.test/" })` gave `https://flare.test//about` and `Sitemap: https://flare.test//sitemap.xml`; createServer accepts that `site`.
+465.2 [x] Fix: the sitemap and the robots line join `site` with its trailing slashes dropped, and a `loc` path carries `[` and `]` percent-encoded (RFC 3986), a literal-bracket folder's and an extra entry's alike, so the two forms of one URL are one entry (batch D review items 8, 9). Red first: sitemap.test `site slash`, `brackets encoded`; seo integration `sitemap clauses`.
+
+466 [x] A sitemap lastmod with a time and no offset took the build machine's day
+466.1 [x] Found by plan 29's batch D review (2026-10-21, seo D2, 6.1-seo.md): `2026-01-02T00:30:00` wrote `2026-01-02` under UTC and `2026-01-01` under `TZ=Pacific/Kiritimati`; the sitemap protocol's W3C datetime needs the offset.
+466.2 [x] Fix: a lastmod is checked by its own W3C Datetime grammar (`hh:mm`, optional `:ss` and fraction, then `Z` or `±hh:mm`), not by an engine's Date.parse, so V8 and JSC agree; a time with no offset throws (ruled: the offset is required); every error names the value and the entry's `loc`; a valid value is written as given, so `+14:00` keeps its author's date (batch D review items 6, 7, 10). Red first: sitemap.test `lastmod`, `lastmod checked`, run on Node and Bun and under UTC and Pacific/Kiritimati.
+
+467 [x] An impossible sitemap lastmod rolled over to another day
+467.1 [x] Found by plan 29's batch D review (2026-10-21, seo D3, 6.1-seo.md): `2026-02-30` wrote `2026-03-02`, as Date reads it.
+467.2 [x] Fix: the date must round-trip through the calendar, or it throws `is not a calendar date`. Red first: sitemap.test `lastmod checked`.
+
+468 [x] A tiny sitemap priority was written in exponent form
+468.1 [x] Found by plan 29's batch D review (2026-10-21, seo D4, 6.1-seo.md): `priority: 1e-7` wrote `<priority>1e-7</priority>`, which the schema's decimal rejects.
+468.2 [x] Fix: a priority is written as a decimal of at most four places (`0` here). Red first: sitemap.test `priority decimal`.
+
+469 [x] Sitemap options were checked only after every page rendered
+469.1 [x] Found by plan 29's batch D review (2026-10-21, seo D5, 6.1-seo.md): an `additionalEntries` `loc` that is not https failed only at the end of the build, and `robotsTxt: 1` crashed with a TypeError.
+469.2 [x] Fix: the plugin checks each extra `loc` as an absolute https URL and `robotsTxt`'s type when it is made, with Flare messages; only an off-site `loc` waits for `site`. Red first: sitemap.test `options checked early`.
+
+470 [x] Five dx/seo.md sitemap clauses had no build-level case
+470.1 [x] Found by plan 29's batch D review (2026-10-21, seo D6, 6.1-seo.md): the locale entries, the literal-bracket URL, an isr page's built sets, the auth-hint mismatch failing the build, and duplicate removal were pinned by unit cases only.
+470.2 [x] Fix: tests/integration/seo `sitemap clauses` builds one app through `vite build` for four of them, and `sitemap build errors` builds a page that re-exports its route, which the codegen scan cannot read, failing on the hint (flip-proven by disabling the check). dx/seo.md states the hint fails on any disagreement and the doc wording items.
+
+471 [x] Nothing pinned that createServer loads no seo module
+471.1 [x] Found by plan 29's batch D review (2026-10-21, seo D7, 6.1-seo.md): B58's claim held, but the boundaries lint rule would allow a re-export of a submitter from `./server`.
+471.2 [x] Fix: tests/structure/server-graph `server loads no seo` walks the runtime import graph of `src/exports/server.ts`, following relative specifiers, the package's own `@lovrozagar/flare/...` through its `exports` map, and a template `import()` with no substitution, and asserts no `src/features/seo` module; flip-proven by a re-export of `indexNow`, a self-import of `@lovrozagar/flare/seo`, and a template import (batch D review item 11).
+
 ## Verify
 
 97 [x] Verify

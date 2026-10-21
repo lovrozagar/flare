@@ -27,6 +27,7 @@ packages/core/tests/structure/logger.test.ts	P0	test	node	Only server/lifecycle/
 packages/core/tests/structure/keys.test.ts	P10	test	node	Every route shape of up to three params through the real router: no two param records share a store key or a match id (plan 21 7.8)
 packages/core/tests/structure/wire.test.ts	P6	test	node	A table of every kind of app value, alone and nested, through the codec, an l frame, the state script, and a server-function envelope: each arrives equal, and the state stays one script
 packages/core/tests/structure/exports.test.ts	P14	test	node	Every subpath in 03-surface resolves from the packed tarball; the README names exactly the packed exports and its quick start compiles against them
+packages/core/tests/structure/server-graph.test.ts	P13	test	node	No module of src/features/seo is in the runtime import graph of the ./server entry: createServer loads no submitter (B58, BUGS.md 471)
 packages/core/vitest.consumers.config.ts	P14	config	-	The consumer cells' own vitest config, outside `test` and `verify` since every cell installs from the registry: 30 min a case, one file at a time (plan 21 5.5)
 packages/core/tests/consumers/stage.ts	P14	test	node	The consumer stage: peer specs at their floors or newest, the newest report, a fresh project under the OS temp dir, the tarball installed and built and served with a pinned Node and its own npm
 packages/core/tests/consumers/stage.test.ts	P14	test	node	Unit cases for stage.ts's peer specs and newest report
