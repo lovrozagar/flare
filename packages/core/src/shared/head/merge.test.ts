@@ -27,3 +27,21 @@ it("replacing mark", () => {
 	expect(marked).toEqual(head)
 	expect(JSON.stringify(marked)).toBe('{"title":"R"}')
 })
+
+// A child title of `null`, `undefined`, or `""` keeps the parent's: none of them is a title (dx/head.md, BUGS.md 447).
+it("empty child title", () => {
+	for (const title of [null, undefined, ""]) {
+		expect(mergeHead({ title: "Parent" }, { title: title as unknown as string }).title).toBe("Parent")
+	}
+})
+
+// An own `undefined` in a shallow-merged record keeps the parent's key, as a top-level `undefined` does (BUGS.md 448).
+it("undefined record key", () => {
+	expect(mergeHead({ meta: { viewport: "width=500" } }, { meta: { viewport: undefined } }).meta).toEqual({
+		viewport: "width=500",
+	})
+	expect(mergeHead({ robots: { index: false } }, { robots: { index: undefined } }).robots).toEqual({ index: false })
+	expect(mergeHead({ openGraph: { title: "P" } }, { openGraph: { title: undefined } }).openGraph).toEqual({
+		title: "P",
+	})
+})

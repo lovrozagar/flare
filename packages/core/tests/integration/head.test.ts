@@ -1,3 +1,4 @@
+import { JSDOM } from "jsdom"
 import { expect, it } from "vitest"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
@@ -19,13 +20,13 @@ function headPage(name: string, config: () => HeadConfig) {
 }
 
 // The tags of the document's head before Flare's own scripts, one string each: the tag name, its attributes as
-// written with `data-dh` dropped and the request nonce as `NONCE`, and its text when it has any.
+// written with `data-dh` and `data-fh` dropped and the request nonce as `NONCE`, and its text when it has any.
 function headTags(html: string, nonce: string): string[] {
 	const head = /<head[^>]*>(.*?)<\/head>/s.exec(html)?.[1] ?? ""
 	const tags: string[] = []
 	for (const match of head.matchAll(/<(title|meta|link|script|style)\b((?:[^>"]|"[^"]*")*)>(?:(.*?)<\/\1>)?/gs)) {
 		const attrs = (match[2] ?? "")
-			.replaceAll(/ data-dh="[^"]*"/g, "")
+			.replaceAll(/ data-[df]h="[^"]*"/g, "")
 			.replaceAll(nonce === "" ? /$^/g : new RegExp(nonce, "g"), "NONCE")
 			.trim()
 		const text = match[3] === undefined || match[3] === "" ? "" : ` | ${match[3]}`
@@ -113,6 +114,10 @@ const ALL: HeadConfig = {
 }
 
 // Scripts whose `extra` names another origin for `src` or `href`.
+// A string a CMS or loader puts in an inline script: `<!--` then `<script` sends an HTML parser into its double-escaped
+// script state, where the element's own `</script>` no longer closes it (BUGS.md 427).
+const COMMENT = "<!--<script>"
+
 const EXTRA_URL: HeadScript[] = [
 	{ children: "inline()", extra: { src: "https://evil.example/a.js", id: "in" } },
 	{ src: "/ok.js", extra: { src: "https://evil.example/b.js", href: "https://evil.example/c", id: "out" } },
@@ -124,6 +129,16 @@ const get = serve(
 		headPage("defaults", () => ({ robots: {}, openGraph: {}, twitter: {}, title: null as unknown as string })),
 		headPage("relative", () => ({ title: "Relative", canonical: "/relative" })),
 		headPage("extra", () => ({ custom: { scripts: EXTRA_URL } })),
+		headPage("comment", () => ({
+			jsonLd: [{ html: COMMENT }],
+			custom: {
+				scripts: [
+					{ children: `window.cfg = ${JSON.stringify({ html: COMMENT })}`, extra: { id: "cfg" } },
+					{ children: "window.re = /<script/.source", extra: { id: "re" } },
+					{ children: 'window.u = /^<!--$/u.test("<!--")', extra: { id: "u" } },
+				],
+			},
+		})),
 		headPage("both", () => ({
 			title: "Both",
 			custom: { scripts: [{ src: "/x.js", children: "y" } as never] },
@@ -298,7 +313,8 @@ it("meta", async () => {
 // loader cannot point a nonced inline script, or an external one, at another origin (plan 21 12.2, BUGS.md 160).
 it("custom extra url", async () => {
 	const scripts = (await headOf("/extra")).tags.filter((tag) => tag.includes('id="in"') || tag.includes('id="out"'))
-	expect(scripts).toEqual(['script src="/ok.js" id="out"', 'script id="in" nonce="NONCE" | inline()'])
+	// In merge order, as Flare writes its own tags (BUGS.md 460).
+	expect(scripts).toEqual(['script id="in" nonce="NONCE" | inline()', 'script src="/ok.js" id="out"'])
 	expect(scripts.join(" ")).not.toContain("evil.example")
 })
 
@@ -308,8 +324,8 @@ it("custom", async () => {
 	expect(tags).toContain('meta http-equiv="x-ua-compatible" content="IE=edge"')
 	const scripts = tags.filter((tag) => tag.startsWith("script") && !tag.includes("ld+json") && !tag.includes("_$HY"))
 	expect(scripts).toEqual([
-		'script src="/ext.js" type="module" async id="ext"',
 		'script type="module" id="inline" nonce="NONCE" | var a = \'<\\/SCRIPT>\'',
+		'script src="/ext.js" type="module" async id="ext"',
 	])
 	expect(tags).toContain('style nonce="NONCE" | a{color:red}<\\/style>')
 })
@@ -326,4 +342,21 @@ it("omitted", async () => {
 	}
 	const plain = await headOf("/plain")
 	expect(plain.tags.filter((tag) => /^(title|meta name=|link rel="(canonical|icon)")/.test(tag))).toEqual([])
+})
+
+// An inline script or JSON-LD holding `<!--<script` closes where it should: a spec parser (jsdom's parse5) sees the page
+// body, the script reads the string back exactly, and so does the JSON-LD (dx/head.md, BUGS.md 427).
+it("comment open", async () => {
+	const document = new JSDOM((await get("/comment")).text).window.document
+	expect(document.body.textContent).toContain("comment")
+	const script = document.getElementById("cfg")?.textContent ?? ""
+	expect((new Function(`const window = {}; ${script}; return window.cfg`)() as { html: string }).html).toBe(COMMENT)
+	// `<script` itself is left as written, so a regex literal keeps its meaning.
+	const re = document.getElementById("re")?.textContent ?? ""
+	expect(new Function(`const window = {}; ${re}; return window.re`)() as string).toBe("<script")
+	// `<!--` in a unicode regex is rewritten to an escape that flag still allows, and matches as written.
+	const unicode = document.getElementById("u")?.textContent ?? ""
+	expect(new Function(`const window = {}; ${unicode}; return window.u`)()).toBe(true)
+	const ld = document.querySelector('script[type="application/ld+json"]')?.textContent ?? ""
+	expect((JSON.parse(ld) as { html: string }).html).toBe(COMMENT)
 })

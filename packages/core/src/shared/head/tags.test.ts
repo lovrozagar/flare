@@ -160,3 +160,28 @@ it("script type", () => {
 		{ type: "module", id: "i", nonce: "n", children: "x" },
 	])
 })
+
+// A canonical is an absolute https URL in any case of its scheme, written as parsed; `https://` alone and `""` are no
+// absolute URL and throw, as a relative one does (dx/head.md, BUGS.md 449).
+it("canonical parsed", () => {
+	expect(headTags({ canonical: "HTTPS://Example.com/x" })).toEqual([
+		{
+			tag: "link",
+			key: "link:canonical:https://example.com/x:0",
+			props: { rel: "canonical", href: "https://example.com/x" },
+		},
+	])
+	for (const canonical of ["https://", "", "http://example.com/"])
+		expect(() => headTags({ canonical })).toThrow("canonical")
+})
+
+// An empty or blank stylesheet href is dropped, and each href is written trimmed, in the order given (BUGS.md 450).
+it("css hrefs", () => {
+	const hrefs = headTags({ css: ["", " /b.css", "  ", "/c.css"] }).map((tag) => tag.props["href"])
+	expect(hrefs).toEqual(["/b.css", "/c.css"])
+})
+
+// A script with an empty `src` has neither, and is dropped (BUGS.md 451).
+it("empty src", () => {
+	expect(headTags({ custom: { scripts: [{ src: "" }] } })).toEqual([])
+})

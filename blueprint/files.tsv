@@ -191,6 +191,10 @@ packages/core/src/shared/head/tags.ts	P6	src	shared	headTags: a merged head conf
 packages/core/src/shared/head/tags.test.ts	P6	test	shared	Unit cases for tags.ts
 packages/core/src/shared/head/merge.ts	P6	src	shared	mergeHead: the B83 replace rules, keeping a record neither side set absent
 packages/core/src/shared/head/merge.test.ts	P6	test	shared	Unit cases for merge.ts
+packages/core/src/shared/head/owned.ts	P6	src	shared	Flare's own head tags: every link, script, and style of the merge, and the server's HTML for them with their data-fh keys (BUGS.md 460)
+packages/core/src/shared/head/owned.test.ts	P6	test	shared	Unit cases for owned.ts
+packages/core/src/shared/head/script-text.ts	P6	src	shared	keepOpen: an inline script's or style's text as the server writes it, `<!--` rewritten by the script's type (BUGS.md 427)
+packages/core/src/shared/head/script-text.test.ts	P6	test	shared	Unit cases for script-text.ts
 packages/core/src/shared/head/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/components/boundary.ts	P5	src	shared	Nearest boundary toward the root, and the builtin text (B77)
 packages/core/src/shared/components/boundary.test.ts	P5	test	shared	Unit cases for boundary.ts
@@ -307,7 +311,7 @@ packages/core/src/server/render/head-sequence.ts	P1	src	server	The final shell's
 packages/core/src/server/render/head-sequence.test.ts	P1	test	server	Unit cases for head-sequence.ts
 packages/core/src/server/render/shape.ts	P1	src	server	A document holds `<html` and `</body>`: B37's production shell check and B46's write rule
 packages/core/src/server/render/shape.test.ts	P1	test	server	Unit cases for shape.ts
-packages/core/src/server/render/head.ts	P1	src	server	Render the merged .head() descriptors through Solid's SSR useHead, so each tag carries its data-dh identity
+packages/core/src/server/render/head.ts	P1	src	server	Render the merged .head() title and meta through Solid's SSR useHead, so each carries its data-dh identity
 packages/core/src/server/render/head.test.ts	P1	test	server	Unit cases for head.ts
 packages/core/src/server/render/matches.ts	P6	src	server	The outlet matches and the B83 state matches of a document, from its chain and loader run
 packages/core/src/server/render/matches.test.ts	P6	test	server	Unit cases for matches.ts
@@ -464,8 +468,10 @@ packages/core/src/client/history/history.ts	P6	src	dom	Stamp a per-document hist
 packages/core/src/client/history/history.test.ts	P6	test	dom	Unit cases for history.ts
 packages/core/src/client/history/state.ts	P6	types	client	HistoryState type
 packages/core/src/client/history/index.ts	P6	index	client	Re-exports
-packages/core/src/client/head/apply.ts	P6	src	dom	Apply h frames through useHead in the same slot order the server used
+packages/core/src/client/head/apply.ts	P6	src	dom	Apply h frames in the same slot order the server used: title and meta through useHead, links, scripts, and styles through applyOwned
 packages/core/src/client/head/apply.test.ts	P6	test	dom	Unit cases for apply.ts
+packages/core/src/client/head/owned.ts	P6	src	dom	applyOwned: adopt, insert, and remove the merge's links, scripts, and styles by their data-fh keys (BUGS.md 460)
+packages/core/src/client/head/owned.test.ts	P6	test	dom	Unit cases for owned.ts
 packages/core/src/client/head/index.ts	P6	index	client	Re-exports
 packages/core/src/client/view-transition/direction.ts	P6	src	dom	Choose the view-transition direction from the history index delta, resolve the option, and run the commit inside the transition
 packages/core/src/client/view-transition/direction.test.ts	P6	test	dom	Unit cases for direction.ts
@@ -733,6 +739,7 @@ packages/core/tests/integration/auth.test.ts	P4	test	node	Layout auth in front o
 packages/core/tests/integration/stream.test.ts	P5	test	node	Abort closes the stream. A throw before the shell is a 500 with no body bytes
 packages/core/tests/integration/nonce-client.test.tsx	P6	test	dom	The client half of the nonce cases: a head tag applied after a data navigation carries self.flare.nonce
 packages/core/tests/integration/navigation.test.ts	P6	test	node	A data URL returns NDJSON. A document URL returns HTML. Stale skips page loaders only
+packages/core/tests/integration/head-client.test.ts	P6	test	node	The client head after navigations, SSR then hydrate in three engines: titles against a hard load, custom tags kept once
 packages/core/tests/integration/head.test.ts	P6	test	node	dx/head.md's fields and nested objects through the real createServer(...).fetch: each tag of the document's head, its escape and nonce, the defaults, and a value the head cannot write omitting that match's head (plan 14 9.6, BUGS.md 145, 146)
 packages/core/tests/integration/link.test.ts	P6	test	node	dx/link.md's Link markup, active state, Href, and URL values through the real createServer(...).fetch, the URL text read back by a route's validators (plan 14 9.6, BUGS.md 147)
 packages/core/tests/integration/link-client.test.ts	P6	test	node	dx/link.md's clicks, active state, navigation options, search spellings, URL values, and prefetch in each engine through the hydrate harness (plan 14 9.6, BUGS.md 147)

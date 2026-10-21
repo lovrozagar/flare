@@ -25,7 +25,7 @@ function documentOf(children?: JSX.Element): JSX.Element {
 	})
 }
 
-// The head Solid writes through the real render, before Flare's capture script. `tags` strips `data-dh`.
+// The head the real render writes, minus Solid's capture script (BUGS.md 460). `tags` strips data-dh and data-fh keys.
 async function written(head: Head, nonce = ""): Promise<string> {
 	const request = new Request("http://localhost/")
 	const body = await renderDocument({
@@ -38,11 +38,11 @@ async function written(head: Head, nonce = ""): Promise<string> {
 	})
 	const html = await new Response(body).text()
 	const inner = html.slice(html.indexOf(">", html.indexOf("<head")) + 1, html.indexOf("</head>"))
-	return inner.slice(0, inner.lastIndexOf("<script"))
+	return inner.replace(/<script[^>]*>[^<]*_\$HY[^<]*<\/script>/, "").replace("<!--xs-->", "")
 }
 
 async function tags(head: Head, nonce?: string): Promise<string> {
-	return (await written(head, nonce)).replaceAll(/ data-dh="[^"]*"/g, "")
+	return (await written(head, nonce)).replaceAll(/ data-[df]h="[^"]*"/g, "")
 }
 
 it("description", async () => {
@@ -71,8 +71,8 @@ it("hreflang", async () => {
 	)
 })
 
-// JSON-LD cannot close its tag, is not entity-escaped, and parses back exactly, case kept (BUGS.md 143; rc.15's
-// head writes its `<` as `\u003C`).
+// JSON-LD cannot close its tag, is not entity-escaped, and parses back exactly, case kept (BUGS.md 143). Flare writes
+// it, so its other `<` stay as written (BUGS.md 460).
 it("jsonld escape", async () => {
 	const block = { name: "</ScRiPt> a<b & c" }
 	const text = /<script type="application\/ld\+json">(.*?)<\/script>/s.exec(await tags({ jsonLd: [block] }))?.[1] ?? ""
