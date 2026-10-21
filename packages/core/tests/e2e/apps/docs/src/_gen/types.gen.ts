@@ -12,12 +12,13 @@ declare module "@lovrozagar/flare" {
 			"/[[locale]]/error": { params: { locale: string | undefined } };
 			"/[[locale]]/": { params: { locale: string | undefined } };
 			"/[[locale]]/login": { params: { locale: string | undefined } };
+			"/[[locale]]/perf/[rows]": { params: { locale: string | undefined; rows: string } };
 			"/[[locale]]/playground": { params: { locale: string | undefined } };
 			"/[[locale]]/search": { params: { locale: string | undefined } };
 			"/admin": { params: {} };
 			"/admin/audit": { params: {} };
 		};
-		pageIds: "[[locale]]/_root_/" | "[[locale]]/_root_/(guide)/api/[...path]" | "[[locale]]/_root_/(guide)/docs/[slug]" | "[[locale]]/_root_/(guide)/examples/[[...rest]]" | "[[locale]]/_root_/[_]flare]" | "[[locale]]/_root_/changelog" | "[[locale]]/_root_/error" | "[[locale]]/_root_/legacy" | "[[locale]]/_root_/llms.txt" | "[[locale]]/_root_/login" | "[[locale]]/_root_/playground" | "[[locale]]/_root_/search" | "_admin_/admin" | "_admin_/admin/audit";
+		pageIds: "[[locale]]/_root_/" | "[[locale]]/_root_/(guide)/api/[...path]" | "[[locale]]/_root_/(guide)/docs/[slug]" | "[[locale]]/_root_/(guide)/examples/[[...rest]]" | "[[locale]]/_root_/[_]flare]" | "[[locale]]/_root_/changelog" | "[[locale]]/_root_/error" | "[[locale]]/_root_/legacy" | "[[locale]]/_root_/llms.txt" | "[[locale]]/_root_/login" | "[[locale]]/_root_/perf/[rows]" | "[[locale]]/_root_/playground" | "[[locale]]/_root_/search" | "_admin_/admin" | "_admin_/admin/audit";
 		routeModules: {
 			"[[locale]]/_root_": typeof import("../routes/[[locale]]/_root_/locale.root-layout.tsx").route;
 			"[[locale]]/_root_/": typeof import("../routes/[[locale]]/_root_/home.page.tsx").route;
@@ -33,6 +34,7 @@ declare module "@lovrozagar/flare" {
 			"[[locale]]/_root_/legacy": typeof import("../routes/[[locale]]/_root_/legacy/legacy.page.tsx").route;
 			"[[locale]]/_root_/llms.txt": typeof import("../routes/[[locale]]/_root_/llms.txt/llms.page.tsx").route;
 			"[[locale]]/_root_/login": typeof import("../routes/[[locale]]/_root_/login/login.page.tsx").route;
+			"[[locale]]/_root_/perf/[rows]": typeof import("../routes/[[locale]]/_root_/perf/[rows]/rows.page.tsx").route;
 			"[[locale]]/_root_/playground": typeof import("../routes/[[locale]]/_root_/playground/playground.page.tsx").route;
 			"[[locale]]/_root_/search": typeof import("../routes/[[locale]]/_root_/search/search.page.tsx").route;
 			"_admin_": typeof import("../routes/_admin_/admin.root-layout.tsx").route;
@@ -54,6 +56,7 @@ declare module "@lovrozagar/flare" {
 			"[[locale]]/_root_/legacy": ["[[locale]]/_root_"];
 			"[[locale]]/_root_/llms.txt": ["[[locale]]/_root_"];
 			"[[locale]]/_root_/login": ["[[locale]]/_root_"];
+			"[[locale]]/_root_/perf/[rows]": ["[[locale]]/_root_"];
 			"[[locale]]/_root_/playground": ["[[locale]]/_root_"];
 			"[[locale]]/_root_/search": ["[[locale]]/_root_"];
 			"_admin_": [];
