@@ -64,26 +64,53 @@ const TWO_PAGES = {
 	"src/routes/_root_/about/about.page.tsx": page("_root_/about"),
 }
 
+// dx/seo.md's sitemap clauses a page's shape decides (BUGS.md 470): a locale-optional page listed bare and per other
+// tag, a literal-bracket folder at the URL it serves, an isr page's built param sets, and an extra entry that repeats
+// a listed URL kept once.
+const CLAUSES = {
+	"src/router.ts":
+		'import { createRouter } from "@lovrozagar/flare";\nimport { chunks, layouts, routeTree } from "./_gen/routes.gen.ts";\nexport const router = createRouter({ layouts, routeTree, chunks, locale: { locales: ["en", "hr"], defaultLocale: "en" } });\n',
+	"src/routes/[[locale]]/_root_/root.root-layout.tsx": rootLayout("[[locale]]/_root_"),
+	"src/routes/[[locale]]/_root_/search/search.page.tsx": page("[[locale]]/_root_/search"),
+	"src/routes/_flat_/root.root-layout.tsx": rootLayout("_flat_"),
+	"src/routes/_flat_/[_]flare]/flare.page.tsx": page("_flat_/[_]flare]"),
+	"src/routes/_flat_/items/[id]/item.page.tsx": page(
+		"_flat_/items/[id]",
+		'.cache({ isr: { params: () => [{ id: "1" }, { id: "2" }] } })',
+	),
+	"vite.config.mjs": config(`{ additionalEntries: [{ loc: "${SITE}/search", priority: 0.2 }] }`),
+	// The locale slot is the server's: its i18n middleware over the router's config (B73, B101).
+	"src/server.ts": [
+		'import { createServer } from "@lovrozagar/flare/server";',
+		'import { i18n } from "@lovrozagar/flare/i18n/server";',
+		'import { router } from "./router.ts";',
+		`export const server = createServer({ router, site: ${JSON.stringify(SITE)}, locale: i18n({ locales: ["en", "hr"], defaultLocale: "en" }) });`,
+		"",
+	].join("\n"),
+}
+
 let full: string | undefined
 let robots: string | undefined
 let plain: string | undefined
+let clauses: string | undefined
 
 // The app's root once it built.
 async function app(files: Record<string, string>): Promise<string> {
-	const root = apps.make({ ...files, "src/server.ts": SERVER })
+	const root = apps.make({ "src/server.ts": SERVER, ...files })
 	const built = await viteBuild(root)
 	if (built.status !== 0) throw new Error(built.output)
 	return root
 }
 
 beforeAll(async () => {
-	;[full, robots, plain] = await Promise.all([
+	;[full, robots, plain, clauses] = await Promise.all([
 		app({ ...PAGES, "vite.config.mjs": config(FULL) }),
 		app({
 			...TWO_PAGES,
 			"vite.config.mjs": config('{ robotsTxt: true, changefreq: "weekly", priority: { "_root_/about": 0.9 } }'),
 		}),
 		app({ ...TWO_PAGES, "vite.config.mjs": config("{}") }),
+		app(CLAUSES),
 	])
 })
 
@@ -105,7 +132,7 @@ function entries(xml: string | undefined): Array<Record<string, string>> {
 
 // Public pages, optional auth without authorize, the bare optional catch-all, and each ssg slug are listed; required
 // auth, authorize, a `.response()` page, an unbuilt dynamic page, and an excluded page are not. The extra entry is
-// appended with its lastmod as a UTC date and its `&` escaped.
+// appended with its lastmod as written and its `&` escaped.
 it("sitemap entries", async () => {
 	const xml = written(full, "sitemap.xml")
 	expect(xml).toMatch(
@@ -114,7 +141,7 @@ it("sitemap entries", async () => {
 	expect(entries(xml)).toEqual([
 		{ loc: `${SITE}/`, changefreq: "daily", priority: "0.5" },
 		{ loc: `${SITE}/about`, priority: "0.5" },
-		{ loc: `${SITE}/extra?a=1&amp;b=2`, lastmod: "2026-01-03", changefreq: "yearly", priority: "0.1" },
+		{ loc: `${SITE}/extra?a=1&amp;b=2`, lastmod: "2026-01-02T23:30:00-05:00", changefreq: "yearly", priority: "0.1" },
 		{ loc: `${SITE}/files`, priority: "0.5" },
 		{ loc: `${SITE}/maybe`, priority: "0.5" },
 		{ loc: `${SITE}/posts/a`, changefreq: "monthly", priority: "0.5" },
@@ -140,6 +167,19 @@ it("robots true and records", async () => {
 it("sitemap defaults", async () => {
 	expect(entries(written(plain, "sitemap.xml"))).toEqual([{ loc: `${SITE}/` }, { loc: `${SITE}/about` }])
 	expect(written(plain, "robots.txt")).toBeUndefined()
+})
+
+// A page whose every param is optional is one entry bare and one per other configured tag; a literal-bracket folder is
+// the URL it serves; an isr page is one entry per param set its `params` built; and an extra entry that repeats a
+// listed URL is dropped, the first kept (BUGS.md 470).
+it("sitemap clauses", async () => {
+	expect(entries(written(clauses, "sitemap.xml"))).toEqual([
+		{ loc: `${SITE}/%5Bflare%5D` },
+		{ loc: `${SITE}/hr/search` },
+		{ loc: `${SITE}/items/1` },
+		{ loc: `${SITE}/items/2` },
+		{ loc: `${SITE}/search` },
+	])
 })
 
 // The plugin checks the options when it is created, and `sitemap()` when it is called.
@@ -172,6 +212,19 @@ it("sitemap build errors", async () => {
 	)
 	expect(offSite.status).not.toBe(0)
 	expect(offSite.output).toContain("https://other.test/x")
+	// A page that re-exports its route from another module is past what the codegen scan reads: the hint says public,
+	// the loaded page requires auth, and the build fails rather than list it (B25).
+	const hidden = await viteBuild(
+		apps.make({
+			...TWO_PAGES,
+			"src/routes/_root_/gated/gated.page.tsx": 'export { route } from "../../../gated.tsx";\n',
+			"src/gated.tsx": page("_root_/gated", ".authenticate()"),
+			"vite.config.mjs": config("{}"),
+			"src/server.ts": SERVER,
+		}),
+	)
+	expect(hidden.status).not.toBe(0)
+	expect(hidden.output).toContain("_root_/gated: the codegen auth hint says public, the loaded modules say requires")
 })
 
 // `GET /<key>.txt` answers the key as text/plain; any other request reaches the app.

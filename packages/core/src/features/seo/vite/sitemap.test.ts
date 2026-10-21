@@ -155,11 +155,10 @@ it("extra loc", () => {
 	expect(xmlOf(extra)).toContain(
 		"<url><loc>https://example.com/x</loc><changefreq>daily</changefreq><priority>0.4</priority></url>",
 	)
-	for (const loc of ["https://other.com/x", "http://example.com/x", "/x"]) {
-		expect(() => build([], { additionalEntries: [{ loc }] })).toThrow(
-			`sitemap additionalEntries loc ${loc} is not https on ${SITE}`,
-		)
-	}
+	// Another origin is known only once the build has `site`; a loc that is not absolute https fails sooner.
+	expect(() => build([], { additionalEntries: [{ loc: "https://other.com/x" }] })).toThrow(
+		`sitemap additionalEntries loc https://other.com/x is not https on ${SITE}`,
+	)
 })
 
 it("changefreq", () => {
@@ -224,10 +223,10 @@ it("robots true", () => {
 
 it("lastmod", () => {
 	const xml = xmlOf(build([], { additionalEntries: [{ loc: `${SITE}/x`, lastmod: "2026-10-13T23:30:00-02:00" }] }))
-	expect(xml).toContain("<lastmod>2026-10-14</lastmod>")
-	for (const lastmod of ["yesterday", "13/10/2026", "2026-13-45"]) {
+	expect(xml).toContain("<lastmod>2026-10-13T23:30:00-02:00</lastmod>")
+	for (const lastmod of ["yesterday", "13/10/2026"]) {
 		expect(() => sitemap({ additionalEntries: [{ loc: `${SITE}/x`, lastmod }] })).toThrow(
-			`sitemap lastmod "${lastmod}" is not an ISO date`,
+			`sitemap lastmod "${lastmod}" of ${SITE}/x is not a W3C datetime`,
 		)
 	}
 })
@@ -250,4 +249,88 @@ it("optional absent", () => {
 		"https://example.com/hr",
 		"https://example.com/ar",
 	])
+})
+
+// A `site` with trailing slashes names the same origin: no URL and no robots line gets `//` (BUGS.md 465).
+it("site slash", () => {
+	for (const site of [`${SITE}/`, `${SITE}//`]) {
+		const result = build([open], { robotsTxt: true }, { site })
+		expect(locs(xmlOf(result))).toEqual(["https://example.com/about"])
+		expect(result.files.find((file) => file.name === "robots.txt")?.body).toBe(
+			"Sitemap: https://example.com/sitemap.xml\n",
+		)
+	}
+})
+
+// `[` and `]` are not URL code points (RFC 3986): a literal-bracket folder's URL and an extra entry's path are written
+// percent-encoded, so the two forms of one URL are one entry; a bracketed IPv6 host is left as it is (BUGS.md 465).
+it("brackets encoded", () => {
+	const flare = route("_root_/[_]flare]", "/[flare]")
+	const extra = [{ loc: `${SITE}/[flare]` }, { loc: `${SITE}/a[1]?q=[x]#[y]` }, { loc: SITE }]
+	const result = build([flare], { additionalEntries: extra })
+	expect(locs(xmlOf(result))).toEqual([`${SITE}/%5Bflare%5D`, `${SITE}/a%5B1%5D?q=[x]#[y]`, SITE])
+	const v6 = sitemap({ additionalEntries: [{ loc: "https://[::1]/[a]" }] })({
+		site: "https://[::1]",
+		routes: [],
+		rendered: [],
+		hint: () => undefined,
+	})
+	expect(locs(v6.files.find((file) => file.name === "sitemap.xml")?.body)).toEqual(["https://[::1]/%5Ba%5D"])
+})
+
+// A lastmod is a W3C Datetime, checked by its own grammar rather than an engine's Date.parse: a date, or a date and
+// `hh:mm` with optional `:ss` and fraction, then `Z` or `±hh:mm`. A time needs its offset, an impossible date throws
+// rather than rolling over, every error names the entry's loc, and a valid value is written as given, its offset and
+// so its author's day kept (BUGS.md 466, 467).
+const entry = (lastmod: string): SitemapOptions => ({ additionalEntries: [{ loc: `${SITE}/x`, lastmod }] })
+
+it("lastmod checked", () => {
+	expect(() => sitemap(entry("2026-01-02T00:30:00"))).toThrow(
+		`sitemap lastmod "2026-01-02T00:30:00" of ${SITE}/x has a time but no offset`,
+	)
+	for (const day of ["2026-02-30", "2026-02-29", "2026-13-01", "2026-04-31T10:00:00Z"]) {
+		expect(() => sitemap(entry(day))).toThrow(
+			`sitemap lastmod ${JSON.stringify(day)} of ${SITE}/x is not a calendar date`,
+		)
+	}
+	for (const time of [
+		"2026-01-02T25:00:00Z",
+		"2026-01-02T1:2Z",
+		"2026-01-02T10:60Z",
+		"2026-01-02T10:00:60Z",
+		"2026-01-02T10Z",
+		"2026-01-02T10:00:00.Z",
+		"2026-01-02T10:00+24:00",
+		"2026-01-02T10:00+05",
+	]) {
+		expect(() => sitemap(entry(time))).toThrow(
+			`sitemap lastmod ${JSON.stringify(time)} of ${SITE}/x is not a W3C datetime`,
+		)
+	}
+	for (const kept of [
+		"2026-01-02T00:30:00+14:00",
+		"2026-01-02T10:00Z",
+		"2026-01-02T10:00:00.123-03:30",
+		"2028-02-29",
+	]) {
+		expect(xmlOf(build([], entry(kept)))).toContain(`<lastmod>${kept}</lastmod>`)
+	}
+})
+
+// A priority is written as a decimal the sitemap schema reads, never in exponent form (BUGS.md 468).
+it("priority decimal", () => {
+	expect(xmlOf(build([open], { priority: 1e-7 }))).toContain("<priority>0</priority>")
+	expect(xmlOf(build([open], { priority: 0.85 }))).toContain("<priority>0.85</priority>")
+})
+
+// An extra entry's loc and robotsTxt are checked when the plugin is made, not after every page rendered (BUGS.md 469).
+it("options checked early", () => {
+	for (const loc of ["http://example.com/x", "/x"]) {
+		expect(() => sitemap({ additionalEntries: [{ loc }] })).toThrow(
+			`sitemap additionalEntries loc ${loc} is not an absolute https URL`,
+		)
+	}
+	expect(() => sitemap({ robotsTxt: 1 as unknown as string })).toThrow(
+		"sitemap robotsTxt is true, false, or the file's text",
+	)
 })
