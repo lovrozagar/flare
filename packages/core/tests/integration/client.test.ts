@@ -21,6 +21,19 @@ function started(): Harness {
 	return harness
 }
 
+// A document whose load stalls fails with the harness's timeline, so the request that never finished names itself.
+it("a stalled load names itself", async () => {
+	const stalled = started().app("chromium", {
+		app,
+		client() {},
+		async init(tab) {
+			tab.setDefaultNavigationTimeout(2000)
+			await tab.route(/\/app-client-/, () => undefined)
+		},
+	})
+	await expect(stalled).rejects.toThrow(/load \/@id\/virtual:flare-hydrate\/app-client-\w+ started \d+ms, in flight/)
+})
+
 // A root that renders its child and one page, built on both sides from this source.
 function app(api: Api): { router: unknown } {
 	const root = api.rootLayout.createRootLayout("_root_").render((props) => props.children)
