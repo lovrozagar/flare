@@ -52,6 +52,13 @@
 			}
 		},
 		{
+			"files": ["bench/**"],
+			"rules": {
+				"flare/no-module-side-effects": "off",
+				"flare/no-module-state": "off"
+			}
+		},
+		{
 			"files": ["tests/*.setup.ts", "tests/integration/*.setup.ts", "tests/integration/*.probe.mjs"],
 			"rules": {
 				"flare/no-module-side-effects": "off"

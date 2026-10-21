@@ -804,6 +804,12 @@ packages/core/tests/workerd/cache-api.test.ts	P10	test	workers	Tombstones and ep
 packages/core/tests/perf/ssr-ratio.test.ts	P5	test	node	A Flare document's server cost over plain Solid's stream of the same tree, as a ratio with a budget (plan 21 15.5)
 packages/core/tests/perf/baseline.ts	P5	test	node	The performance baseline's driver: builds and serves v0.9.23's benchmark app and its v1 port, measures both, CPU alternating, and prints BASELINE.md's table (plan 21 15.6)
 packages/core/tests/perf/baseline.test.ts	P5	test	node	Unit cases for baseline.ts: overBudget's byte, ratio, absolute, and unmeasured lines
+packages/core/bench/codec.bench.ts	P5	test	node	Nightly bench: the codec's loader data paths (v0 caches.bench) (plan 21 15.6)
+packages/core/bench/frames.bench.ts	P5	test	node	Nightly bench: NDJSON frame encode and decode (v0 ndjson.bench) (plan 21 15.6)
+packages/core/bench/head.bench.ts	P5	test	node	Nightly bench: a head config to its tags (v0 head.bench) (plan 21 15.6)
+packages/core/bench/match.bench.ts	P5	test	node	Nightly bench: router.match, kept and fresh paths (v0 match-id.bench) (plan 21 15.6)
+packages/core/bench/nonce.bench.ts	P5	test	node	Nightly bench: a stored page's nonce to the sentinel and back (v0 prerender.bench) (plan 21 15.6)
+packages/core/bench/url.bench.ts	P5	test	node	Nightly bench: buildUrl and encodeParam (v0 url.bench) (plan 21 15.6)
 packages/core/tests/perf/BASELINE.md	P5	doc	-	The v0.9.23 vs v1 measurement on the same page: the run, the machine, the table, and how the budgets follow from it
 packages/core/tests/perf/baseline.json	P5	data	-	The baseline's budgets the nightly checks: v1's bytes, its ratios to v0.9.23, CLS
 packages/core/tests/perf/measure.ts	P5	test	node	The performance baseline's measure: one side of v0.9.23 vs v1 on the same post page, network (bytes, TTFB, JS, FCP, LCP, CLS) or in-process CPU (plan 21 15.6)
