@@ -14,7 +14,16 @@ import { createRouter } from "../../src/shared/router/create-router.ts"
 // noise and still fails on a per-request regression of the kind those fixed.
 const RATIO_BUDGET = 2.5
 
-const ITEMS = Array.from({ length: 200 }, (_, index) => ({ id: index, title: `Item ${index}`, body: `Body ${index}` }))
+// The same page with a thousand rows, and its navigation data request over Solid's render of the same tree (plan 21
+// 15.6): each budget is its ratio measured on 2026-10-21 with the same 1.6x room as above, so a per-row cost or a
+// per-request cost in the data answer fails.
+const ROWS_BUDGET = 2.5
+const DATA_BUDGET = 0.5
+
+const items = (length: number) =>
+	Array.from({ length }, (_, index) => ({ id: index, title: `Item ${index}`, body: `Body ${index}` }))
+const ITEMS = items(200)
+const ROWS = items(1000)
 
 // An element, as JSX compiles one for the server.
 function h(component: string, children: () => JSX.Element, props: Record<string, unknown> = {}): JSX.Element {
@@ -40,27 +49,31 @@ function documentOf(children: () => JSX.Element): JSX.Element {
 
 const decoder = new TextDecoder()
 
-// Solid's own stream of the document, read to its end.
-async function plain(): Promise<string> {
+// Solid's own stream of the document of `rows`, read to its end.
+async function plain(rows: typeof ITEMS): Promise<string> {
 	let text = ""
 	const sink = new WritableStream<unknown>({
 		write(chunk) {
 			text += typeof chunk === "string" ? chunk : decoder.decode(chunk as Uint8Array, { stream: true })
 		},
 	})
-	await renderToStream(() => documentOf(() => body(ITEMS))).pipeTo(sink)
+	await renderToStream(() => documentOf(() => body(rows))).pipeTo(sink)
 	return text
 }
 
 const root = createRootLayout("_root_").render((props) => documentOf(() => props.children))
-const page = createPage("_root_/")
-	.loader(() => ITEMS)
-	.render((props) => body(props.loaderData as typeof ITEMS))
-const routeTree = [{ id: "_root_/", path: "/", module: page }]
+const pageOf = (id: "_root_/" | "_root_/rows", rows: typeof ITEMS) =>
+	createPage(id)
+		.loader(() => rows)
+		.render((props) => body(props.loaderData as typeof ITEMS))
+const routeTree = [
+	{ id: "_root_/", path: "/", module: pageOf("_root_/", ITEMS) },
+	{ id: "_root_/rows", path: "/rows", module: pageOf("_root_/rows", ROWS) },
+]
 const server = createServer({ router: createRouter({ layouts: { _root_: root }, routeTree }) })
 
-async function flare(): Promise<string> {
-	return (await server.fetch(new Request("http://localhost/"))).text()
+async function flare(path: string): Promise<string> {
+	return (await server.fetch(new Request(`http://localhost${path}`))).text()
 }
 
 async function timed(run: () => Promise<string>): Promise<number> {
@@ -73,17 +86,38 @@ function median(times: number[]): number {
 	return times.sort((left, right) => left - right)[Math.floor(times.length / 2)] ?? Number.NaN
 }
 
-// The rounds alternate the two sides, so a pause or a frequency change on the machine falls on both.
-it("ssr ratio", async () => {
-	const rendered = await flare()
-	expect(rendered).toContain('id="item-199"')
-	expect(await plain()).toContain('id="item-199"')
-	for (let warm = 0; warm < 30; warm++) await Promise.all([plain(), flare()])
-	const sides = { plain: [] as number[], flare: [] as number[] }
-	for (let round = 0; round < 200; round++) {
-		sides.plain.push(await timed(plain))
-		sides.flare.push(await timed(flare))
+// Flare's run over Solid's, as the median of alternating rounds after a warm-up: a pause or a frequency change on the
+// machine falls on both sides.
+async function ratio(
+	sides: { flare: () => Promise<string>; plain: () => Promise<string> },
+	rounds = 200,
+): Promise<number> {
+	for (let warm = 0; warm < 30; warm++) await Promise.all([sides.plain(), sides.flare()])
+	const times = { plain: [] as number[], flare: [] as number[] }
+	for (let round = 0; round < rounds; round++) {
+		times.plain.push(await timed(sides.plain))
+		times.flare.push(await timed(sides.flare))
 	}
-	const ratio = median(sides.flare) / median(sides.plain)
-	expect(ratio).toBeLessThanOrEqual(RATIO_BUDGET)
+	return median(times.flare) / median(times.plain)
+}
+
+it("ssr ratio", async () => {
+	expect(await flare("/")).toContain('id="item-199"')
+	expect(await plain(ITEMS)).toContain('id="item-199"')
+	expect(await ratio({ flare: () => flare("/"), plain: () => plain(ITEMS) })).toBeLessThanOrEqual(RATIO_BUDGET)
+}, 120_000)
+
+// A thousand rows: a cost Flare adds per row grows past the ratio a page of two hundred holds.
+it("ssr ratio, a thousand rows", async () => {
+	expect(await flare("/rows")).toContain('id="item-999"')
+	const measured = await ratio({ flare: () => flare("/rows"), plain: () => plain(ROWS) }, 60)
+	expect(measured).toBeLessThanOrEqual(ROWS_BUDGET)
+}, 120_000)
+
+// The navigation's data request, routed, loaded, and written as NDJSON, over Solid's render of the same tree: the data
+// answer must stay cheaper than a document, and a per-request cost in it shows.
+it("data ratio", async () => {
+	expect(await flare("/?_flare=data")).toContain("Item 199")
+	const measured = await ratio({ flare: () => flare("/?_flare=data"), plain: () => plain(ITEMS) })
+	expect(measured).toBeLessThanOrEqual(DATA_BUDGET)
 }, 120_000)
