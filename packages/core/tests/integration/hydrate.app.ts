@@ -158,7 +158,10 @@ export async function appIn(at: { origin: string; tab: Page }, input: AppCase): 
 	})
 	await input.init?.(at.tab)
 	const loads = timeline(at.tab, at.origin)
-	const response = await at.tab.goto(`${at.origin}${input.path ?? "/"}`)
+	// A document whose load never fires says which of its loads were still in flight (CI's WebKit, 2026-10-21).
+	const response = await at.tab.goto(`${at.origin}${input.path ?? "/"}`).catch((error: unknown) => {
+		throw new Error(`the document did not load: ${String(error)}\n${[...seen, ...loads.lines()].join("\n")}`)
+	})
 	const html = (await response?.text()) ?? ""
 	await at.tab
 		// Ten times the slowest hydration measured in the full gate (1.15 s over 128 cases, BUGS.md 140): past it, the
