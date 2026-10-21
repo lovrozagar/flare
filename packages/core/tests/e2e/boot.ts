@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url"
 import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { exited, exitOf, readOrigin, signalGroup } from "./child.ts"
+import { freePort } from "../free-port.ts"
 import { E2E_ENV, traceEnv } from "./e2e-env.ts"
 import { capture, tracked } from "./server-log.ts"
 
@@ -53,7 +54,7 @@ async function start(input: BootInput): Promise<Boot> {
 	const cacheDir = await mkdtemp(join(tmpdir(), "flare-vite-"))
 	// A child process, so the app's Vite and the framework it loads stay out of the test process.
 	const dirs = input.dirs ?? []
-	if (input.mode === "dev") return bootChild({ appDir, cacheDir, dirs, ...devCommand(input.runtime) })
+	if (input.mode === "dev") return bootChild({ appDir, cacheDir, dirs, ...devCommand(input.runtime, await freePort()) })
 	mkdirSync(outputs, { recursive: true })
 	const outDir = await mkdtemp(join(outputs, "out-"))
 	try {
@@ -75,16 +76,22 @@ const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", impo
 // which it would cache under `.wrangler` in the app (B70, BUGS.md 85).
 const WORKERS_DEV_ENV = { CLOUDFLARE_INCLUDE_PROCESS_ENV: "true", CLOUDFLARE_CF_FETCH_ENABLED: "false" }
 
-// The dev server per runtime. The app's vite.config reads FLARE_E2E_RUNTIME to compose the Cloudflare plugin (B109).
-function devCommand(runtime: string): { bin: string; args?: readonly string[]; env: Record<string, string> } {
+// The dev server per runtime, on `port`, which the OS assigned: Vite 8 reads `--port 0` as no port and walks up from
+// 5173, where other servers on the machine live, and `--strictPort` fails a port taken in between instead of moving
+// (BUGS.md 486). The app's vite.config reads FLARE_E2E_RUNTIME to compose the Cloudflare plugin (B109).
+function devCommand(
+	runtime: string,
+	port: number,
+): { bin: string; args: readonly string[]; env: Record<string, string> } {
 	const env = {
 		FLARE_E2E_RUNTIME: runtime,
 		...E2E_ENV,
 		...traceEnv(),
 		...(runtime === "workers" ? WORKERS_DEV_ENV : {}),
 	}
-	if (runtime === "bun") return { bin: "bun", args: ["--bun", viteJs, "--host", "127.0.0.1", "--port", "0"], env }
-	return { bin: viteBin, env }
+	const listen = ["--host", "127.0.0.1", "--port", String(port), "--strictPort"]
+	if (runtime === "bun") return { bin: "bun", args: ["--bun", viteJs, ...listen], env }
+	return { bin: viteBin, args: listen, env }
 }
 const viteJs = fileURLToPath(new URL("../../../../node_modules/vite/bin/vite.js", import.meta.url))
 
@@ -101,7 +108,7 @@ export function bootChild(input: {
 	env?: Record<string, string>
 }): Promise<Boot> {
 	const { appDir, cacheDir } = input
-	const child = spawn(input.bin, input.args ?? ["--host", "127.0.0.1", "--port", "0"], {
+	const child = spawn(input.bin, input.args ?? [], {
 		cwd: appDir,
 		// Playwright sets FORCE_COLOR. A colored URL would never match readOrigin, and NO_COLOR wins over it.
 		env: { ...process.env, ...input.env, FLARE_VITE_CACHE: cacheDir, NO_COLOR: "1" },
