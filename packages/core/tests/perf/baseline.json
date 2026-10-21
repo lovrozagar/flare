@@ -1,0 +1,23 @@
+{
+	"bytes": {
+		"html raw": 12510,
+		"html gz": 3850,
+		"state raw": 3300,
+		"html without state": 9210,
+		"data raw": 3260,
+		"data gz": 1300,
+		"initial js gz": 69520,
+		"navigation js gz": 1220
+	},
+	"ratio": {
+		"ttfb first byte ms": 0.1,
+		"fcp ms": 0.11,
+		"lcp ms": 0.11,
+		"cpu home us": 2.13,
+		"cpu about us": 1.37,
+		"cpu data us": 2.46
+	},
+	"absolute": {
+		"cls max": 0.01
+	}
+}

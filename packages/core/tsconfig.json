@@ -20,6 +20,7 @@
 		"tests/types/handwritten/**",
 		"tests/types/unregistered/**",
 		"tests/e2e/apps/*/src/_gen/types.gen.ts",
+		"tests/perf/apps/*/src/_gen/types.gen.ts",
 		"tests/structure/consumer/**",
 		"tests/e2e/apps/docs/**",
 		"tests/e2e/apps/dashboard/**",
