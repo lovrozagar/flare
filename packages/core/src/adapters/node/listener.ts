@@ -227,8 +227,12 @@ async function writeBody(res: NodeRes, body: ReadableStream<Uint8Array> | null, 
 		return
 	}
 	const reader = body.getReader()
-	// A body that already failed rejects its cancel with that failure, which the pump has logged.
-	gone.addEventListener("abort", () => void reader.cancel().catch(() => undefined), { once: true })
+	// A body that already failed rejects its cancel with that failure, which the pump has logged. A client that left
+	// before the answer started never fires the listener, so its body is cancelled now, not read through into the
+	// closed answer (BUGS.md 452).
+	const cancel = (): void => void reader.cancel().catch(() => undefined)
+	if (gone.aborted) cancel()
+	else gone.addEventListener("abort", cancel, { once: true })
 	for (;;) {
 		const step = await reader.read()
 		if (step.done) {

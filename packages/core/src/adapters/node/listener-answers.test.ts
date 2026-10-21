@@ -272,6 +272,42 @@ it("closed before backpressure", async () => {
 	await vi.waitFor(() => expect(ended).toBe(true))
 })
 
+// A client that leaves before the answer starts: the body is cancelled at once, not read through into the closed
+// answer (BUGS.md 452).
+it("left before the answer", async () => {
+	const handlers: Record<string, () => void> = {}
+	const counted = { pulls: 0, cancelled: false }
+	let ended = false
+	const body = new ReadableStream<Uint8Array>({
+		pull(controller) {
+			counted.pulls += 1
+			if (counted.pulls > 100) controller.close()
+			else controller.enqueue(new Uint8Array(8))
+		},
+		cancel: () => void (counted.cancelled = true),
+	})
+	const listener = createNodeListener({
+		async fetch() {
+			handlers["close"]?.()
+			return new Response(body)
+		},
+	})
+	listener(req(), {
+		writeHead() {},
+		setHeader() {},
+		write: () => true,
+		end() {
+			ended = true
+		},
+		once(event, callback) {
+			handlers[event] = callback
+		},
+	})
+	await vi.waitFor(() => expect(ended).toBe(true))
+	expect(counted.cancelled).toBe(true)
+	expect(counted.pulls).toBeLessThan(5)
+})
+
 // Hosts shaped like a host that are no URL authority: a port past 65535, a bracket that is no IPv6 address, an IPv4
 // address with an octet past 255 (BUGS.md 384).
 const UNPARSEABLE_HOSTS = ["a:99999", "a:65536", "[1.2.3]", "[1:2]", "999.1.1.1", "1.2.3.256"]
