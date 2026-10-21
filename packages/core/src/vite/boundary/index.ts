@@ -1,5 +1,7 @@
 export { cacheKeyKept, routeMethod, type RouteVerdict } from "./allow.ts"
 export { envEdits, graphOf, wrongSideBodies, type Graph } from "./env.ts"
+export type { HelperSources } from "./env-names.ts"
+export { helperSources, moduleSources, type Access, type ExportCache, type SourceAccess } from "./helper-sources.ts"
 export { assertRegistered } from "./home.ts"
 export { moduleReads, nonReferences } from "./reads.ts"
 export { pruneImports, serverCode, splitClient, splitEdits, type Edit, type Split } from "./split.ts"

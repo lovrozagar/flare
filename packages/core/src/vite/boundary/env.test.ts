@@ -1,21 +1,24 @@
 import { expect, it } from "vitest"
 import { graphOf, type Graph } from "./env.ts"
+import type { HelperSources } from "./env-names.ts"
 import { boundaryTransform } from "./transform.ts"
 
 const IMPORT = 'import { createServerOnlyFn, createClientOnlyFn, createIsomorphicFn } from "@lovrozagar/flare";\n'
 
 // The module as the boundary plugin rewrites it for one graph: the same call the plugin makes.
 function rewrite(source: string, graph: Graph): string {
-	return boundaryTransform("src/lib/a.ts", source, graph)?.code ?? source
+	return boundaryTransform("src/lib/a.ts", source, { graph })?.code ?? source
 }
 
 it("server direct", () => {
 	const source = `${IMPORT}export const read = createServerOnlyFn(async () => SECRET);\n`
 	const client = rewrite(source, "client")
 	expect(client).not.toContain("SECRET")
-	expect(client).toContain("createServerOnlyFn()")
+	// No reference to the helper is left, so its runtime is dead code in the chunk (BUGS.md 461).
+	expect(client).toContain("This server-only function was called outside the server")
+	expect(client).not.toMatch(/createServerOnlyFn|@lovrozagar\/flare/)
 	expect(rewrite(source, "server")).toContain("SECRET")
-	expect(boundaryTransform("a.ts", "export const a = 1;\n", "client")).toBeUndefined()
+	expect(boundaryTransform("a.ts", "export const a = 1;\n", { graph: "client" })).toBeUndefined()
 })
 
 it("server alias", () => {
@@ -62,7 +65,8 @@ it("server identifier", () => {
 it("client body", () => {
 	const source = `${IMPORT}export const focus = createClientOnlyFn(() => SECRET);\n`
 	expect(rewrite(source, "server")).not.toContain("SECRET")
-	expect(rewrite(source, "server")).toContain("createClientOnlyFn()")
+	expect(rewrite(source, "server")).toContain("This client-only function was called outside the client")
+	expect(rewrite(source, "server")).not.toContain("createClientOnlyFn")
 })
 
 it("client kept", () => {
@@ -74,16 +78,14 @@ const ISO = `${IMPORT}export const format = createIsomorphicFn().server(() => SE
 
 it("iso server", () => {
 	const code = rewrite(ISO, "server")
-	expect(code).toContain("SERVER")
-	expect(code).not.toContain("CLIENT")
-	expect(code).toContain(".client()")
+	expect(code).toContain("(() => SERVER)")
+	expect(code).not.toMatch(/CLIENT|createIsomorphicFn/)
 })
 
 it("iso client", () => {
 	const code = rewrite(ISO, "client")
-	expect(code).toContain("CLIENT")
-	expect(code).not.toContain("SERVER")
-	expect(code).toContain(".server()")
+	expect(code).toContain("(() => CLIENT)")
+	expect(code).not.toMatch(/SERVER|createIsomorphicFn/)
 })
 
 // The graphs are roles. Prerender's Node build is a server graph like ssr: it keeps the server function and drops the
@@ -161,5 +163,63 @@ export const read = flare.createServerOnlyFn((all: All, props: Props) => SECRET)
 it("quote in a regex", () => {
 	const source = `const quote = /"'\`/;\n${IMPORT}export const read = createServerOnlyFn(() => SECRET);\n`
 	expect(rewrite(source, "client")).not.toContain("SECRET")
-	expect(() => boundaryTransform("bad.ts", "export const = ;", "client")).toThrow(/^bad\.ts: /)
+	expect(() => boundaryTransform("bad.ts", "export const = ;", { graph: "client" })).toThrow(/^bad\.ts: /)
+})
+
+// What the plugin reads of `./barrel.ts`: a renamed helper, a default one, and a namespace of helpers (BUGS.md 461).
+const BARREL: HelperSources = new Map([
+	[
+		"./barrel.ts",
+		new Map<string, "createServerOnlyFn" | ReadonlyMap<string, "createServerOnlyFn">>([
+			["serverOnly", "createServerOnlyFn"],
+			["default", "createServerOnlyFn"],
+			["inner", new Map([["createServerOnlyFn", "createServerOnlyFn"]])],
+		]),
+	],
+])
+
+const viaBarrel = (source: string): string =>
+	boundaryTransform("src/lib/a.ts", source, { graph: "client", sources: BARREL })?.code ?? source
+
+// A barrel's helper by its exported name, a string-named import, and a default import are the helper; a namespace
+// import of a barrel holding a helper namespace fails, since `ns.inner.helper` is a chain the rewrite does not follow.
+it("barrel names", () => {
+	expect(
+		viaBarrel('import { serverOnly } from "./barrel.ts";\nexport const a = serverOnly(() => SECRET);\n'),
+	).not.toContain("SECRET")
+	expect(
+		viaBarrel('import { "serverOnly" as s } from "./barrel.ts";\nexport const a = s(() => SECRET);\n'),
+	).not.toContain("SECRET")
+	expect(viaBarrel('import read from "./barrel.ts";\nexport const a = read(() => SECRET);\n')).not.toContain("SECRET")
+	expect(
+		viaBarrel('import { inner } from "./barrel.ts";\nexport const a = inner.createServerOnlyFn(() => SECRET);\n'),
+	).not.toContain("SECRET")
+	expect(
+		viaBarrel('import * as b from "./barrel.ts";\nexport const a = b.inner.createServerOnlyFn(() => SECRET);\n'),
+	).not.toContain("SECRET")
+	// A nested namespace read as a value hands its helpers to code the rewrite cannot follow.
+	expect(() => viaBarrel('import * as b from "./barrel.ts";\nexport const a = b.inner;\n')).toThrow(
+		"src/lib/a.ts: the namespace b.inner is read as a value",
+	)
+})
+
+const dynamic = (pattern: string): string => `const ${pattern} = await import("@lovrozagar/flare");\nexport { x };\n`
+
+// A dynamic import is followed only as a destructuring await of plain keys: a rest element, a computed key, or a
+// helper's name fails; a quoted key that is not a helper builds; a computed specifier is not the package (BUGS.md 461).
+it("dynamic import shapes", () => {
+	expect(() => viaBarrel(dynamic("{ ...x }"))).toThrow("is not one the env rewrite can follow")
+	expect(() => viaBarrel(dynamic('{ ["Link"]: x }'))).toThrow("is not one the env rewrite can follow")
+	expect(() => viaBarrel(dynamic('{ "createIsomorphicFn": x }'))).toThrow("reaches createIsomorphicFn")
+	expect(viaBarrel(dynamic('{ "Link": x }'))).toContain('"Link": x')
+	expect(viaBarrel("const x = await import(name);\nexport { x };\n")).toContain("import(name)")
+	expect(viaBarrel('const x = await import("./other.ts");\nexport { x };\n')).toContain("./other.ts")
+})
+
+// A helper read through a namespace as the object of another member, `flare.createServerOnlyFn.call(...)`, is a read
+// the rewrite cannot follow.
+it("helper as an object", () => {
+	const source =
+		'import * as flare from "@lovrozagar/flare";\nexport const a = flare.createServerOnlyFn.call(null, () => SECRET);\n'
+	expect(() => rewrite(source, "client")).toThrow("src/lib/a.ts: createServerOnlyFn must be called directly")
 })

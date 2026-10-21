@@ -5,6 +5,10 @@ export function createClientOnlyFn<A extends unknown[], R>(fn?: (...args: A) => 
 	return fn ?? missing
 }
 
+// The runtime's own words, which only this module holds: a server chunk that still has them kept the runtime, so a
+// call escaped the rewrite (vite/boundary/tripwire.ts, BUGS.md 461).
+export const CLIENT_ONLY_RUNTIME = "A createClientOnlyFn function was called outside the client"
+
 function missing(): never {
-	throw new Error("A createClientOnlyFn function was called outside the client")
+	throw new Error(CLIENT_ONLY_RUNTIME)
 }
