@@ -5,3 +5,10 @@ export const E2E_ENV = {
 	REVALIDATE_SECRET: "e2e-revalidate-secret",
 	BILLING_SECRET: "e2e-billing-secret",
 }
+
+// FLARE_E2E_TRACE=1, as CI sets it for the e2e jobs: a dev boot's vite.config loads trace.ts from this URL, and its
+// server logs each request's lifecycle (BUGS.md 453). Unset, the boot names nothing and the app loads no trace.
+export function traceEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+	if (env["FLARE_E2E_TRACE"] !== "1") return {}
+	return { FLARE_E2E_TRACE_PLUGIN: new URL("./trace.ts", import.meta.url).href }
+}

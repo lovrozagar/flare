@@ -1656,6 +1656,10 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 452.1 [x] Found while tracing the group 5 Mac flake (2026-10-21, minimal.test `basepath › cdn page fresh`, CI runs 39497487553 and 39519606173): writeBody cancels the body's reader from the request signal's `abort` listener, and an already aborted signal never fires a listener added after. A client that left while the server was still answering got a body nobody cancelled; before BUGS.md 411 the first backpressured write parked forever, after it the drain wait returns at once and the loop reads the whole body into the closed answer. Wasted work, not the flake's cause as far as the code shows.
 452.2 [x] Fix: writeBody cancels the reader at once when the signal is already aborted. Red first: listener-answers.test `left before the answer` (a 100-chunk body: cancelled, under 5 pulls).
 
+453 [ ] minimal.test `basepath › cdn page fresh` fails on CI's macOS runners on node-dev-webkit and bun-dev-webkit, about 2 runs in 4 since group 5; it never fails on Linux WebKit (0 in 60 local runs at 3ca6e015)
+453.1 [ ] Found by CI after group 5 (2026-10-21, runs 39497487553 and 39519606173): the second document navigation to /app/cdn never shows the new render. The code rules out the 304 path and BUGS.md 411's drain wait on module requests, and BUGS.md 452 was a separate waste; the failed cases' server logs were empty, so nothing shows whether the request reached the server.
+453.2 [x] The trace, so the next Mac failure names its stage: under FLARE_E2E_TRACE=1, which CI sets for the e2e steps, a dev boot's vite.config puts tests/e2e/trace.ts's middleware first, and it logs each request's arrival, a document's head and first bytes, its finish, and its close; every failed case attaches what the live boots logged during it as its server log (crash.ts, server-log.ts). Off by default: unset, the boot names no module and the app loads none (trace.test `trace off`).
+
 ## Verify
 
 97 [x] Verify

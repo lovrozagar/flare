@@ -2,14 +2,13 @@ import { spawn } from "node:child_process"
 import { mkdirSync, readdirSync, rmSync } from "node:fs"
 import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { StringDecoder } from "node:string_decoder"
 import { join, resolve } from "node:path"
-import type { Readable } from "node:stream"
 import { fileURLToPath } from "node:url"
 import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { exited, exitOf, readOrigin, signalGroup } from "./child.ts"
-import { E2E_ENV } from "./e2e-env.ts"
+import { E2E_ENV, traceEnv } from "./e2e-env.ts"
+import { capture, tracked } from "./server-log.ts"
 
 const apps = fileURLToPath(new URL("./apps/", import.meta.url))
 
@@ -28,28 +27,6 @@ export type Boot = {
 	close: () => Promise<void>
 }
 
-// A runtime's output, split into lines as it arrives. A line still being written is the last entry.
-// ANSI escape sequences: Bun colors console.error when the environment forces color, as Playwright's workers do.
-const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[A-Za-z]`, "g")
-
-function capture() {
-	const lines: string[] = []
-	const pending: string[] = []
-	return {
-		attach(stream: Readable | null) {
-			const decoder = new StringDecoder("utf8")
-			const slot = pending.push("") - 1
-			stream?.on("data", (chunk: Buffer) => {
-				const parts = `${pending[slot]}${decoder.write(chunk)}`.split("\n")
-				pending[slot] = parts.pop() ?? ""
-				lines.push(...parts.map((line) => line.replaceAll(ANSI, "")))
-			})
-		},
-		line: (text: string) => void lines.push(...text.replaceAll(ANSI, "").split("\n")),
-		logs: () => [...lines, ...pending.filter((line) => line !== "").map((line) => line.replaceAll(ANSI, ""))],
-	}
-}
-
 const APPS = new Set(["minimal", "basepath", "docs", "dashboard"])
 const RUNTIMES = new Set(["node", "bun", "workers"])
 
@@ -63,8 +40,13 @@ export async function boot(input: { app: string; runtime: string; mode: string }
 
 type BootInput = { appDir: string; runtime: string; mode: string; dirs?: readonly string[] }
 
-// The same boot over any app directory, as golden.test stages one (bits/14). `dirs` go when a dev boot closes.
+// The same boot over any app directory, as golden.test stages one (bits/14). `dirs` go when a dev boot closes. A failed
+// case carries what the boot logged during it (server-log.ts).
 export async function bootApp(input: BootInput): Promise<Boot> {
+	return tracked(await start(input))
+}
+
+async function start(input: BootInput): Promise<Boot> {
 	if (!RUNTIMES.has(input.runtime)) throw new Error(input.runtime)
 	if (input.mode !== "dev" && input.mode !== "prod") throw new Error(input.mode)
 	const appDir = input.appDir
@@ -98,6 +80,7 @@ function devCommand(runtime: string): { bin: string; args?: readonly string[]; e
 	const env = {
 		FLARE_E2E_RUNTIME: runtime,
 		...E2E_ENV,
+		...traceEnv(),
 		...(runtime === "workers" ? WORKERS_DEV_ENV : {}),
 	}
 	if (runtime === "bun") return { bin: "bun", args: ["--bun", viteJs, "--host", "127.0.0.1", "--port", "0"], env }
