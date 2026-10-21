@@ -298,6 +298,10 @@ it("readme node serve", async () => {
 		cwd: app,
 		env: { ...process.env, PORT: String(port) },
 	})
+	// A server that never answers says why: its exit and its output (CI's Bun run at load 37 saw only status 0).
+	let output = ""
+	child.stdout.on("data", (chunk: Buffer) => void (output += String(chunk)))
+	child.stderr.on("data", (chunk: Buffer) => void (output += String(chunk)))
 	try {
 		const origin = `http://127.0.0.1:${port}`
 		await expect
@@ -305,7 +309,7 @@ it("readme node serve", async () => {
 				() =>
 					fetch(`${origin}/`).then(
 						(response) => response.status,
-						() => 0,
+						() => `no answer; exit ${child.exitCode ?? child.signalCode ?? "none yet"}; output: ${output}`,
 					),
 				{ timeout: 10_000 },
 			)
