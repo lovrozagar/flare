@@ -6,7 +6,7 @@ import { boundaryTransform } from "./transform.ts"
 const FILE = "src/fns/echo.ts"
 
 function transform(source: string, graph: Graph): string {
-	return boundaryTransform(FILE, source, graph)?.code ?? source
+	return boundaryTransform(FILE, source, { graph })?.code ?? source
 }
 
 const ENV = 'import { createServerOnlyFn, createIsomorphicFn } from "@lovrozagar/flare";\n'
@@ -16,7 +16,7 @@ it("env prunes import", () => {
 	const source = `${ENV}import { db } from "./db.server";\nexport const load = createServerOnlyFn(() => db.query());\n`
 	const client = transform(source, "client")
 	expect(client).not.toContain("db.server")
-	expect(client).toContain("createServerOnlyFn()")
+	expect(client).toContain("This server-only function was called outside the server")
 	expect(transform(source, "server")).toContain("db.server")
 })
 
@@ -26,7 +26,8 @@ export const cheer = createIsomorphicFn().server(() => "quiet").client(() => con
 `
 	const ssr = transform(source, "server")
 	expect(ssr).not.toContain("browser-only")
-	expect(ssr).toContain('.server(() => "quiet").client()')
+	expect(ssr).toContain('(() => "quiet")')
+	expect(ssr).not.toContain("createIsomorphicFn")
 	expect(transform(source, "client")).toContain("browser-only")
 	// A helper only the removed body read goes with it, and its import too (plan 21 2.4).
 	const helper = `${ENV}import { confetti } from "browser-only";
@@ -62,8 +63,8 @@ it("ids", () => {
 	expect(() => transform(`${FN}export const echo = createServerFn("get").handler(h);\n`, "server")).toThrow(
 		"src/fns/echo.ts: echo createServerFn() takes a literal object",
 	)
-	expect(boundaryTransform(FILE, "export const a = 1;\n", "client")).toBeUndefined()
-	expect(() => boundaryTransform(FILE, "export const = ;", "client")).toThrow(/^src\/fns\/echo\.ts: /)
+	expect(boundaryTransform(FILE, "export const a = 1;\n", { graph: "client" })).toBeUndefined()
+	expect(() => boundaryTransform(FILE, "export const = ;", { graph: "client" })).toThrow(/^src\/fns\/echo\.ts: /)
 })
 
 it("env inside a removed body", () => {

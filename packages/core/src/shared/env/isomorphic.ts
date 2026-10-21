@@ -38,9 +38,13 @@ export function pickSide<A extends unknown[], R>(
 	return server ?? client ?? noBody
 }
 
+// The runtime's own words, which only this module holds: a chunk that still has them kept the runtime, which the
+// rewrite leaves in no graph, so a call escaped it (vite/boundary/tripwire.ts, BUGS.md 461).
+export const ISOMORPHIC_RUNTIME = "createIsomorphicFn needs both .server() and .client()"
+
 function needsBoth(): () => never {
 	return () => {
-		throw new Error("createIsomorphicFn needs both .server() and .client()")
+		throw new Error(ISOMORPHIC_RUNTIME)
 	}
 }
 

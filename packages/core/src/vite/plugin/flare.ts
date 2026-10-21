@@ -1,9 +1,8 @@
 import { existsSync, statSync } from "node:fs"
 import { isAbsolute, relative, resolve, sep } from "node:path"
-import { fileURLToPath } from "node:url"
 import solid from "@solidjs/vite-plugin"
 import type { Plugin, UserConfig } from "vite"
-import { assertRegistered, boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts"
+import { graphOf } from "../boundary/index.ts"
 import { chunkReferences, fillClosures, watchGenerated, writeGenerated } from "../codegen/index.ts"
 import { inject } from "../css/index.ts"
 import { imageEndpoint, imagePlugin } from "../../features/image/vite/index.ts"
@@ -20,15 +19,12 @@ import { assetUrl, buildConfig, environmentBuild, PRERENDER_ENV, serverBundled }
 import { readWrangler } from "./wrangler.ts"
 import { assetHeadersPlugin } from "./asset-headers.ts"
 import { realPath } from "./real-path.ts"
-import { appModule } from "./app-module.ts"
+import { boundary } from "./boundary.ts"
 import { preloadPlugin } from "./preload.ts"
 import { checkCloudflare, composesCloudflare, WORKER_MAIN } from "./cloudflare.ts"
 import { assertHost, parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts"
 import { peerGuard } from "./peers.ts"
 import { productionConditions } from "./conditions.ts"
-
-// The package's `src`, whose server folders a client or worker chunk may not hold (B45).
-const PACKAGE_SRC = resolve(fileURLToPath(new URL("../..", import.meta.url)))
 
 // The environments that run the server entry. Each loads build-info.ts with the build id and the client entry URL.
 const SERVER_ENVIRONMENTS = new Set(["ssr", PRERENDER_ENV])
@@ -248,37 +244,6 @@ function chunks(): Plugin {
 			const chunks = Object.values(bundle).flatMap((file) => (file.type === "chunk" ? [file] : []))
 			const filled = fillClosures(chunks, (ref) => this.getFileName(ref))
 			for (const chunk of chunks) chunk.code = filled.get(chunk.fileName) ?? chunk.code
-		},
-	}
-}
-
-// Before Solid compiles JSX, each app module is rewritten for the graph that loads it: split, the env helpers, and
-// the server function ids (B8, B9, B41).
-// A Web Worker bundle passes `client`: a `?worker` module is a client graph whatever environment imports it (B9).
-function boundary(fixed?: Graph): Plugin {
-	// The root as configured and as a real path, so an id in either form is an app module (BUGS.md B51).
-	let roots = { from: "", paths: [] as string[] }
-	const rootsOf = (root: string): string[] => {
-		if (roots.from !== root) roots = { from: root, paths: [...new Set([realPath(root), root])] }
-		return roots.paths
-	}
-	return {
-		name: "flare:boundary",
-		enforce: "pre",
-		transform(code, id) {
-			const { root, mode } = this.environment.config
-			const found = appModule(rootsOf(root), id, PACKAGE_SRC)
-			if (found === undefined) return null
-			if (mode !== "test") assertRegistered(found.file, code)
-			if (!found.app) return null
-			return boundaryTransform(found.file, code, fixed ?? graphOf(this.environment.name)) ?? null
-		},
-		// Every module of every chunk, with its final code, before the chunk is written.
-		renderChunk(_code, chunk) {
-			const modules = chunk.moduleIds.map((id) => ({ id, code: this.getModuleInfo(id)?.code ?? null }))
-			const graph = fixed ?? graphOf(this.environment.name)
-			checkChunk({ graph, chunk: chunk.fileName, modules, packageSrc: PACKAGE_SRC })
-			return null
 		},
 	}
 }

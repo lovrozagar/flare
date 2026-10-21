@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url"
 import { createBuilder } from "vite"
 import { afterEach, expect, it } from "vitest"
 import { flare } from "../plugin/flare.ts"
-import { app, boundary, build, ENV, external, fixtures, FN, forcing, KEEP } from "./build.fixture.ts"
+import { app, appending, boundary, build, ENV, external, fixtures, FN, forcing, KEEP } from "./build.fixture.ts"
 import { checkChunk } from "./tripwire.ts"
 
 const PACKAGE_SRC = resolve(fileURLToPath(new URL("../..", import.meta.url)))
@@ -57,7 +57,10 @@ it("prerender graph", async () => {
 	await expect(build(path, "flare_prerender")).resolves.toContain("serverCtx")
 	const client = fixture(app(`${ENV}export const focus = createClientOnlyFn(() => "SENTINEL_CLIENT");\n`))
 	expect(await build(client, "flare_prerender")).not.toContain("SENTINEL_CLIENT")
-	const force = forcing("mod.ts", "createClientOnlyFn()", 'createClientOnlyFn(() => "SENTINEL_CLIENT")')
+	const force = appending(
+		"mod.ts",
+		'import { createClientOnlyFn as put } from "@lovrozagar/flare";\nexport const back = put(() => "SENTINEL_CLIENT");',
+	)
 	await expect(build(client, "flare_prerender", [force])).rejects.toThrow(/the server graph must not contain/)
 })
 
@@ -66,15 +69,86 @@ it("server only body", async () => {
 	expect(await build(root, "client")).not.toContain("SENTINEL_ENV")
 	expect(await build(root, "flare_prerender")).toContain("SENTINEL_ENV")
 	expect(await build(root, "ssr")).toContain("SENTINEL_ENV")
-	const force = forcing("mod.ts", "createServerOnlyFn()", 'createServerOnlyFn(() => "SENTINEL_ENV")')
+	const force = appending(
+		"mod.ts",
+		'import { createServerOnlyFn as put } from "@lovrozagar/flare";\nexport const back = put(() => "SENTINEL_ENV");',
+	)
 	await expect(build(root, "client", [force])).rejects.toThrow(/B45/)
+})
+
+// A helper reached through the app's own barrels is the helper: a re-export, renamed or not, `export *`, and a namespace
+// import of a barrel, at any depth. The client chunk holds no server-only body, and the server keeps it (BUGS.md 461).
+it("barrel helpers", async () => {
+	const barrels = {
+		"src/h1.ts": 'export { createServerOnlyFn as serverOnly, createIsomorphicFn } from "@lovrozagar/flare";\n',
+		"src/h2.ts": 'export * from "./h1.ts";\nexport * as flare from "@lovrozagar/flare";\n',
+		"src/helpers.ts": 'export { createServerOnlyFn } from "@lovrozagar/flare";\n',
+	}
+	const module = [
+		'import { createServerOnlyFn } from "./helpers.ts";',
+		'import { serverOnly, createIsomorphicFn } from "./h2.ts";',
+		'import * as h from "./helpers.ts";',
+		'import { flare } from "./h2.ts";',
+		'export const a = createServerOnlyFn(() => "SECRET_BARREL");',
+		'export const b = serverOnly(() => "SECRET_DEPTH");',
+		'export const c = h.createServerOnlyFn(() => "SECRET_NAMESPACE");',
+		'export const d = createIsomorphicFn().server(() => "SECRET_ISO").client(() => "iso client");',
+		'export const e = flare.createServerOnlyFn(() => "SECRET_STAR_AS");',
+		"",
+	].join("\n")
+	const root = fixture({ ...app(module), ...barrels })
+	const client = await build(root, "client")
+	for (const secret of ["SECRET_BARREL", "SECRET_DEPTH", "SECRET_NAMESPACE", "SECRET_ISO", "SECRET_STAR_AS"]) {
+		expect([secret, client.includes(secret)]).toEqual([secret, false])
+	}
+	expect(client).toContain("iso client")
+	expect(await build(root, "ssr")).toContain("SECRET_BARREL")
+	// The tripwire reads the barrels too: a body a later plugin puts back fails the build.
+	const force = appending(
+		"mod.ts",
+		'import { serverOnly as put } from "./h2.ts";\nexport const back = put(() => "SECRET_DEPTH");',
+	)
+	await expect(build(root, "client", [force])).rejects.toThrow(/B45/)
+})
+
+// A barrel helper read other than as a direct call, and a dynamic import that reaches a helper or that the analysis
+// cannot follow, fail the build naming the module and the helper; a dynamic import that takes only other names builds
+// (BUGS.md 461).
+it("unfollowable helpers", async () => {
+	const barrel = { "src/helpers.ts": 'export { createServerOnlyFn } from "@lovrozagar/flare";\n' }
+	const copied = fixture({
+		...app('import { createServerOnlyFn } from "./helpers.ts";\nexport const f = createServerOnlyFn;\n'),
+		...barrel,
+	})
+	await expect(build(copied, "client")).rejects.toThrow("createServerOnlyFn must be called directly")
+	const destructured = fixture(
+		app(
+			'const { createServerOnlyFn } = await import("@lovrozagar/flare");\nexport const r = createServerOnlyFn(() => "SECRET_DYNAMIC");\n',
+		),
+	)
+	await expect(build(destructured, "client")).rejects.toThrow(
+		/mod\.ts: a dynamic import of @lovrozagar\/flare reaches createServerOnlyFn/,
+	)
+	const whole = fixture(
+		app(
+			'const flare = await import("@lovrozagar/flare");\nexport const r = flare.createServerOnlyFn(() => "SECRET_WHOLE");\n',
+		),
+	)
+	await expect(build(whole, "client")).rejects.toThrow(/mod\.ts: a dynamic import of @lovrozagar\/flare/)
+	const viaBarrel = fixture({ ...app('export const m = import("./helpers.ts").then((h) => h);\n'), ...barrel })
+	await expect(build(viaBarrel, "client")).rejects.toThrow(/mod\.ts: a dynamic import of \.\/helpers\.ts/)
+	const other = fixture(app('const { Link } = await import("@lovrozagar/flare");\nexport const l = Link;\n'))
+	expect(await build(other, "client")).toContain("Link")
 })
 
 it("client only body", async () => {
 	const root = fixture(app(`${ENV}export const focus = createClientOnlyFn(() => "SENTINEL_CLIENT");\n`))
 	expect(await build(root, "ssr")).not.toContain("SENTINEL_CLIENT")
 	expect(await build(root, "client")).toContain("SENTINEL_CLIENT")
-	const force = forcing("mod.ts", "createClientOnlyFn()", 'createClientOnlyFn(() => "SENTINEL_CLIENT")')
+	const force = appending(
+		"mod.ts",
+		'import { createClientOnlyFn as put } from "@lovrozagar/flare";\nexport const back = put(() => "SENTINEL_CLIENT");',
+	)
 	await expect(build(root, "ssr", [force])).rejects.toThrow(/the server graph must not contain/)
 })
 
@@ -85,10 +159,10 @@ it("iso server body", async () => {
 	expect(await build(root, "client")).not.toContain("SENTINEL_ISO")
 	expect(await build(root, "flare_prerender")).toContain("SENTINEL_ISO")
 	expect(await build(root, "ssr")).toContain("SENTINEL_ISO")
-	const force = forcing("mod.ts", ".server()", '.server(() => "SENTINEL_ISO")')
-	await expect(build(root, "client", [force])).rejects.toThrow(/B45/)
-	const back = forcing("mod.ts", ".client()", '.client(() => "CLIENT_SIDE")')
-	await expect(build(root, "ssr", [back])).rejects.toThrow(/B45/)
+	const chain =
+		'import { createIsomorphicFn as iso } from "@lovrozagar/flare";\nexport const back = iso().server(() => "SENTINEL_ISO").client(() => "CLIENT_SIDE");'
+	await expect(build(root, "client", [appending("mod.ts", chain)])).rejects.toThrow(/B45/)
+	await expect(build(root, "ssr", [appending("mod.ts", chain)])).rejects.toThrow(/B45/)
 	// Through the namespace import too: the client graph holds no server body (plan 21 13.15).
 	const namespaced = fixture(
 		app(
@@ -96,7 +170,9 @@ it("iso server body", async () => {
 		),
 	)
 	expect(await build(namespaced, "client")).not.toContain("SENTINEL_ISO")
-	await expect(build(namespaced, "client", [force])).rejects.toThrow(/B45/)
+	const viaNamespace =
+		'import * as again from "@lovrozagar/flare";\nexport const back = again.createIsomorphicFn().server(() => "SENTINEL_ISO").client(() => "CLIENT_SIDE");'
+	await expect(build(namespaced, "client", [appending("mod.ts", viaNamespace)])).rejects.toThrow(/B45/)
 })
 
 it("clean", async () => {

@@ -226,26 +226,33 @@ function code(result: unknown): string {
 	return text
 }
 
-it("boundary transform", () => {
+it("boundary transform", async () => {
 	const plugin = flare().find((item) => item.name === "flare:boundary")
 	expect(plugin?.enforce).toBe("pre")
 	const hook = plugin?.transform
 	if (typeof hook !== "function") throw new Error("transform")
 	const root = "/app"
-	const run = (name: string, id: string, code: string): unknown =>
-		Reflect.apply(hook, { environment: { name, config: { root } } }, [code, id])
+	const run = (name: string, id: string, code: string): Promise<unknown> =>
+		Reflect.apply(hook, { environment: { name, config: { root } }, resolve: async () => null }, [
+			code,
+			id,
+		]) as Promise<unknown>
 	const source =
 		'import { createServerOnlyFn } from "@lovrozagar/flare";\nexport const read = createServerOnlyFn(() => SECRET);\n'
-	expect(code(run("client", "/app/src/lib/read.ts", source))).not.toContain("SECRET")
-	expect(run("ssr", "/app/src/lib/read.ts", source)).toBeNull()
-	expect(run("flare_prerender", "/app/src/lib/read.ts", source)).toBeNull()
+	expect(code(await run("client", "/app/src/lib/read.ts", source))).not.toContain("SECRET")
+	// A server graph keeps the body and drops the helper call around it (BUGS.md 461).
+	for (const graph of ["ssr", "flare_prerender"]) {
+		const kept = code(await run(graph, "/app/src/lib/read.ts", source))
+		expect(kept).toContain("(() => SECRET)")
+		expect(kept).not.toContain("createServerOnlyFn(")
+	}
 	// The id hashes the root-relative path.
 	const fn =
 		'import { createServerFn } from "@lovrozagar/flare/server-fn";\nexport const echo = createServerFn().handler(h);\n'
-	expect(code(run("ssr", "/app/src/fns/echo.ts", fn))).toContain(`__id: "${fnId("src/fns/echo.ts", "echo")}"`)
+	expect(code(await run("ssr", "/app/src/fns/echo.ts", fn))).toContain(`__id: "${fnId("src/fns/echo.ts", "echo")}"`)
 	// Vite's own queries leave the module the module. Any other asks for something else.
-	expect(code(run("client", "/app/src/lib/read.ts?v=abc123", source))).not.toContain("SECRET")
-	expect(code(run("client", "/app/src/lib/read.ts?import&t=1", source))).not.toContain("SECRET")
+	expect(code(await run("client", "/app/src/lib/read.ts?v=abc123", source))).not.toContain("SECRET")
+	expect(code(await run("client", "/app/src/lib/read.ts?import&t=1", source))).not.toContain("SECRET")
 	for (const id of [
 		"/app/src/lib/read.ts?raw",
 		"/app/src/lib/read.ts?url",
@@ -256,31 +263,35 @@ it("boundary transform", () => {
 		"/elsewhere/read.ts",
 		"/app/node_modules/x/read.ts",
 	]) {
-		expect(run("client", id, source)).toBeNull()
+		expect(await run("client", id, source)).toBeNull()
 	}
-	expect(run("client", "/app/src/plain.ts", "export const a = 1;\n")).toBeNull()
+	expect(await run("client", "/app/src/plain.ts", "export const a = 1;\n")).toBeNull()
 })
 
 // A server function outside src/ would answer 404 on every call, since codegen registers src/ alone: under the root it
 // gets an id no server knows, outside it none. Dev and the build fail naming the file. A test run (mode "test") may
 // define one in a test file; a dependency, Flare's own source, and a module with none pass (plan 21 8.7, BUGS.md 201).
-it("server function home", () => {
+it("server function home", async () => {
 	const hook = flare().find((item) => item.name === "flare:boundary")?.transform
 	if (typeof hook !== "function") throw new Error("transform")
 	const fn =
 		'import { createServerFn } from "@lovrozagar/flare/server-fn";\nexport const echo = createServerFn().handler(h);\n'
-	const run = (id: string, mode?: string, source = fn): unknown =>
-		Reflect.apply(hook, { environment: { name: "client", config: { root: "/app", mode } } }, [source, id])
+	const run = (id: string, mode?: string, source = fn): Promise<unknown> =>
+		Reflect.apply(
+			hook,
+			{ environment: { name: "client", config: { root: "/app", mode } }, resolve: async () => null },
+			[source, id],
+		) as Promise<unknown>
 	const outside = "is a server function outside src/. Codegen registers only src/, so every call would be a 404"
-	expect(() => run("/app/lib/echo.ts")).toThrow(`lib/echo.ts: echo ${outside}`)
-	expect(() => run("/elsewhere/shared/echo.ts")).toThrow(`/elsewhere/shared/echo.ts: echo ${outside}`)
-	expect(code(run("/app/src/fns/echo.ts"))).toContain("__id")
-	expect(code(run("/app/lib/echo.ts", "test"))).toContain("__id")
+	await expect(run("/app/lib/echo.ts")).rejects.toThrow(`lib/echo.ts: echo ${outside}`)
+	await expect(run("/elsewhere/shared/echo.ts")).rejects.toThrow(`/elsewhere/shared/echo.ts: echo ${outside}`)
+	expect(code(await run("/app/src/fns/echo.ts"))).toContain("__id")
+	expect(code(await run("/app/lib/echo.ts", "test"))).toContain("__id")
 	const flareSource = fileURLToPath(new URL("../../exports/server-fn.ts", import.meta.url))
 	for (const id of ["/app/node_modules/x/echo.ts", "/elsewhere/node_modules/x/echo.ts", flareSource]) {
-		expect(run(id)).toBeNull()
+		expect(await run(id)).toBeNull()
 	}
-	expect(run("/app/lib/plain.ts", undefined, "export const createServerFn = 1;\n")).toBeNull()
+	expect(await run("/app/lib/plain.ts", undefined, "export const createServerFn = 1;\n")).toBeNull()
 })
 
 it("hmr keeps split", async () => {

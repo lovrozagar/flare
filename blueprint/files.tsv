@@ -556,6 +556,11 @@ packages/core/src/vite/boundary/transform.ts	P7	src	vite	The boundary transform 
 packages/core/src/vite/boundary/transform.test.ts	P7	test	vite	Unit cases for transform.ts
 packages/core/src/vite/boundary/env.ts	P7	src	vite	oxc rewrite of createServerOnlyFn, createClientOnlyFn, and createIsomorphicFn
 packages/core/src/vite/boundary/env.test.ts	P7	test	vite	Unit cases for env.ts
+packages/core/src/vite/boundary/env-names.ts	P7	src	vite	How a module names the env helpers: its imports, its barrels' helpers and nested namespaces, and dynamic imports' sources as written; split from env.ts at the 300-line limit (BUGS.md 461)
+packages/core/src/vite/boundary/env-names.test.ts	P7	test	vite	Unit cases for env-names.ts
+packages/core/src/vite/boundary/escape.test.ts	P7	test	vite	Real builds with the package bundled: every route a createServerOnlyFn call can take is rewritten or fails the build by the runtime it keeps (BUGS.md 461)
+packages/core/src/vite/boundary/helper-sources.ts	P7	src	vite	Which env helpers a module's import sources bring through the app's barrels, at any depth, so the rewrite and the tripwire follow them (BUGS.md 461)
+packages/core/src/vite/boundary/helper-sources.test.ts	P7	test	vite	Unit cases for helper-sources.ts
 packages/core/src/vite/boundary/tripwire.ts	P7	src	vite	Fail the build when an emitted chunk contains a server body or an env helper body that belongs in another graph
 packages/core/src/vite/boundary/tripwire.test.ts	P7	test	vite	Unit cases for tripwire.ts
 packages/core/src/vite/boundary/build.fixture.ts	P7	test	vite	A fixture app built by Vite through flare()'s boundary transform, per graph, for the tripwire and the env helpers' cases
@@ -568,6 +573,8 @@ packages/core/src/vite/plugin/asset-headers.test.ts	P12	test	node	Unit cases for
 packages/core/src/vite/plugin/real-path.ts	P15	src	vite	The real path of a root reached through a symlink, so Vite's ids, the manifest, and the boundary agree (BUGS.md B51)
 packages/core/src/vite/plugin/real-path.test.ts	P15	test	vite	Unit cases for real-path.ts
 packages/core/src/vite/plugin/flare.test.ts	P1	test	vite	Unit cases for flare.ts
+packages/core/src/vite/plugin/boundary.ts	P7	src	vite	The flare:boundary plugin: the env, split, and server function rewrite of each app module, with its barrels' helpers, and the B45 tripwire over each chunk; split from flare.ts at the 300-line limit
+packages/core/src/vite/plugin/boundary.test.ts	P7	test	vite	Unit cases for boundary.ts
 packages/core/src/vite/plugin/fonts.ts	P14	src	vite	flare({ fonts: { dir } }): the client build emits the used registry families' woff2 files
 packages/core/src/vite/plugin/fonts.test.ts	P14	test	vite	Unit cases for fonts.ts: real client builds
 packages/core/src/vite/plugin/own-module.ts	P14	src	vite	A module of this package by its source path, .ts from source and .js from the installed package

@@ -1,7 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { createBuilder, type Plugin } from "vite"
+import { fileURLToPath } from "node:url"
+import { createBuilder, type Plugin, type UserConfig } from "vite"
 import { flare } from "../plugin/flare.ts"
 
 // A real Vite build of a fixture app through flare()'s boundary transform, for the tripwire and the env helpers' cases.
@@ -47,16 +48,47 @@ export function boundary(): Plugin {
 	return plugin
 }
 
+// The package's own entry, which a bundled build resolves `@lovrozagar/flare` to, as an app's bundle holds it.
+export const PACKAGE_ENTRY: string = fileURLToPath(new URL("../../exports/index.ts", import.meta.url))
+
 // The emitted code of one graph's build, or the build's rejection. The client entry is src/client.ts; the ssr and
 // prerender environments' server entry is src/server.ts.
-export async function build(root: string, graph: Environment, extra: Plugin[] = []): Promise<string> {
+export function build(root: string, graph: Environment, extra: Plugin[] = []): Promise<string> {
+	return built(root, graph, { plugins: extra, external })
+}
+
+// The same build with the package bundled from its source, so its helpers' runtime is in the chunk when a call keeps
+// it, and with `bundle` (bare ids) and `config` (aliases, say) as an app would have them (BUGS.md 461).
+export function bundledBuild(
+	root: string,
+	graph: Environment,
+	at: { plugins?: Plugin[]; bundle?: readonly string[]; config?: UserConfig } = {},
+): Promise<string> {
+	const kept = new Set(["@lovrozagar/flare", ...(at.bundle ?? [])])
+	const config: UserConfig = {
+		...at.config,
+		resolve: { alias: { "@lovrozagar/flare": PACKAGE_ENTRY, ...at.config?.resolve?.alias } },
+	}
+	return built(root, graph, {
+		plugins: at.plugins ?? [],
+		external: (id) => external(id) && !kept.has(id) && !id.startsWith("~"),
+		config,
+	})
+}
+
+async function built(
+	root: string,
+	graph: Environment,
+	at: { plugins: Plugin[]; external: (id: string) => boolean; config?: UserConfig },
+): Promise<string> {
 	const input = join(root, graph === "client" ? "src/client.ts" : "src/server.ts")
-	const environment = { build: { write: false, minify: false, rollupOptions: { input, external } } }
+	const environment = { build: { write: false, minify: false, rollupOptions: { input, external: at.external } } }
 	const builder = await createBuilder({
+		...at.config,
 		root,
 		configFile: false,
 		logLevel: "silent",
-		plugins: [boundary(), ...extra],
+		plugins: [boundary(), ...at.plugins],
 		environments: {
 			client: environment,
 			ssr: { ...environment, build: { ...environment.build, ssr: true } },
@@ -71,6 +103,18 @@ export async function build(root: string, graph: Environment, extra: Plugin[] = 
 		.flatMap((result) => ("output" in result ? result.output : []))
 		.map((item) => ("code" in item ? item.code : ""))
 		.join("\n")
+}
+
+// A plugin after the boundary transform that adds `code` to a module, as a broken plugin putting a body back would:
+// the rewrite leaves no helper call to edit, so the broken plugin's call comes with its own import (BUGS.md 461).
+export function appending(file: string, code: string): Plugin {
+	return {
+		name: "append",
+		enforce: "post",
+		transform(source, id) {
+			return id.endsWith(file) ? `${source}\n${code}\n` : null
+		},
+	}
 }
 
 // A plugin after the boundary transform that writes a body back into a module, as a broken plugin would.

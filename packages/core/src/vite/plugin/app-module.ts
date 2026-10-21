@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { isAbsolute, relative, sep } from "node:path"
 
 // The query keys Vite itself adds to an app module: a hot update's timestamp, a dependency hash, and an import
@@ -27,4 +28,31 @@ function within(roots: readonly string[], path: string): { file: string; app: tr
 		if (!file.startsWith("../") && !isAbsolute(file)) return { file, app: true }
 	}
 	return undefined
+}
+
+type Resolver = { resolve: (source: string, importer: string) => Promise<{ id: string; external?: unknown } | null> }
+
+// How a module's helper sources are followed (boundary/helper-sources.ts): through Vite's resolver, to app modules
+// only, read from disk as written. A dependency, a virtual module, and Flare's own source are not followed.
+export function appAccess(
+	context: Resolver,
+	at: { roots: readonly string[]; packageSrc: string },
+): {
+	resolve: (source: string, importer: string) => Promise<string | undefined>
+	read: (id: string) => string | undefined
+} {
+	return {
+		async resolve(source, importer) {
+			const resolved = await context.resolve(source, importer)
+			if (resolved === null || resolved.external) return undefined
+			return appModule(at.roots, resolved.id, at.packageSrc)?.app === true ? resolved.id : undefined
+		},
+		read(id) {
+			try {
+				return readFileSync(id.replace(/\?.*$/s, ""), "utf8")
+			} catch {
+				return undefined
+			}
+		},
+	}
 }
