@@ -1,0 +1,127 @@
+name: nightly
+
+# The long forms the gate is too small for (plan 21 15.6), nightly and on demand: the benches against the previous
+# night's (a 2x slowdown fails), the v0.9.23 baseline with its budgets (tests/perf/BASELINE.md), and the long
+# performance e2e. Plan 21 17.1's black-box suites join this file as further jobs. A failing job opens one issue
+# labelled `nightly`, named for the job; a repeat failure comments on it, and the job's next green night closes it.
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  BUN_VERSION: "1.4.3"
+
+jobs:
+  benches:
+    name: benches
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      # The previous night's results: the newest cache under the prefix. The first night has none and passes.
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: packages/core/bench-previous.json
+          key: bench-${{ github.run_id }}
+          restore-keys: bench-
+      - working-directory: packages/core
+        run: npx vitest bench --run --project unit-node --outputJson bench-tonight.json
+      - working-directory: packages/core
+        run: node tests/perf/bench-compare.ts bench-tonight.json bench-previous.json --summary "$GITHUB_STEP_SUMMARY"
+      # Tonight becomes the next night's previous only when it passed, so a slowdown is not taken as the new normal.
+      - run: cp packages/core/bench-tonight.json packages/core/bench-previous.json
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: packages/core/bench-previous.json
+          key: bench-${{ github.run_id }}
+
+  baseline:
+    name: baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: v0.9.23
+          path: v0923
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      # The one change v0.9.23's benchmark app needs at its tag (tests/perf/BASELINE.md).
+      - working-directory: v0923
+        run: |
+          sed -i 's#import { createRouter } from "@lovrozagar/flare";#import { createRouter } from "@lovrozagar/flare/router";#' benchmark/flare/src/router.ts
+          bun install
+      - working-directory: packages/core
+        run: node tests/perf/baseline.ts --v0 "$GITHUB_WORKSPACE/v0923" --check | tee -a "$GITHUB_STEP_SUMMARY"
+
+  perf-e2e:
+    name: perf-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      # The long form of docs-perf: absolute paint, TTFB, navigation and heap numbers, and fifty navigation rounds.
+      - run: bun run test:e2e -- --project node-prod-chromium docs-perf
+        env:
+          FLARE_PERF_LONG: "1"
+
+  issues:
+    name: issues
+    needs: [benches, baseline, perf-e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          gh label create nightly --color B60205 --description "A nightly job failed" --force
+          for job in benches baseline perf-e2e; do
+            result=$(printf '%s' "$RESULTS" | jq -r --arg job "$job" '.[$job].result')
+            title="nightly: $job"
+            open=$(gh issue list --label nightly --state open --limit 100 --json number,title \
+              | jq -r --arg title "$title" '.[] | select(.title == $title) | .number' | head -n 1)
+            if [ "$result" = "failure" ]; then
+              if [ -n "$open" ]; then
+                gh issue comment "$open" --body "Failed again: $RUN"
+              else
+                gh issue create --label nightly --title "$title" --body "The nightly $job job failed: $RUN"
+              fi
+            elif [ "$result" = "success" ] && [ -n "$open" ]; then
+              gh issue close "$open" --comment "Green again: $RUN"
+            fi
+          done

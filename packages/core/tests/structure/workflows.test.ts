@@ -14,11 +14,12 @@ const workflows = readdirSync(dir)
 	.map((name) => ({ name, text: readFileSync(join(dir, name), "utf8") }))
 
 it("pinned actions", () => {
-	expect(workflows.map((file) => file.name)).toEqual(["ci.yml", "consumers-newest.yml", "release.yml"])
+	expect(workflows.map((file) => file.name)).toEqual(["ci.yml", "consumers-newest.yml", "nightly.yml", "release.yml"])
 	const unpinned = workflows.flatMap(({ name, text }) =>
 		[...text.matchAll(/uses:\s*(\S+)/g)]
 			.map((found) => found[1] ?? "")
-			.filter((action) => !/^[\w.-]+\/[\w.-]+@[\da-f]{40}$/.test(action))
+			// An action, or a sub-action under its repo (`actions/cache/restore`), always at a commit.
+			.filter((action) => !/^[\w.-]+\/[\w.-]+(?:\/[\w.-]+)*@[\da-f]{40}$/.test(action))
 			.map((action) => `${name}: ${action}`),
 	)
 	expect(unpinned).toEqual([])
@@ -62,4 +63,28 @@ it("browsers from browser-server", () => {
 	expect(job("e2e-mac")).toMatch(
 		/runs-on: macos-latest[\s\S]*bunx playwright install --with-deps chromium firefox webkit/,
 	)
+})
+
+// The nightly (plan 21 15.6): scheduled and on demand; every job feeds the issues job, which runs whatever they did and
+// alone may write issues, so a job 17.1 adds without joining it fails here; the benches restore the previous night
+// before comparing and save tonight only after a pass; the baseline checks its budgets.
+it("nightly", () => {
+	const text = workflows.find((file) => file.name === "nightly.yml")?.text ?? ""
+	expect(text).toContain('cron: "41 3 * * *"')
+	expect(text).toContain("workflow_dispatch:")
+	const jobs = [...text.slice(text.indexOf("\njobs:\n")).matchAll(/^ {2}([\w-]+):$/gm)].map((found) => found[1])
+	expect(jobs).toEqual(["benches", "baseline", "perf-e2e", "issues"])
+	expect(text).toContain(`needs: [${jobs.filter((job) => job !== "issues").join(", ")}]`)
+	expect(text).toContain("if: always()")
+	expect(text.match(/issues: write/g)).toHaveLength(1)
+	expect(text.indexOf("issues: write")).toBeGreaterThan(text.indexOf("  issues:"))
+	expect(text).toMatch(/^permissions:\n {2}contents: read$/m)
+	const restore = text.indexOf("actions/cache/restore@")
+	const compare = text.indexOf("tests/perf/bench-compare.ts")
+	const save = text.indexOf("actions/cache/save@")
+	expect(restore).toBeGreaterThan(-1)
+	expect(compare).toBeGreaterThan(restore)
+	expect(save).toBeGreaterThan(compare)
+	expect(text).toContain("tests/perf/baseline.ts --v0")
+	expect(text).toContain("--check")
 })
