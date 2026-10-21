@@ -111,8 +111,11 @@ jobs:
           npm install --global --prefix "$HOME/.bun-npm" "bun@$BUN_VERSION"
           echo "$HOME/.bun-npm/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
+      # The dev servers log each request's lifecycle into the server log a failed case carries (tests/e2e/trace.ts, BUGS.md 453).
       - run: bun run test:e2e -- --shard=${{ matrix.shard }}/3
-      # The test results: each failing case's error context (its page snapshot), server logs (docs.fixture.ts), and navigation log (crash.ts); tracing is off (B34), so a CI-only failure can be read (BUGS.md 93, 34.6).
+        env:
+          FLARE_E2E_TRACE: "1"
+      # The test results: each failing case's error context (its page snapshot), server log (crash.ts, docs.fixture.ts), and navigation log (crash.ts); tracing is off (B34), so a CI-only failure can be read (BUGS.md 93, 34.6).
       - if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -151,6 +154,8 @@ jobs:
           --project node-dev-webkit --project node-prod-webkit --project bun-dev-webkit
           --project bun-prod-webkit --project workers-dev-webkit --project workers-prod-webkit
           --shard=${{ matrix.shard }}/3
+        env:
+          FLARE_E2E_TRACE: "1"
       - if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

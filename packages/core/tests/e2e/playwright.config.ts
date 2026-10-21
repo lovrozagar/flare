@@ -57,6 +57,8 @@ export default defineConfig<object, FloorOptions>({
 		"**/flush.test.ts",
 		"**/golden.test.ts",
 		"**/shared-cache.test.ts",
+		"**/server-log.test.ts",
+		"**/trace.test.ts",
 	],
 	globalSetup: "./global-setup.ts",
 	fullyParallel: false,

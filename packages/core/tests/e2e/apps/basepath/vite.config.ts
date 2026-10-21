@@ -15,9 +15,14 @@ const workers =
 			]
 		: []
 
+// With FLARE_E2E_TRACE=1 the boot names the e2e request trace (tests/e2e/trace.ts), which goes first so it sees every
+// request (BUGS.md 453). The name is a URL, so a staged app loads it too.
+const traceUrl = process.env["FLARE_E2E_TRACE_PLUGIN"]
+const trace = traceUrl === undefined ? [] : [((await import(traceUrl)) as typeof import("../../trace.ts")).trace()]
+
 // The real dev path, as minimal uses it, under the router's basePath.
 export default defineConfig({
 	cacheDir: process.env.FLARE_VITE_CACHE,
 	server: { host: "127.0.0.1" },
-	plugins: [...workers, flare()],
+	plugins: [...trace, ...workers, flare()],
 })

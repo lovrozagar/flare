@@ -16,9 +16,14 @@ const workers =
 			]
 		: []
 
+// With FLARE_E2E_TRACE=1 the boot names the e2e request trace (tests/e2e/trace.ts), which goes first so it sees every
+// request (BUGS.md 453). The name is a URL, so a staged app loads it too.
+const traceUrl = process.env["FLARE_E2E_TRACE_PLUGIN"]
+const trace = traceUrl === undefined ? [] : [((await import(traceUrl)) as typeof import("../../trace.ts")).trace()]
+
 // The dashboard (B146). Tailwind is the app's own plugin (B14), over flare's one reset.
 export default defineConfig({
 	cacheDir: process.env.FLARE_VITE_CACHE,
 	server: { host: "127.0.0.1" },
-	plugins: [...workers, tailwindcss(), flare({ css: { reset: true } })],
+	plugins: [...trace, ...workers, tailwindcss(), flare({ css: { reset: true } })],
 })

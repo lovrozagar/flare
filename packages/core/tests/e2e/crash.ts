@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs"
 import { expect, test as base } from "@playwright/test"
 import { removeAfterFloor } from "./floor.ts"
 import { httpClient, type HttpClient } from "./http.ts"
+import { attachServerLog, logMarks } from "./server-log.ts"
 
 // A page as the crash watch reads it, and the context that opens pages.
 type CrashPage = { on(event: "crash", listener: () => void): unknown; url(): string }
@@ -65,7 +66,7 @@ export function navigationLog(context: Logged, now: () => number = () => perform
 export type FloorOptions = { floor: boolean }
 
 // Every e2e spec's `test`: the crash watch and the navigation log run around each case on its own context, and a failed
-// case carries the log. `http` is the case's own HTTP client, a connection per call (http.ts, BUGS.md 125); specs use it
+// case carries the log, and what each live boot's server logged during the case (server-log.ts). `http` is the case's own HTTP client, a connection per call (http.ts, BUGS.md 125); specs use it
 // rather than Playwright's `request` (grid.test `http client only`).
 export const test = base.extend<{ crashGuard: void; http: HttpClient }, FloorOptions>({
 	floor: [false, { option: true, scope: "worker" }],
@@ -84,12 +85,14 @@ export const test = base.extend<{ crashGuard: void; http: HttpClient }, FloorOpt
 		async ({ context }, use, testInfo) => {
 			const check = crashWatch(context)
 			const log = navigationLog(context)
+			const marks = logMarks()
 			await use()
 			// A file in the case's output directory, which CI uploads; a body attachment is not written there.
 			if (testInfo.status !== testInfo.expectedStatus) {
 				const path = testInfo.outputPath("navigation-log.txt")
 				writeFileSync(path, `${log().join("\n")}\n`)
 				await testInfo.attach("navigation log", { path, contentType: "text/plain" })
+				await attachServerLog(testInfo, marks)
 			}
 			check()
 		},
