@@ -25,10 +25,11 @@ export const NO_SOURCES: HelperSources = new Map()
 // Named imports, possibly aliased, and namespace imports, with what each holds.
 export type Names = { locals: Map<string, Helper>; namespaces: Map<string, HelperExports> }
 
+// A type-only import, `import type` or `import { type x }`, is erased: it names no helper (BUGS.md 464).
 export function helperNames(program: Program, sources: HelperSources): Names {
 	const names: Names = { locals: new Map(), namespaces: new Map() }
 	for (const statement of program.body) {
-		if (statement.type !== "ImportDeclaration") continue
+		if (statement.type !== "ImportDeclaration" || statement.importKind === "type") continue
 		const exports = exportsFrom(statement.source.value, sources)
 		if (exports === undefined) continue
 		for (const specifier of statement.specifiers) {
@@ -36,6 +37,7 @@ export function helperNames(program: Program, sources: HelperSources): Names {
 				names.namespaces.set(specifier.local.name, exports)
 				continue
 			}
+			if (specifier.type === "ImportSpecifier" && specifier.importKind === "type") continue
 			const imported =
 				specifier.type === "ImportDefaultSpecifier"
 					? "default"

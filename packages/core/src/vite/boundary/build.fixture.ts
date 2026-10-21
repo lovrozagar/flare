@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { createBuilder, type Plugin, type UserConfig } from "vite"
+import { createBuilder, type ConfigEnv, type Plugin, type UserConfig } from "vite"
 import { flare } from "../plugin/flare.ts"
 
 // A real Vite build of a fixture app through flare()'s boundary transform, for the tripwire and the env helpers' cases.
@@ -10,7 +10,9 @@ import { flare } from "../plugin/flare.ts"
 export type Environment = "client" | "ssr" | "flare_prerender"
 
 // Fixture apps under fresh temp roots: `make(files, parent?)` writes one under `parent` (the OS temp dir by default)
-// and returns its root, `track(path)` adds another path to clean, and `removeAll()` deletes them all.
+// and returns its root, `track(path)` adds another path to clean, and `removeAll()` deletes them all. A root is its
+// real path: macOS's temp dir is a symlink (/var to /private/var), and Vite serves a module by its real path, which a
+// root given through the link would not contain.
 export function fixtures(): {
 	make: (files: Record<string, string>, parent?: string) => string
 	track: (path: string) => void
@@ -20,7 +22,7 @@ export function fixtures(): {
 	return {
 		make(files, parent = tmpdir()) {
 			mkdirSync(parent, { recursive: true })
-			const root = mkdtempSync(join(parent, "flare-tripwire-"))
+			const root = realpathSync(mkdtempSync(join(parent, "flare-tripwire-")))
 			roots.push(root)
 			for (const [path, source] of Object.entries(files)) {
 				mkdirSync(dirname(join(root, path)), { recursive: true })
@@ -58,28 +60,43 @@ export function build(root: string, graph: Environment, extra: Plugin[] = []): P
 }
 
 // The same build with the package bundled from its source, so its helpers' runtime is in the chunk when a call keeps
-// it, and with `bundle` (bare ids) and `config` (aliases, say) as an app would have them (BUGS.md 461).
-export function bundledBuild(
+// it, and with `bundle` (bare ids) and `config` (aliases, say) as an app would have them (BUGS.md 461). A Web Worker
+// bundles with the worker config flare()'s own config hook returns; `flare: false` builds with no Flare plugin.
+export async function bundledBuild(
 	root: string,
 	graph: Environment,
-	at: { plugins?: Plugin[]; bundle?: readonly string[]; config?: UserConfig } = {},
+	at: { plugins?: Plugin[]; bundle?: readonly string[]; config?: UserConfig; flare?: false } = {},
 ): Promise<string> {
 	const kept = new Set(["@lovrozagar/flare", ...(at.bundle ?? [])])
 	const config: UserConfig = {
 		...at.config,
 		resolve: { alias: { "@lovrozagar/flare": PACKAGE_ENTRY, ...at.config?.resolve?.alias } },
+		worker: { format: "es", ...(at.flare === false ? {} : await flareWorker(root)) },
 	}
 	return built(root, graph, {
 		plugins: at.plugins ?? [],
 		external: (id) => external(id) && !kept.has(id) && !id.startsWith("~"),
 		config,
+		flare: at.flare !== false,
 	})
+}
+
+// The `worker` field of the config flare()'s main plugin returns for this app, as Vite asks it.
+async function flareWorker(root: string): Promise<UserConfig["worker"]> {
+	const main = flare({ entry: { client: "src/client.ts", server: "src/server.ts" } }).find(
+		(item) => item.name === "flare",
+	)
+	const hook = main?.config
+	if (typeof hook !== "function") throw new Error("flare()'s config hook")
+	const env: ConfigEnv = { command: "build", mode: "production", isSsrBuild: false, isPreview: false }
+	const config: UserConfig | null | void = await Reflect.apply(hook, {}, [{ root }, env])
+	return config?.worker
 }
 
 async function built(
 	root: string,
 	graph: Environment,
-	at: { plugins: Plugin[]; external: (id: string) => boolean; config?: UserConfig },
+	at: { plugins: Plugin[]; external: (id: string) => boolean; config?: UserConfig; flare?: boolean },
 ): Promise<string> {
 	const input = join(root, graph === "client" ? "src/client.ts" : "src/server.ts")
 	const environment = { build: { write: false, minify: false, rollupOptions: { input, external: at.external } } }
@@ -88,7 +105,7 @@ async function built(
 		root,
 		configFile: false,
 		logLevel: "silent",
-		plugins: [boundary(), ...at.plugins],
+		plugins: [...(at.flare === false ? [] : [boundary()]), ...at.plugins],
 		environments: {
 			client: environment,
 			ssr: { ...environment, build: { ...environment.build, ssr: true } },
@@ -99,10 +116,13 @@ async function built(
 	if (target === undefined) throw new Error(`the builder has no ${graph} environment`)
 	const output = await builder.build(target)
 	const results = Array.isArray(output) ? output : [output]
-	return results
-		.flatMap((result) => ("output" in result ? result.output : []))
-		.map((item) => ("code" in item ? item.code : ""))
-		.join("\n")
+	return (
+		results
+			.flatMap((result) => ("output" in result ? result.output : []))
+			// A Web Worker's bundle is an asset of the client build.
+			.map((item) => ("code" in item ? item.code : item.fileName.endsWith(".js") ? String(item.source) : ""))
+			.join("\n")
+	)
 }
 
 // A plugin after the boundary transform that adds `code` to a module, as a broken plugin putting a body back would:

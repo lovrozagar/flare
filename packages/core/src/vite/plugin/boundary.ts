@@ -10,7 +10,7 @@ import {
 	type Graph,
 } from "../boundary/index.ts"
 import type { ExportCache, HelperSources } from "../boundary/index.ts"
-import { appAccess, appModule } from "./app-module.ts"
+import { appAccess, appModule, dependencyModule, NAMES_A_HELPER } from "./app-module.ts"
 import { realPath } from "./real-path.ts"
 
 // The package's `src`, whose server folders a client or worker chunk may not hold (B45).
@@ -36,17 +36,17 @@ export function boundary(fixed?: Graph): Plugin {
 		async transform(code, id) {
 			const { root, mode } = this.environment.config
 			const found = appModule(rootsOf(root), id, PACKAGE_SRC)
-			if (found === undefined) return null
-			if (mode !== "test") assertRegistered(found.file, code)
-			if (!found.app) return null
+			if (found !== undefined && mode !== "test") assertRegistered(found.file, code)
+			// A dependency, or a module outside the root, gets the env rewrite only, and only when its text names a
+			// helper or the package: a call that reaches one by another name keeps the runtime, which the tripwire fails.
+			const file = found?.app === true ? found.file : (found?.file ?? dependencyModule(id, PACKAGE_SRC))
+			if (file === undefined || (found?.app !== true && !NAMES_A_HELPER.test(code))) return null
 			const environment = this.environment.name
 			const access = { ...appAccess(this, { roots: rootsOf(root), packageSrc: PACKAGE_SRC }), cache, environment }
-			const brought = await moduleSources({ id, file: found.file, code }, access)
+			const brought = await moduleSources({ id, file, code }, access)
 			sources.set(`${environment}\0${id}`, brought)
-			return (
-				boundaryTransform(found.file, code, { graph: fixed ?? graphOf(this.environment.name), sources: brought }) ??
-				null
-			)
+			const graph = fixed ?? graphOf(environment)
+			return boundaryTransform(file, code, { graph, sources: brought, envOnly: found?.app !== true }) ?? null
 		},
 		// Every module of every chunk, with its final code, before the chunk is written.
 		renderChunk(rendered, chunk) {

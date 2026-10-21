@@ -223,3 +223,18 @@ it("helper as an object", () => {
 		'import * as flare from "@lovrozagar/flare";\nexport const a = flare.createServerOnlyFn.call(null, () => SECRET);\n'
 	expect(() => rewrite(source, "client")).toThrow("src/lib/a.ts: createServerOnlyFn must be called directly")
 })
+
+// A type position is no read (dx/env.md): `typeof createServerOnlyFn`, a type-only import, and a qualified type through
+// the namespace build, and the call beside them is still rewritten (BUGS.md 464).
+it("type positions", () => {
+	const typed = `${IMPORT}export type S = typeof createServerOnlyFn;\nexport const r = createServerOnlyFn(() => SECRET);\n`
+	expect(rewrite(typed, "client")).not.toContain("SECRET")
+	const typeOnly =
+		'import type { createIsomorphicFn } from "@lovrozagar/flare";\nexport type I = typeof createIsomorphicFn;\n'
+	expect(rewrite(typeOnly, "client")).toContain("typeof createIsomorphicFn")
+	const specifier =
+		'import { type createClientOnlyFn } from "@lovrozagar/flare";\nexport type C = typeof createClientOnlyFn;\n'
+	expect(rewrite(specifier, "client")).toContain("typeof createClientOnlyFn")
+	const qualified = 'import * as flare from "@lovrozagar/flare";\nexport type Q = typeof flare.createServerOnlyFn;\n'
+	expect(rewrite(qualified, "client")).toContain("typeof flare.createServerOnlyFn")
+})
