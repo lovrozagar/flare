@@ -361,8 +361,13 @@ it("engines", () => {
 })
 
 // A peer whose next release is known broken takes an upper bound below it, each named here with its BUGS row: Solid
-// rc.16 escapes twice through SafeErrored and hangs a failed query (BUGS.md 426).
-const CAPPED: Record<string, string> = { "solid-js": "<2.0.0-rc.16", "@solidjs/web": "<2.0.0-rc.16" }
+// rc.16 escapes twice through SafeErrored and hangs a failed query (BUGS.md 426), and the Vite plugin's next.51 needs
+// rc.16, so npm cannot install it beside the capped pair (BUGS.md 490).
+const CAPPED: Record<string, string> = {
+	"solid-js": "<2.0.0-rc.16",
+	"@solidjs/web": "<2.0.0-rc.16",
+	"@solidjs/vite-plugin": "<3.0.0-next.51",
+}
 
 it("peer floors", () => {
 	const source = JSON.parse(readFileSync(join(core, "package.json"), "utf8"))

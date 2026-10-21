@@ -36,9 +36,9 @@ function readmePackages(): string[] {
 	return [run.packed ?? "", ...peers]
 }
 
-// The Solid pair stays at the release the package is tested on, its devDependency: the README's own install resolves to
-// it, never a newer pre-release (BUGS.md 426).
-const SOLID = ["solid-js", "@solidjs/web"]
+// The Solid pair and its Vite plugin stay at the release the package is tested on, its devDependency: the README's own
+// install resolves to it, never a newer pre-release (BUGS.md 426, 490).
+const SOLID = ["solid-js", "@solidjs/web", "@solidjs/vite-plugin"]
 
 function manifestAt(path: string): Record<string, unknown> {
 	return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>
