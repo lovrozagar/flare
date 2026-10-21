@@ -172,6 +172,51 @@ async function setTheme(tab: Page): Promise<void> {
 	await remember(tab, await tab.evaluate(() => Reflect.get(window, "__styles")))
 }
 
+// A box whose background transitions on the theme attribute, then four theme changes and four changes of the attribute
+// alone, the control: how many of each started a transition. After each change, once the no-transition style is gone,
+// a style read stands in for the next frame's style pass, which runs after the frame's animation callbacks.
+async function themeFlips(tab: Page): Promise<void> {
+	const duration = await tab.evaluate(() => {
+		// The page's CSP takes an inline style only with its nonce.
+		const style = document.createElement("style")
+		style.nonce = document.querySelector<HTMLScriptElement>("script[nonce]")?.nonce ?? ""
+		style.textContent =
+			".box{background:white;transition:background-color 300ms} html[data-mode=dark] .box{background:black}"
+		const box = document.createElement("div")
+		box.id = "box"
+		box.className = "box"
+		document.body.append(style, box)
+		return getComputedStyle(box).transitionDuration
+	})
+	const MODES = ["dark", "light", "dark", "light"]
+	let flips = 0
+	for (const mode of MODES) {
+		await click(tab, mode === "dark" ? "to-dark" : "to-light", (now) => now["mode"] === mode)
+		flips += await transitions(tab)
+	}
+	let control = 0
+	for (const mode of MODES) {
+		await tab.evaluate((value) => document.documentElement.setAttribute("data-mode", value), mode)
+		control += await transitions(tab)
+	}
+	await remember(tab, { duration, flips, control })
+}
+
+// Whether the box's last change started a transition, read once the no-transition style is gone; the transition is
+// then finished, so the next change starts from rest.
+async function transitions(tab: Page): Promise<number> {
+	await tab.waitForFunction(
+		() => ![...document.head.querySelectorAll("style")].some((style) => style.textContent?.includes("transition:none")),
+	)
+	return tab.evaluate(() => {
+		const box = document.getElementById("box") as HTMLElement
+		void getComputedStyle(box).backgroundColor
+		const running = box.getAnimations()
+		for (const animation of running) animation.finish()
+		return running.length
+	})
+}
+
 async function mediaDark(tab: Page): Promise<void> {
 	await tab.emulateMedia({ colorScheme: "dark" })
 	await tab.waitForFunction(() => document.documentElement.getAttribute("data-mode") === "dark")
@@ -236,6 +281,15 @@ describe.each(ENGINES)("%s", (engine) => {
 		expect(result.record[2]).toEqual(["*{transition:none!important}"])
 		const system = await run(engine, { path: "/home", init: before({}, "light"), steps: mediaDark })
 		expect(system.record[0]).toMatchObject({ theme: "system", resolved: "dark", mode: "dark" })
+	})
+})
+
+describe.each(ENGINES)("%s", (engine) => {
+	// disableTransitionOnChange: a theme change does not animate, the browser computing styles under the
+	// no-transition rule before the next frame removes it (dx/features.md Theme, BUGS.md 437).
+	it("theme no transition", async () => {
+		const result = await run(engine, { path: "/home", init: before({}, "light"), steps: themeFlips })
+		expect(result.record.at(-1)).toEqual({ duration: "0.3s", flips: 0, control: 4 })
 	})
 })
 

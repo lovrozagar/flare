@@ -52,7 +52,7 @@
 			}
 		},
 		{
-			"files": ["tests/integration/*.setup.ts", "tests/integration/*.probe.mjs"],
+			"files": ["tests/*.setup.ts", "tests/integration/*.setup.ts", "tests/integration/*.probe.mjs"],
 			"rules": {
 				"flare/no-module-side-effects": "off"
 			}

@@ -1,10 +1,10 @@
 {
 	"createPage": 1252,
-	"createClient": 58778,
-	"Link": 21024,
-	"Image": 18850,
-	"ThemeProvider": 10055,
-	"DirectionProvider": 10023,
+	"createClient": 58954,
+	"Link": 21119,
+	"Image": 18964,
+	"ThemeProvider": 10084,
+	"DirectionProvider": 10084,
 	"useSuspenseQuery": 26305,
 	"useT": 9837
 }

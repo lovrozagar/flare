@@ -19,6 +19,12 @@ export type FallbackMetrics = {
 
 const PLAIN = /[A-Za-z0-9 ._/:,+-]/
 const WEIGHT = /^\d{1,4}( \d{1,4})?$/
+
+// One weight, or a range, each from 1 to 1000 as CSS reads `font-weight`: a browser reads any other as `normal`
+// (BUGS.md 438).
+function weightOk(weight: string): boolean {
+	return WEIGHT.test(weight) && weight.split(" ").every((part) => Number(part) >= 1 && Number(part) <= 1000)
+}
 const STYLES = ["normal", "italic", "oblique"]
 const RANGE = /^U\+[0-9A-F?]{1,6}(-[0-9A-F]{1,6})?(, ?U\+[0-9A-F?]{1,6}(-[0-9A-F]{1,6})?)*$/i
 const PERCENT = /^\d{1,4}(\.\d{1,4})?%$/
@@ -56,7 +62,7 @@ export function fontSrc(src: string): string {
 }
 
 export function fontFace(face: FontFace): string {
-	const weight = checked(face.weight, WEIGHT.test(face.weight), "weight")
+	const weight = checked(face.weight, weightOk(face.weight), "weight")
 	const style = checked(face.style, STYLES.includes(face.style), "style")
 	const rule =
 		`@font-face{font-family:${cssString(face.family)};src:url(${cssString(fontSrc(face.src))}) format("woff2");` +

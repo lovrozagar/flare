@@ -280,7 +280,7 @@ features.md#Theme#prop:defaultTheme	packages/core/tests/integration/features-cli
 features.md#Theme#prop:attribute	packages/core/tests/integration/features-client.test.ts::theme script	packages/core/tests/e2e/docs-features.test.ts::theme no flash
 features.md#Theme#prop:storageKey	packages/core/tests/integration/features-client.test.ts::theme script; packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme no flash
 features.md#Theme#prop:themes	packages/core/tests/integration/features-client.test.ts::theme script	packages/core/tests/e2e/docs-features.test.ts::theme no flash
-features.md#Theme#prop:disableTransitionOnChange	packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme transition
+features.md#Theme#prop:disableTransitionOnChange	packages/core/tests/integration/features-client.test.ts::set theme; packages/core/tests/integration/features-client.test.ts::theme no transition	packages/core/tests/e2e/docs-features.test.ts::theme transition
 features.md#Theme#component:ThemeScript	packages/core/tests/integration/features-client.test.ts::theme script	packages/core/tests/e2e/docs-features.test.ts::theme no flash
 features.md#Theme#component:ThemeProvider	packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme system
 features.md#Theme#field:theme()	packages/core/tests/integration/features-client.test.ts::theme script; packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme system
@@ -307,7 +307,7 @@ features.md#i18n#API:plural	packages/core/tests/integration/i18n.test.ts::messag
 features.md#i18n#API:select	packages/core/tests/integration/i18n.test.ts::messages	packages/core/tests/e2e/docs-features.test.ts::format message
 features.md#i18n#API:t.rich(key, components)	packages/core/tests/integration/i18n.test.ts::render t	n/a: no docs page renders rich text; i18n.test renders it through createServer and a production build
 features.md#i18n#API:formatMessage(message, values?, locale?)	packages/core/tests/integration/i18n.test.ts::messages	packages/core/tests/e2e/docs-features.test.ts::format message
-features.md#i18n#prop:config	packages/core/tests/integration/features-client.test.ts::locale	packages/core/tests/e2e/docs-features.test.ts::prefix
+features.md#i18n#prop:config	packages/core/tests/integration/features-client.test.ts::locale; packages/core/src/features/i18n/shared/provider.test.tsx::router locale config	packages/core/tests/e2e/docs-features.test.ts::prefix
 features.md#i18n#prop:initial	packages/core/tests/integration/features-client.test.ts::locale	packages/core/tests/e2e/docs-features.test.ts::set locale persists
 features.md#i18n#prop:children	packages/core/tests/integration/features-client.test.ts::locale	packages/core/tests/e2e/docs-features.test.ts::prefix
 features.md#Image#	packages/core/tests/integration/features-media.test.ts::image responsive; packages/core/tests/integration/features-media.test.ts::image fixed; packages/core/tests/integration/features-media.test.ts::image fill; packages/core/tests/integration/features-media.test.ts::image props	packages/core/tests/e2e/docs-features.test.ts::image responsive

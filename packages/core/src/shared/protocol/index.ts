@@ -31,6 +31,7 @@ export {
 	readInternal,
 	staleList,
 	withoutInternalKeys,
+	withoutInternalQuery,
 	type InternalRequest,
 	type RequestKind,
 	type StaleList,

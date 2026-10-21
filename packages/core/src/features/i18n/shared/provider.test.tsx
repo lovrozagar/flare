@@ -2,10 +2,12 @@ import { createComponent, createSignal, flush, untrack } from "solid-js"
 import { render, type JSX } from "@solidjs/web"
 import { afterEach, expect, it, vi } from "vitest"
 import { LocationContext, NavigateContext, RouterContext, type NavigateTo } from "../../../shared/router/context.ts"
-import { createRouter, type RouteNode } from "../../../shared/router/create-router.ts"
-import { buildUrl, type Location } from "../../../shared/url/index.ts"
+import { createRouter, type RouteNode, type Router } from "../../../shared/router/create-router.ts"
+import { buildUrl, readSearch, type Location } from "../../../shared/url/index.ts"
+import { RAW_SEARCH } from "../../../shared/url/raw-search.ts"
 import { useLocale } from "./hooks.ts"
-import { LocaleProvider, type LocaleConfigInput, type LocaleState } from "./provider.tsx"
+import { i18n } from "../server/middleware.ts"
+import { LocaleProvider, type LocaleProviderProps, type LocaleState } from "./provider.tsx"
 import { expectReported } from "../../../shared/dev/reported.fixture.ts"
 
 // LocaleProvider on Solid's client build. The server rows are provider.ssr.test.ts.
@@ -21,7 +23,11 @@ const config = { locales: ["en", "hr", "de"], defaultLocale: "en" }
 const page = (id: string, path: string): RouteNode => ({ id, path, module: {} })
 const router = createRouter({
 	layouts: { _root_: {} },
-	routeTree: [page("_root_/[[locale]]/pricing", "/[[locale]]/pricing"), page("_root_/[locale]/docs", "/[locale]/docs")],
+	routeTree: [
+		page("_root_/[[locale]]/pricing", "/[[locale]]/pricing"),
+		page("_root_/[locale]/docs", "/[locale]/docs"),
+		page("_root_/about", "/about"),
+	],
 })
 
 afterEach(() => {
@@ -45,7 +51,14 @@ type App = {
 
 // A provider under the router contexts. The fake navigator commits the URL it builds unless `fail.next` is set, and
 // the layout passes the URL's locale param as `initial`, as the app's root layout does.
-function mount(url: string, fixed?: { initial: string | undefined }, localeConfig: LocaleConfigInput = config): App {
+// `config` is the provider's prop, and `router` the one its contexts give.
+function mount(
+	url: string,
+	fixed?: { initial: string | undefined },
+	under: { config?: LocaleProviderProps["config"]; router?: Router } = {},
+): App {
+	const localeConfig = "config" in under ? under.config : config
+	const routed = under.router ?? router
 	const parsed = new URL(url, "http://localhost")
 	const [location, setLocation] = createSignal<Location>({
 		pathname: parsed.pathname,
@@ -64,13 +77,13 @@ function mount(url: string, fixed?: { initial: string | undefined }, localeConfi
 		return Promise.resolve()
 	}
 	const param = (): string | undefined => {
-		const value = router.match(location().pathname).params["locale"]
+		const value = routed.match(location().pathname).params[routed.locale?.paramName ?? "locale"]
 		return typeof value === "string" ? value : undefined
 	}
 	const seen: { state?: LocaleState } = {}
 	const tree = (): JSX.Element =>
 		createComponent(RouterContext, {
-			value: router,
+			value: routed,
 			get children() {
 				return createComponent(LocationContext, {
 					value: location,
@@ -171,13 +184,25 @@ it("set locale", async () => {
 	const app = mount("/pricing")
 	await app.state.setLocale("hr")
 	expect(app.calls).toEqual([
-		{ to: "_root_/[[locale]]/pricing", params: { locale: "hr" }, search: {}, hash: "", replace: false },
+		{ to: "_root_/[[locale]]/pricing", params: { locale: "hr" }, hash: "", replace: false, [RAW_SEARCH]: "" },
 	])
 	expect(url(app)).toBe("/hr/pricing")
 	expect(app.state.locale()).toBe("hr")
 	// Once the navigation commits, the cookie holds the tag, with the server's attributes.
 	expect(document.cookie).toBe("flare.locale=hr")
 	await expect(app.state.setLocale("fr")).rejects.toThrow("fr is not one of the configured locales")
+	app.dispose()
+})
+
+// A route with no locale param has no place for the tag: setLocale rejects, naming the route and the param, before
+// any request (dx/features.md i18n, BUGS.md 439).
+it("no locale param", async () => {
+	const app = mount("/about", { initial: "en" })
+	await expect(app.state.setLocale("hr")).rejects.toThrow("setLocale: _root_/about has no locale param")
+	expect([app.calls, document.cookie]).toEqual([[], ""])
+	// Another tab's change is not followed there, and nothing is thrown.
+	await deliver({ type: "locale", tag: "hr" })
+	expect(app.calls).toEqual([])
 	app.dispose()
 })
 
@@ -205,7 +230,7 @@ it("locale channel replace", async () => {
 	const app = mount("/pricing")
 	expect(await posted(() => deliver({ type: "locale", tag: "hr" }))).toEqual([{ type: "locale", tag: "hr" }])
 	expect(app.calls).toEqual([
-		{ to: "_root_/[[locale]]/pricing", params: { locale: "hr" }, search: {}, hash: "", replace: true },
+		{ to: "_root_/[[locale]]/pricing", params: { locale: "hr" }, hash: "", replace: true, [RAW_SEARCH]: "" },
 	])
 	expect(url(app)).toBe("/hr/pricing")
 	app.dispose()
@@ -232,6 +257,18 @@ it("locale channel search", async () => {
 	await deliver({ type: "locale", tag: "en" })
 	expect(url(app)).toBe("/pricing?x=1#y")
 	expect(app.calls.map((call) => call.replace)).toEqual([true, true])
+	app.dispose()
+})
+
+// The query stays byte for byte, order and every key kept, through setLocale and another tab's change; the page's own
+// search still drops a key that would reach a prototype (dx/features.md i18n, BUGS.md 441).
+it("query as written", async () => {
+	const app = mount("/pricing?b=2&a=1&constructor=x#h")
+	await app.state.setLocale("hr")
+	expect(url(app)).toBe("/hr/pricing?b=2&a=1&constructor=x#h")
+	await deliver({ type: "locale", tag: "en" })
+	expect(url(app)).toBe("/pricing?b=2&a=1&constructor=x#h")
+	expect(Object.keys(readSearch(app.location().search))).toEqual(["b", "a"])
 	app.dispose()
 })
 
@@ -269,7 +306,7 @@ it("locale channel quiet", async () => {
 // The router's locale config and the object the server's i18n() returns both carry the fields the provider reads.
 it("config", async () => {
 	const server = { ...config, paramName: "locale", cookieName: "lang", botDetection: true }
-	const app = mount("/pricing", undefined, server)
+	const app = mount("/pricing", undefined, { config: server })
 	expect(untrack(app.state.locale)).toBe("en")
 	await app.state.setLocale("hr")
 	expect(document.cookie).toBe("lang=hr")
@@ -278,4 +315,50 @@ it("config", async () => {
 
 it("locale outside", () => {
 	expect(() => useLocale()).toThrow("useLocale outside LocaleProvider")
+})
+
+// The router that renames the locale param and cookie, as the server's i18n() reads them.
+const renamed = createRouter({
+	layouts: { _root_: {} },
+	routeTree: [page("_root_/[[lang]]/pricing", "/[[lang]]/pricing")],
+	locale: { locales: ["en", "hr"], defaultLocale: "en", paramName: "lang", cookieName: "ck" },
+})
+
+// The router is the locale config's single source: with no `config`, setLocale puts the tag in the router's param and
+// cookie; a `config` that disagrees with it throws at mount, naming the field and both values; and the server's
+// `i18n({ botDetection })` object, which names none of them, fits (dx/features.md i18n, BUGS.md 440).
+it("router locale config", async () => {
+	const app = mount("/pricing", undefined, { config: {}, router: renamed })
+	await app.state.setLocale("hr")
+	expect([app.calls[0]?.params, url(app), document.cookie]).toEqual([{ lang: "hr" }, "/hr/pricing", "ck=hr"])
+	app.dispose()
+	document.cookie = "ck=; max-age=0"
+	// Solid's dev build also hands a render's uncaught throw to the platform's `reportError`, which a browser turns into
+	// the window's `error` event (solid #3338); each mismatch reaches it as it reaches the caller.
+	const reported: string[] = []
+	const onError = (event: ErrorEvent): void => {
+		event.preventDefault()
+		reported.push(event.message)
+	}
+	window.addEventListener("error", onError)
+	expect(() =>
+		mount("/pricing", undefined, {
+			config: { locales: ["en", "hr"], defaultLocale: "en", paramName: "locale" },
+			router: renamed,
+		}),
+	).toThrow('LocaleProvider: config.paramName "locale" is not the router\'s "lang"')
+	expect(() =>
+		mount("/pricing", undefined, { config: { locales: ["en"], defaultLocale: "en" }, router: renamed }),
+	).toThrow("config.locales")
+	// A router with no locale option needs the config to name the locales.
+	expect(() => mount("/pricing", undefined, { config: {} })).toThrow("LocaleProvider: the router has no locale option")
+	window.removeEventListener("error", onError)
+	expect(reported.map((message) => message.split(":")[0])).toEqual([
+		"LocaleProvider",
+		"LocaleProvider",
+		"LocaleProvider",
+	])
+	const bots = mount("/pricing", undefined, { config: i18n({ botDetection: false }), router: renamed })
+	expect(bots.state.locales).toEqual(["en", "hr"])
+	bots.dispose()
 })

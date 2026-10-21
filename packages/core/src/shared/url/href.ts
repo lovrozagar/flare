@@ -1,3 +1,4 @@
+import { RAW_SEARCH } from "./raw-search.ts"
 import type { FlareRegister, To, UrlTarget } from "../route-builder/register.ts"
 import { encodeStatic, idPattern, patternSegments, type Segment } from "../route-tree/index.ts"
 import { entries, urlText, writeUrl } from "./search.ts"
@@ -38,7 +39,12 @@ export function buildUrl(input: BuildInput): Href {
 	const params = entries(input.params ?? {})
 	const parts = patternSegments(idPattern(input.to)).flatMap((segment) => urlParts(segment, params))
 	const hash = input.hash?.replace(/^#/, "")
-	return href(writeUrl({ path: `/${parts.join("/")}`, search: input.search, hash }))
+	const path = `/${parts.join("/")}`
+	const raw: unknown = Reflect.get(input, RAW_SEARCH)
+	if (typeof raw !== "string") return href(writeUrl({ path, search: input.search, hash }))
+	if (input.search !== undefined) throw new Error("buildUrl: a raw query and search together")
+	const query = raw === "" || raw.startsWith("?") ? raw : `?${raw}`
+	return href(`${path}${query}${writeUrl({ path: "", hash })}`)
 }
 
 // `buildUrl` as an app imports it from `@lovrozagar/flare` (BUGS.md 137): generic on a page id, with that page's

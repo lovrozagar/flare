@@ -12,7 +12,7 @@ import { isServer, type JSX } from "@solidjs/web"
 import { post, subscribe } from "../../../client/sync/index.ts"
 import { idPattern, patternSegments } from "../../../shared/route-tree/index.ts"
 import { LocationContext, NavigateContext, useRouter, type NavigateTo } from "../../../shared/router/index.ts"
-import { readSearch } from "../../../shared/url/index.ts"
+import { RAW_SEARCH } from "../../../shared/url/raw-search.ts"
 import { LOCALE_COOKIE, localeCookie } from "./cookie.ts"
 
 // The router's locale config, which the app also spreads into the server's i18n(). `cookieName` defaults to the
@@ -31,14 +31,23 @@ export type LocaleState = {
 	setLocale: (tag: string) => Promise<void>
 }
 
-export type LocaleProviderProps = { config: LocaleConfigInput; initial?: string | undefined; children: JSX.Element }
+// `config` is optional: the router's locale config is the source, and a given one must agree with it on every field
+// it names. The server's `i18n()` object fits (BUGS.md 440).
+export type LocaleProviderProps = {
+	config?: Partial<LocaleConfigInput> | undefined
+	initial?: string | undefined
+	children: JSX.Element
+}
 
 const LocaleContext = createContext<LocaleState | null>(null)
 
 // The subtree, and the locale its hooks and formatMessage read. `initial` is the route param, or omitted for the
 // default. The provider does not read the URL, the cookie, or Accept-Language.
 export function LocaleProvider(props: LocaleProviderProps): JSX.Element {
-	const config = untrack(() => props.config)
+	const config = sourced(
+		useRouter().locale,
+		untrack(() => props.config),
+	)
 	// A tag outside `locales` throws here, in the render that received it, and again in the memo after a change.
 	configured(config, untrack(() => props.initial) ?? config.defaultLocale)
 	const locale = createMemo(() => configured(config, props.initial ?? config.defaultLocale))
@@ -47,7 +56,8 @@ export function LocaleProvider(props: LocaleProviderProps): JSX.Element {
 		location: useContext(LocationContext),
 		navigate: useContext(NavigateContext),
 	}
-	const go = (tag: string, replace: boolean): Promise<boolean> => goTo({ ...navigation, config, tag, replace })
+	const go = (tag: string, replace: boolean): Promise<boolean | Unplaced> =>
+		goTo({ ...navigation, config, tag, replace })
 	createEffect(locale, (tag) => {
 		document.documentElement.lang = tag
 	})
@@ -60,7 +70,9 @@ export function LocaleProvider(props: LocaleProviderProps): JSX.Element {
 	)
 	const setLocale = async (tag: string): Promise<void> => {
 		configured(config, tag)
-		if (!(await go(tag, false))) return
+		const moved = await go(tag, false)
+		if (typeof moved === "object") throw new Error(`setLocale: ${moved.route} has no ${moved.param} param`)
+		if (!moved) return
 		document.cookie = localeCookie(config.cookieName ?? LOCALE_COOKIE, tag, location.protocol === "https:")
 		post({ type: "locale", tag })
 	}
@@ -107,19 +119,25 @@ type GoInput = {
 	replace: boolean
 }
 
+// A route with no locale param, which has no place for a tag: setLocale rejects with it, and another tab's change is
+// not followed there (BUGS.md 439).
+type Unplaced = { route: string; param: string }
+
 // Navigates to the tag on the current route, keeping search and hash. On an optional segment the default tag drops
 // the segment. A required segment keeps it. Resolves whether the navigation committed.
-async function goTo(input: GoInput): Promise<boolean> {
+async function goTo(input: GoInput): Promise<boolean | Unplaced> {
 	if (isServer || input.navigate === null) throw new Error("setLocale runs in the browser")
 	const current = input.location()
 	const match = input.router.match(current.pathname)
 	if (match.id === undefined) return false
 	const name = input.config.paramName ?? "locale"
 	const segment = patternSegments(idPattern(match.id)).find((item) => item.kind !== "static" && item.name === name)
+	if (segment === undefined) return { route: match.id, param: name }
 	const dropped = segment?.kind === "dynamic" && segment.optional && input.tag === input.config.defaultLocale
 	const params = { ...match.params, [name]: dropped ? undefined : input.tag }
-	const search = readSearch(current.search)
-	await input.navigate({ to: match.id, params, search, hash: current.hash, replace: input.replace })
+	// The query as written, order and every key, not the search object the URL writer would sort (BUGS.md 441).
+	const target: NavigateTo = { to: match.id, params, hash: current.hash, replace: input.replace }
+	await input.navigate(Object.assign(target, { [RAW_SEARCH]: current.search }))
 	const landed = input.router.match(input.location().pathname)
 	return landed.id === match.id && landed.params[name] === params[name]
 }
@@ -130,4 +148,31 @@ function localeMessage(data: unknown, config: LocaleConfigInput): string | undef
 	if (Object.keys(data).length !== 2 || !("type" in data) || data.type !== "locale" || !("tag" in data))
 		return undefined
 	return config.locales.find((tag) => tag === data.tag)
+}
+
+// The fields a given config may name, each compared with the router's.
+const FIELDS = ["locales", "defaultLocale", "paramName", "cookieName"] as const
+
+// The router's locale config, with a given one checked against it: a field it names that differs throws, naming the
+// field and both values, since a silent mismatch is a setLocale that does nothing (BUGS.md 440). Under a router with
+// no locale option, the given config is the whole config.
+function sourced(
+	router: LocaleConfigInput | undefined,
+	given: Partial<LocaleConfigInput> | undefined,
+): LocaleConfigInput {
+	if (router === undefined) {
+		if (given?.locales === undefined || given.defaultLocale === undefined) {
+			throw new Error("LocaleProvider: the router has no locale option and no config names locales and defaultLocale")
+		}
+		return { ...given, locales: given.locales, defaultLocale: given.defaultLocale }
+	}
+	for (const field of FIELDS) {
+		const value = given?.[field]
+		if (value !== undefined && JSON.stringify(value) !== JSON.stringify(router[field])) {
+			throw new Error(
+				`LocaleProvider: config.${field} ${JSON.stringify(value)} is not the router's ${JSON.stringify(router[field])}`,
+			)
+		}
+	}
+	return router
 }

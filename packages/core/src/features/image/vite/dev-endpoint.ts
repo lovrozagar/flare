@@ -1,7 +1,7 @@
 import { realpath, stat } from "node:fs/promises"
-import { isAbsolute, relative, resolve } from "node:path"
+import { relative, resolve } from "node:path"
 import type { DevEndpoint } from "../../../vite/dev/index.ts"
-import { IMAGE_ENDPOINT, OPTIMIZED, type ImageSettings } from "./optimize.ts"
+import { belowWidths, encodedWidth, IMAGE_ENDPOINT, leavesRoot, OPTIMIZED, type ImageSettings } from "./optimize.ts"
 
 // `GET /_flare/image?src=<project path>&w=<width>[&q=<quality>]` in `vite dev` (dx/features.md Image). The flare
 // plugin registers it behind the dev guard, so it answers same-origin requests only. A path outside the project, a
@@ -19,9 +19,12 @@ async function answer(request: Request, settings: ImageSettings, root: string): 
 	const quality = query.has("q") ? Number(query.get("q")) : settings.quality
 	const valid = Number.isInteger(quality) && quality >= 1 && quality <= 100
 	const image = file !== undefined && OPTIMIZED.test(file)
-	if (!image || !settings.widths.includes(width) || !valid) return new Response(null, { status: 400 })
+	const listed = settings.widths.includes(width) || belowWidths(width, settings)
+	if (!image || !listed || !valid) return new Response(null, { status: 400 })
 	const real = await realInside(root, file)
 	if (typeof real === "number") return new Response(null, { status: real })
+	// Below the configured widths, only the file's own width: its one variant (BUGS.md 454).
+	if (!(await encodedWidth(real, width, settings))) return new Response(null, { status: 400 })
 	const { default: sharp } = await import("sharp")
 	const bytes = await sharp(real).autoOrient().resize({ width }).webp({ quality }).toBuffer()
 	return new Response(new Uint8Array(bytes), { status: 200, headers: { "content-type": "image/webp" } })
@@ -31,8 +34,7 @@ async function answer(request: Request, settings: ImageSettings, root: string): 
 function inside(root: string, src: string | null): string | undefined {
 	if (src === null || src === "") return undefined
 	const file = resolve(root, `.${src.startsWith("/") ? src : `/${src}`}`)
-	const path = relative(root, file)
-	return path.startsWith("..") || isAbsolute(path) ? undefined : file
+	return leavesRoot(relative(root, file)) ? undefined : file
 }
 
 // The file as the filesystem resolves it, symlinks followed, when it is still under the root's own resolved path: a
@@ -40,7 +42,6 @@ function inside(root: string, src: string | null): string | undefined {
 async function realInside(root: string, file: string): Promise<string | 400 | 404> {
 	const real = await realpath(file).catch(() => undefined)
 	if (real === undefined) return 404
-	const path = relative(await realpath(root), real)
-	if (path.startsWith("..") || isAbsolute(path)) return 400
+	if (leavesRoot(relative(await realpath(root), real))) return 400
 	return (await stat(real)).isFile() ? real : 404
 }

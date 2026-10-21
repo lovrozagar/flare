@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto"
-import { readFile } from "node:fs/promises"
 import { basename, extname, isAbsolute, relative, sep } from "node:path"
 import type { Plugin } from "vite"
 import { assetsDirOf, assetUrl, ownModule } from "../../../vite/plugin/index.ts"
@@ -23,11 +22,29 @@ const IMAGE_QUERY = "?image"
 // original, with no orientation left for a viewer to apply twice (plan 21 3.16). A width the plugin did not list is an
 // error. sharp loads only here, so an app without `image` never loads it.
 export async function encodeVariant(file: string, width: number, settings: ImageSettings): Promise<Uint8Array> {
-	if (!settings.widths.includes(width)) {
+	if (!(await encodedWidth(file, width, settings))) {
 		throw new Error(`image width ${width} is not configured: the widths are ${settings.widths.join(", ")}`)
 	}
 	const { default: sharp } = await import("sharp")
 	return sharp(file).autoOrient().resize({ width }).webp({ quality: settings.quality }).toBuffer()
+}
+
+// A width the plugin encodes the file at: a configured one, or the image's own width when it is narrower than every
+// configured width, its one variant (BUGS.md 454).
+export async function encodedWidth(file: string, width: number, settings: ImageSettings): Promise<boolean> {
+	if (settings.widths.includes(width)) return true
+	return belowWidths(width, settings) && (await intrinsicSize(file)).width === width
+}
+
+// Whether `width` could be an image's own width below every configured width, before any file is read.
+export function belowWidths(width: number, settings: ImageSettings): boolean {
+	return Number.isInteger(width) && width >= 1 && width < Math.min(...settings.widths)
+}
+
+// Whether a path relative to the root leaves it: `..` itself, or `..` and a separator. `..name` is a file in the
+// project (BUGS.md 457).
+export function leavesRoot(path: string): boolean {
+	return /^\.\.(?:[\\/]|$)/.test(path) || isAbsolute(path)
 }
 
 // The intrinsic size of an image file, as it shows: upright by its EXIF orientation.
@@ -61,8 +78,9 @@ export function imagePlugin(settings: ImageSettings, assetsBase: string): Plugin
 		load(id) {
 			if (id === CONFIG) return configModule(settings)
 			const file = imageImport(id)
-			const path = file === undefined ? undefined : projectPath(state.root, file)
-			if (file === undefined || path === undefined || settings.exclude?.test(path) === true) return null
+			if (file === undefined || file.startsWith("\0")) return null
+			const path = projectPath(state.root, file)
+			if (settings.exclude?.test(path) === true) return null
 			return bindingModule(this, { id: file, path }, { settings, assetsBase, base: state.base })
 		},
 	}
@@ -74,10 +92,16 @@ async function bindingModule(
 	target: Target,
 ): Promise<string> {
 	const size = await intrinsicSize(file.id)
-	const widths = target.settings.widths.filter((width) => width <= size.width).toSorted((a, b) => a - b)
+	const fit = target.settings.widths.filter((width) => width <= size.width).toSorted((a, b) => a - b)
+	// An image narrower than every configured width is one webp at its own width (BUGS.md 454).
+	const widths = fit.length > 0 ? fit : [size.width]
 	const variants: Binding["variants"] = []
-	for (const width of widths) variants.push({ width, src: await variantUrl(context, { ...file, width }, target) })
-	const src = variants.at(-1)?.src ?? (await original(context, file, target))
+	// The widest variant's URL is the binding's `src`; `widths` is ascending and never empty.
+	let src = ""
+	for (const width of widths) {
+		src = await variantUrl(context, { ...file, width }, target)
+		variants.push({ width, src })
+	}
 	return `export default ${JSON.stringify({ src, ...size, variants } satisfies Binding)};\n`
 }
 
@@ -91,11 +115,14 @@ async function variantUrl(context: LoadContext, file: { id: string; path: string
 function emitted(context: LoadContext, name: string, at: { bytes: Uint8Array; target: Target }): string {
 	const fileName = `${assetsDirOf(at.target.assetsBase)}/${name}`
 	if (context.environment.name === "client") context.emitFile({ type: "asset", fileName, source: at.bytes })
-	return assetUrl(fileName, { base: at.target.base, assetsBase: at.target.assetsBase })
+	// The URL names the file percent-encoded, so `%`, a space, or a comma in it reads back as the file (BUGS.md 432).
+	const named = `${assetsDirOf(at.target.assetsBase)}/${encodeURIComponent(name)}`
+	return assetUrl(named, { base: at.target.base, assetsBase: at.target.assetsBase })
 }
 
+// Each segment percent-encoded, so `+`, `&`, and `#` in a name reach the endpoint as written (BUGS.md 456).
 export function devImageUrl(path: string, width: number): string {
-	return `${IMAGE_ENDPOINT}?src=/${encodeURI(path)}&w=${width}`
+	return `${IMAGE_ENDPOINT}?src=/${path.split("/").map(encodeURIComponent).join("/")}&w=${width}`
 }
 
 function variantName(file: string, width: number, bytes: Uint8Array): string {
@@ -111,22 +138,17 @@ function imageImport(id: string): string | undefined {
 	return OPTIMIZED.test(file) && !file.includes("?") ? file : undefined
 }
 
-// An app module's path under the root, with forward slashes. A file outside the root, or a virtual module, is not one.
-function projectPath(root: string, id: string): string | undefined {
-	if (id.startsWith("\0")) return undefined
+// An app module's path under the root, with forward slashes. An optimized import outside the root fails the build, as
+// the doc says, rather than falling through to Vite's plain URL (BUGS.md 455).
+function projectPath(root: string, id: string): string {
 	const path = relative(root, id)
-	if (path.startsWith("..") || isAbsolute(path)) return undefined
+	if (leavesRoot(path)) {
+		throw new Error(`${id}?image is outside the project root ${root}: an optimized image lives under the root`)
+	}
 	return path.split(sep).join("/")
 }
 
-// An image narrower than every configured width has no variant. Dev serves the file. A build emits it as it is.
-async function original(context: LoadContext, file: { id: string; path: string }, target: Target): Promise<string> {
-	if (context.environment.config.command === "serve") return `/${file.path}`
-	const bytes = await readFile(file.id)
-	const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 8)
-	return emitted(context, `${basename(file.id, extname(file.id))}-${hash}${extname(file.id)}`, { bytes, target })
-}
-
 function configModule(settings: ImageSettings): string {
-	return `export const imageWidths = ${JSON.stringify(settings.widths)};\nexport const imageQuality = ${settings.quality};\n`
+	const widths = `export const imageWidths = ${JSON.stringify(settings.widths)};\n`
+	return `${widths}export const imageQuality = ${settings.quality};\nexport const imageConfigured = true;\n`
 }

@@ -120,9 +120,13 @@ function themeMessage(data: unknown, config: ThemeConfig): ThemeName | undefined
 function paint(config: ThemeConfig, resolved: Resolved): void {
 	const root = document.documentElement
 	if (root.getAttribute(config.attribute) === resolved) return
-	if (config.disableTransitionOnChange) suppressTransitions()
+	const suppressed = config.disableTransitionOnChange
+	if (suppressed) suppressTransitions()
 	root.setAttribute(config.attribute, resolved)
 	root.style.colorScheme = resolved
+	// A style read makes the browser compute the new theme's styles now, under the no-transition rule. Left to the next
+	// frame, the computation runs after that frame's animation callbacks, which remove the rule (BUGS.md 437).
+	if (suppressed) void getComputedStyle(document.body).opacity
 }
 
 function suppressTransitions(): void {

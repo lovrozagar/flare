@@ -58,3 +58,21 @@ it("no text info", () => {
 		if (descriptor !== undefined) Object.defineProperty(Intl.Locale.prototype, "getTextInfo", descriptor)
 	}
 })
+
+// Dari and the tags that canonicalize to it are rtl on every runtime: Bun's ICU canonicalizes `drw` and `tnf` to
+// `prs` but maximizes `prs` to no script, so the server and the browser disagreed (dx/features.md Direction, BUGS.md 433).
+it("dari", () => {
+	for (const tag of ["prs", "drw", "tnf", "prs-AF"]) expect([tag, dirOf(tag, "ltr")]).toEqual([tag, "rtl"])
+})
+
+// A runtime that maximizes a tag to no script, as Bun's ICU does for Dari: its alias gives the script, and a language
+// with no alias is ltr. Node canonicalizes `prs` before `maximize`, so a one-shot stub stands for Bun there, and the
+// alias itself maximizes for real (BUGS.md 433).
+it("no likely script", () => {
+	const maximize = vi.spyOn(Intl.Locale.prototype, "maximize")
+	maximize.mockImplementationOnce(() => ({ language: "prs" }) as Intl.Locale)
+	expect(dirOf("prs", "ltr")).toBe("rtl")
+	maximize.mockImplementationOnce(() => ({ language: "xq" }) as Intl.Locale)
+	expect(dirOf("xq", "rtl")).toBe("ltr")
+	maximize.mockRestore()
+})

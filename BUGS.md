@@ -1677,6 +1677,58 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 431.1 [x] Found by plan 29's batch C review (2026-10-21, defer D3 and D4): `deferredOf` walked arrays and plain objects only, with no `seen` set.
 431.2 [x] Fix: one `placeholders()` walker, shared with `holds`, sees a cycle once and walks Map members; a placeholder in a Set stays raw, so that entry stays unfilled. Red first: match-cache.test `deferred in a cycle or a map`.
 
+432 [x] A source file name with a space or a comma broke the production srcset
+432.1 [x] Found by plan 29's batch C review (2026-10-21, features D3): the srcset joined each URL and its descriptor with a space and never encoded the URL.
+432.2 [x] Fix: each srcset URL has whitespace and commas percent-encoded, which the server reads back as the same file. Red first: image.test `srcset file names`.
+432.3 [x] The review of the fix found the srcset encoding covered whitespace and commas only, so a `%` in a name did not read back. Fix: the build names each variant's file percent-encoded in its URL. Red first: optimize.test `prod url names` (`50%.png`, `a b,c.png`).
+432.4 [x] The tip gate found the component's own encoding, the first fix, turned a data URL's comma into `%2C`, an invalid URL (memory-client.test, 161 ERR_INVALID_URL). With the build naming files encoded, the component writes a binding's URLs as given. Red first: image.test `srcset file names`, a data URL variant.
+
+433 [x] `dirOf("prs")` was `ltr` on a Bun server and `rtl` in every browser
+433.1 [x] Found by plan 29's batch C review (2026-10-21, features D2): Bun's ICU does not alias the deprecated `prs` to `fa-AF`, so `maximize()` gave no script.
+433.2 [x] Fix: an alias table maps `prs` to `fa-AF` before `maximize()`. Red first: script-of.test `dari` and `no likely script`, under Bun too.
+
+437 [x] `disableTransitionOnChange` did not stop transitions
+437.1 [x] Found by plan 29's batch C review (2026-10-21, features D1): the no-transition style was removed on the next animation frame, before the frame's style pass computed the new theme, so every switch animated (Chromium 1 of 4, Firefox 4 of 4 in the red case).
+437.2 [x] Fix: a computed-style read after the attribute write makes the browser compute the new theme under the rule. Red first: features-client.test `theme no transition`, with a control that transitions 4 of 4.
+
+438 [x] createFont accepted an empty or out-of-range `weights` list
+438.1 [x] Found by plan 29's batch C review (2026-10-21, features D13 and D14): `weights: []` emitted no face, and weights outside 1 to 1000 were written.
+438.2 [x] Fix: an empty list, or a weight outside 1 to 1000, throws. D13's subset check stays a registry font's only: a `createFont` result is one file, and the doc's own `subsets={["latin"]}` example (pinned by features-media.test `fonts`) passes it a name, so the doc now scopes that pitfall. Red first: create-font.test `self-served checks`.
+
+439 [x] setLocale on a route with no locale param navigated nowhere useful
+439.1 [x] Found by plan 29's batch C review (2026-10-21, features part 2 D1).
+439.2 [x] Fix: it throws `setLocale: <route> has no <param> param`. Red first: provider.test `no locale param`.
+
+440 [x] LocaleProvider ignored the router's locale `paramName` and `cookieName`
+440.1 [x] Found by plan 29's batch C review (2026-10-21, features part 2 D2): given `i18n()`'s object, it used its own defaults.
+440.2 [x] Fix (ruling): the router is the one source; `config` is optional, and a given one that disagrees on a field throws, naming the field and both values. Red first: provider.test `router locale config`.
+
+441 [x] setLocale and the cross-tab follow rewrote the page's query
+441.1 [x] Found by plan 29's batch C review (2026-10-21, features part 2 D3): the query went through `search`, which reorders and drops keys.
+441.2 [x] Fix (ruling, option a): the raw query rides on a module-private `RAW_SEARCH` key and is written as given; with `search` it throws. Red first: provider.test `query as written`, href.test `raw query`.
+441.3 [x] The review of the fix found the raw query skipped the reserved-key strip of BUGS.md 322, so `?_flare=x&b=2` kept `_flare` through setLocale. Fix: the target drops only the reserved pairs from the raw query, every other byte and the order kept. Red first: target.test `raw query`, through the real router.
+
+442 [x] A string Image `src` skipped the `fixed` and `widths` checks
+442.1 [x] Found by plan 29's batch C review (2026-10-21, features D9).
+442.2 [x] Fix: the same checks run before the string path. Red first: image.test `string src checks`.
+442.3 [x] The review of the fix found the checks ran against config.ts's default widths in an app without `flare({ image })`, so a remote fixed image threw. Fix: the plugin's config module says it is configured, and a string src is checked only then. Red first: image.test `string src without the plugin`.
+
+443 [x] `maxHeight` or `aspectRatio` without `maxWidth` was silently ignored
+443.1 [x] Found by plan 29's batch C review (2026-10-21, features D10).
+443.2 [x] Fix: the types require `maxWidth` with either, and a JS caller gets a throw. Red first: image.test `responsive needs maxWidth`.
+
+444 [x] An Image `quality` outside 1 to 100 was accepted
+444.1 [x] Found by plan 29's batch C review (2026-10-21, features D11).
+444.2 [x] Fix: it throws at render, naming the prop. Red first: image.test `quality range`.
+
+445 [x] An uppercase `DATA:` blurDataURL was dropped
+445.1 [x] Found by plan 29's batch C review (2026-10-21, features D15).
+445.2 [x] Fix: the scheme check ignores case. Red first: image.test `blur scheme`.
+
+446 [x] A component width outside the plugin's set gave a message that did not name the set
+446.1 [x] Found by plan 29's batch C review (2026-10-21, features D8, ruling 5): a build cannot see a JSX width, so it stays a render error.
+446.2 [x] Fix: the message names the width and the allowed widths; the doc says so. Red first: image.test `srcset`.
+
 447 [x] A `null` or `""` child title erased the parent's
 447.1 [x] Found by plan 29's batch C review (2026-10-21, head D5).
 447.2 [x] Fix (ruling 1): `null`, `undefined`, and `""` keep the parent's title. Red first: merge.test `empty child title`.
@@ -1704,6 +1756,22 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 453 [ ] minimal.test `basepath › cdn page fresh` fails on CI's macOS runners on node-dev-webkit and bun-dev-webkit, about 2 runs in 4 since group 5; it never fails on Linux WebKit (0 in 60 local runs at 3ca6e015)
 453.1 [ ] Found by CI after group 5 (2026-10-21, runs 39497487553 and 39519606173): the second document navigation to /app/cdn never shows the new render. The code rules out the 304 path and BUGS.md 411's drain wait on module requests, and BUGS.md 452 was a separate waste; the failed cases' server logs were empty, so nothing shows whether the request reached the server.
 453.2 [x] The trace, so the next Mac failure names its stage: under FLARE_E2E_TRACE=1, which CI sets for the e2e steps, a dev boot's vite.config puts tests/e2e/trace.ts's middleware first, and it logs each request's arrival, a document's head and first bytes, its finish, and its close; every failed case attaches what the live boots logged during it as its server log (crash.ts, server-log.ts). Off by default: unset, the boot names no module and the app loads none (trace.test `trace off`).
+
+454 [x] An image narrower than every configured width shipped unconverted, and a TIFF one did not display
+454.1 [x] Found by plan 29's batch C review (2026-10-21, features D4 and D6): the build emitted the original bytes, and dev served the raw file, so a dev `quality` made a 404 URL.
+454.2 [x] Fix: such an image is one webp at its own width; the dev endpoint takes that width for that file only. Red first: optimize.test `no variant` (TIFF included).
+
+455 [x] An `?image` import outside the project root became Vite's plain URL with no error
+455.1 [x] Found by plan 29's batch C review (2026-10-21, features D5).
+455.2 [x] Fix: the load hook throws, naming the file. Red first: optimize.test `exclude`.
+
+456 [x] A dev image URL broke on a file name with `+`, `&`, or `#`
+456.1 [x] Found by plan 29's batch C review (2026-10-21, features D7): `encodeURI` left them raw.
+456.2 [x] Fix: each path segment is percent-encoded. Red first: optimize.test `dev url names`.
+
+457 [x] The dev image endpoint refused in-project files whose names start with `..`
+457.1 [x] Found by plan 29's batch C review (2026-10-21, features D12): `startsWith("..")` counted `..hero.png` as leaving the root.
+457.2 [x] Fix: only `..` itself, or `..` and a separator, leaves it, in the endpoint and the plugin. Red first: dev-endpoint.test `dot names`, optimize.test `dev url names`.
 
 458 [x] A stored page whose value failed after the shell ran every loader and defer twice
 458.1 [x] Found by plan 29's batch C review (2026-10-21, defer D5): a late fragment failure made the shared render give nothing, so the visitor got a second, live render.

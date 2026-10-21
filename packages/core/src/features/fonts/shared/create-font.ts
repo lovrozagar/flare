@@ -75,6 +75,7 @@ export function createFont(options: FontOptions): Font {
 	const src = fontSrc(options.src)
 	checkMetrics(options.fallbackMetrics)
 	const weights = typeof options.weights === "object" ? options.weights.map(String) : [options.weights ?? "400"]
+	if (weights.length === 0) throw new Error("createFont: weights lists no weight, so no face would load")
 	const style = options.style ?? "normal"
 	const faces = weights.map((weight) => fontFace({ family: options.family, src, weight, style })).join("")
 	const css = withFallback(faces, options.family, options.fallbackMetrics)
@@ -82,6 +83,8 @@ export function createFont(options: FontOptions): Font {
 		family: options.family,
 		fontFamily: stack(options.family, options.category, options.fallbackMetrics),
 		subsets: [],
+		// One self-served file, whatever it covers: a subset name changes neither its CSS nor its preload, as
+		// dx/features.md's own `subsets={["latin"]}` example has it. Only a registry font checks names (BUGS.md 438).
 		css: () => css,
 		preloadLinks: () => [{ href: src }],
 	}

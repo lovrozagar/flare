@@ -24,6 +24,9 @@ beforeAll(async () => {
 	symlinkSync(outside, join(root, "src", "linked"))
 	symlinkSync(join(root, "src", "a.png"), join(root, "src", "alias.png"))
 	mkdirSync(join(root, "src", "folder.png"))
+	mkdirSync(join(root, "..assets"))
+	writeFileSync(join(root, "..hero.png"), await sharp(join(root, "src", "a.png")).toBuffer())
+	writeFileSync(join(root, "..assets", "a.png"), await sharp(join(root, "src", "a.png")).toBuffer())
 })
 
 afterAll(() => {
@@ -46,6 +49,13 @@ it("inside root", async () => {
 it("escape", async () => {
 	expect((await get("src=../../etc/passwd&w=320")).status).toBe(400)
 	expect((await get("src=/src/../../etc/passwd&w=320")).status).toBe(400)
+})
+
+// A name that starts with `..` is in the project: only `..` itself, or `..` and a separator, leaves it (BUGS.md 457).
+it("dot names", async () => {
+	expect((await get("src=/..hero.png&w=320")).status).toBe(200)
+	expect((await get("src=/..assets/a.png&w=320")).status).toBe(200)
+	expect((await get("src=/..&w=320")).status).toBe(400)
 })
 
 it("bad width", async () => {
