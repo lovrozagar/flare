@@ -1,86 +1,10 @@
-import type { Location } from "../../shared/url/index.ts"
 import { flush } from "solid-js"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
-import { encodeFrame, type Frame } from "../../shared/protocol/index.ts"
-import { createPage } from "../../shared/route-builder/page.ts"
-import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
-import { createRouter, type RouteModule, type RouterOptions } from "../../shared/router/create-router.ts"
-import { loadChain } from "../../shared/router/load-chain.ts"
+import type { Frame } from "../../shared/protocol/index.ts"
+import { createRouter } from "../../shared/router/create-router.ts"
 import { mountNavigator, settled, unmountAll, type Fetch } from "./navigate.fixture.ts"
-import { createPrefetcher, observeViewport, type PrefetchEnv } from "./prefetch.ts"
-
-const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"])
-const home = createPage("_root_/").render((props) => `home:${String(props.loaderData)}`)
-const about = createPage("_root_/about").render((props) => `about:${String(props.loaderData)}`)
-const slow = createPage("_root_/slow").render(() => "slow")
-const importAbout = vi.fn<() => Promise<RouteModule>>(async () => about)
-
-const aboutFrames: Frame[] = [
-	{ t: "l", m: "_root_", d: null },
-	{ t: "l", m: "_root_/about", d: "fresh" },
-	{ t: "r" },
-	{ t: "d" },
-]
-
-function ndjson(frames: readonly Frame[], headers: Record<string, string> = {}): Response {
-	return new Response(frames.map(encodeFrame).join(""), {
-		headers: { "content-type": "application/x-ndjson", ...headers },
-	})
-}
-
-function routerOf(options: Partial<RouterOptions> = {}, aboutClient?: RouteModule["cache"]) {
-	const client = aboutClient?.client
-	return createRouter({
-		layouts: { _root_: root },
-		routeTree: [
-			{ id: "_root_/", path: "/", module: home },
-			{ id: "_root_/about", path: "/about", module: importAbout, ...(client === undefined ? {} : { client }) },
-			{ id: "_root_/slow", path: "/slow", module: slow },
-		],
-		...options,
-	})
-}
-
-type Setup = { fetch?: Fetch; env?: Partial<PrefetchEnv>; current?: () => Location }
-
-function setup(router = routerOf(), options: Setup = {}) {
-	const fetch = vi.fn<Fetch>(options.fetch ?? (async () => ndjson(aboutFrames)))
-	const observed: (() => void)[] = []
-	const idle: (() => void)[] = []
-	const clock = { now: 0 }
-	const env: PrefetchEnv = {
-		network: {},
-		observe: vi.fn<PrefetchEnv["observe"]>((_element, run) => {
-			observed.push(run)
-			return () => undefined
-		}),
-		idle: (run) => void idle.push(run),
-		head: document.head,
-		now: () => clock.now,
-		relPrefetch: true,
-		...options.env,
-	}
-	const prefetcher = createPrefetcher({
-		router,
-		origin: location.origin,
-		current: options.current ?? (() => ({ pathname: "/", search: "", hash: "" })),
-		fetch,
-		build: "b1",
-		land: { dev: false },
-		env,
-	})
-	return { prefetcher, fetch, observed, idle, env, clock, router }
-}
-
-function anchor(): HTMLAnchorElement {
-	const element = document.createElement("a")
-	document.body.append(element)
-	return element
-}
-
-function hover(element: Element): void {
-	element.dispatchEvent(new Event("pointerenter"))
-}
+import { observeViewport } from "./prefetch.ts"
+import { about, aboutFrames, anchor, hover, importAbout, ndjson, root, routerOf, setup } from "./prefetch.fixture.ts"
 
 beforeEach(() => {
 	history.replaceState(null, "", "/")
@@ -91,102 +15,6 @@ afterEach(() => {
 	unmountAll()
 	for (const link of document.head.querySelectorAll('link[rel="prefetch"], link[rel="modulepreload"]')) link.remove()
 	document.body.replaceChildren()
-})
-
-it("all modules", async () => {
-	const chunks = { _root_: "/src/root.tsx", "_root_/": "/src/root.tsx", "_root_/about": "/src/about.tsx" }
-	const app = setup(routerOf({ chunks }))
-	const link = anchor()
-	app.prefetcher.watch(link, "/about")
-	hover(link)
-	await settled()
-	expect(app.env.observe).not.toHaveBeenCalled()
-	expect(importAbout).not.toHaveBeenCalled()
-	// The root's and home's records are loaded (static here), so only `/about`'s file is prefetched (BUGS.md 80).
-	app.prefetcher.all()
-	const links = [...document.head.querySelectorAll('link[rel="prefetch"]')]
-	expect(
-		links.map((node) => [node.getAttribute("href"), node.getAttribute("as"), node.hasAttribute("crossorigin")]),
-	).toEqual([["/src/about.tsx", "script", true]])
-	expect(app.fetch).not.toHaveBeenCalled()
-})
-
-// The after-load warm-up is the router's `modules: "all"` and nothing else: a router that turns it off, by `false`, a
-// trigger, or an object naming another `modules`, warms no route's code (link.md Prefetch, BUGS.md 305).
-it("all only when the router says all", () => {
-	const chunks = { _root_: "/src/root.tsx", "_root_/": "/src/root.tsx", "_root_/about": "/src/about.tsx" }
-	for (const prefetch of [
-		false,
-		"intent",
-		"viewport",
-		{ modules: "intent" },
-		{ modules: false, data: "intent" },
-	] as const) {
-		const app = setup(routerOf({ chunks, prefetch }), { env: { relPrefetch: true } })
-		app.prefetcher.all()
-		const unsupported = setup(routerOf({ chunks, prefetch }), { env: { relPrefetch: false } })
-		unsupported.prefetcher.all()
-		expect([
-			prefetch,
-			document.head.querySelectorAll('link[rel="prefetch"]').length,
-			importAbout.mock.calls.length,
-		]).toEqual([prefetch, 0, 0])
-	}
-})
-
-// Safari has no rel=prefetch through 26.x (`relList.supports("prefetch")` is false), so "all" imports each unloaded
-// route and layout module there, as intent prefetch does: the module map holds it and its imports for the next
-// navigation. No link: a modulepreload Safari does not use within seconds of load is a console warning per chunk
-// (BUGS.md 124.7).
-it("all without prefetch support", async () => {
-	const chunks = { _root_: "/src/root.tsx", "_root_/": "/src/root.tsx", "_root_/about": "/src/about.tsx" }
-	const app = setup(routerOf({ chunks }), { env: { relPrefetch: false } })
-	app.prefetcher.all()
-	await settled()
-	expect(document.head.querySelectorAll('link[rel="prefetch"], link[rel="modulepreload"]')).toHaveLength(0)
-	expect(importAbout).toHaveBeenCalledOnce()
-	expect(app.fetch).not.toHaveBeenCalled()
-})
-
-// A built chunks map gives each route its chunk and the chunks it imports, so "all" prefetches that whole closure, each
-// file once: a navigation then downloads neither the route's chunk nor its imports. A file in a loaded route's closure
-// is in the module map already and is skipped (BUGS.md 80, 124.6).
-it("all closures", async () => {
-	const chunks = {
-		_root_: ["/assets/root.js", "/assets/shared.js"],
-		"_root_/": ["/assets/root.js", "/assets/shared.js"],
-		"chunk-a": ["/assets/a.js", "/assets/shared.js", "/assets/a-dep.js"],
-		"chunk-x": ["/assets/x.js", "/assets/a-dep.js"],
-	}
-	const app = setup(routerOf({ chunks }))
-	app.prefetcher.all()
-	await settled()
-	const hrefs = [...document.head.querySelectorAll('link[rel="prefetch"]')].map((link) => link.getAttribute("href"))
-	expect(hrefs).toEqual(["/assets/a.js", "/assets/a-dep.js", "/assets/x.js"])
-})
-
-// A chunk the client already imported is not prefetched again: the browser holds it in its module map, and a prefetch
-// would fetch it a second time. A file that also holds an unloaded route's module counts as loaded (BUGS.md 80).
-it("loaded chunks skipped", async () => {
-	const router = createRouter({
-		layouts: { _root_: async () => root },
-		routeTree: [
-			{ id: "_root_/", path: "/", module: async () => home },
-			{ id: "_root_/about", path: "/about", module: async () => about },
-			{ id: "_root_/slow", path: "/slow", module: async () => slow },
-		],
-		chunks: {
-			_root_: "/assets/root.js",
-			"_root_/": "/assets/home.js",
-			"_root_/about": "/assets/about.js",
-			"_root_/slow": "/assets/home.js",
-		},
-	})
-	await loadChain(router.match("/").chain)
-	setup(router).prefetcher.all()
-	expect([...document.head.querySelectorAll('link[rel="prefetch"]')].map((node) => node.getAttribute("href"))).toEqual([
-		"/assets/about.js",
-	])
 })
 
 it("intent", async () => {
@@ -289,18 +117,20 @@ it("save data", async () => {
 	expect(document.head.querySelectorAll('link[rel="prefetch"]')).toHaveLength(1)
 })
 
+// Whether `/about`'s intent prefetch is still held `at` ms after it landed.
+async function held(router: ReturnType<typeof routerOf>, at: number): Promise<boolean> {
+	const app = setup(router)
+	const link = anchor()
+	app.prefetcher.watch(link, "/about", "intent")
+	hover(link)
+	await settled()
+	app.clock.now = at
+	return app.prefetcher.prefetched("/about?_flare=data") !== undefined
+}
+
 // `prefetchGcTime` defaults to `gcTime`, the route's, else the router's: a prefetched entry never outlives it
 // (BUGS.md 398).
 it("prefetch gc default", async () => {
-	const held = async (router: ReturnType<typeof routerOf>, at: number) => {
-		const app = setup(router)
-		const link = anchor()
-		app.prefetcher.watch(link, "/about", "intent")
-		hover(link)
-		await settled()
-		app.clock.now = at
-		return app.prefetcher.prefetched("/about?_flare=data") !== undefined
-	}
 	const route = routerOf({}, { client: { gcTime: "100ms" } })
 	const router = routerOf({ cache: { client: { gcTime: "100ms" } } })
 	expect([await held(route, 100), await held(route, 101), await held(router, 101)]).toEqual([true, false, false])

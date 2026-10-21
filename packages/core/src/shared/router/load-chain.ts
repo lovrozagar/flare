@@ -12,13 +12,20 @@ export function loadChain(chain: readonly ChainEntry[]): Promise<LoadedEntry[]> 
 }
 
 const imported = new WeakMap<() => Promise<unknown>, RouteModule>()
+// The lazy modules whose import has started and not settled.
+const importing = new WeakSet<() => Promise<unknown>>()
 
 async function load(ref: ModuleRef, id: string): Promise<RouteModule> {
 	if (typeof ref !== "function") return ref
-	const loaded = await ref()
-	const module = isNamespace(loaded) ? await recordOf(loaded, id) : loaded
-	imported.set(ref, module)
-	return module
+	importing.add(ref)
+	try {
+		const loaded = await ref()
+		const module = isNamespace(loaded) ? await recordOf(loaded, id) : loaded
+		imported.set(ref, module)
+		return module
+	} finally {
+		importing.delete(ref)
+	}
 }
 
 // The longest dev waits for a namespace's `route` to fill.
@@ -46,4 +53,10 @@ function isNamespace(value: unknown): value is { route?: RouteModule } {
 // waiting for the import again.
 export function loadedModule(ref: ModuleRef): RouteModule | undefined {
 	return typeof ref === "function" ? imported.get(ref) : ref
+}
+
+// Whether a ModuleRef's import has started, loaded or still in flight: a warm-up does not fetch its files again, since
+// the import already fetches them (BUGS.md 482).
+export function importStarted(ref: ModuleRef): boolean {
+	return typeof ref !== "function" || imported.has(ref) || importing.has(ref)
 }
