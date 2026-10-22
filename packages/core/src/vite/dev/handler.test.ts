@@ -139,6 +139,28 @@ it("load error installed", async () => {
 	expect(own.logged).toEqual([`[flare:load] ${thrown.message}\n${thrown.stack}`])
 })
 
+// While dev codegen has failed, a document load answers that failure, as a module that failed to load does, rather
+// than the app without the route; once codegen passes, the app answers again (BUGS.md 480).
+it("codegen failure page", async () => {
+	const own = devServer(false)
+	const codegen: { error?: unknown } = {
+		error: new Error("two pages: src/routes/_root_/login.page.tsx: a folder holds one page"),
+	}
+	installDevHandler(own.server, "src/server.ts", { codegen })?.()
+	const handler = own.used[0]
+	if (typeof handler !== "function") throw new Error("handler")
+	const failed = response()
+	handler(request("/"), failed.res)
+	await settled()
+	expect(failed.sent.status).toBe(500)
+	expect(new TextDecoder().decode(failed.sent.chunks[0])).toContain("a folder holds one page")
+	codegen.error = undefined
+	const passed = response()
+	handler(request("/"), passed.res)
+	await settled()
+	expect(passed.sent.status).toBe(200)
+})
+
 // The failure page is a dev document: Vite's client and the plugins' tags from the dev head, so the overlay opens and
 // a later full reload reaches it, and a module that announces the tab over Vite's hot channel, so the overlay held for
 // that token is delivered; the client is imported from the head's own URL, under Vite's base (plan 21 11.6).
@@ -154,6 +176,7 @@ it("load error page", async () => {
 	expect(page).toContain(head)
 	expect(page).toContain('import { createHotContext } from "/base/@vite/client"')
 	expect(page).toContain('.send("flare:tab", { token: "T3" })')
+	expect(page).toContain('.on("flare:reload", () => location.reload())')
 	expect(page).toContain("<pre>broken route")
 	const plain = devFetch({ load: () => Promise.reject(new Error("x")), tab: () => "T4", head: Promise.resolve("") })
 	expect(await (await plain(new Request("http://localhost/"))).text()).toContain('from "/@vite/client"')
@@ -295,7 +318,7 @@ it("entry export", async () => {
 	const { server } = devServer(false)
 	server.environments.ssr.runner = { import: async () => ({ other: 1 }) }
 	const head = '<script type="module" src="/@vite/client"></script>'
-	const post = installDevHandler(server, "src/server.ts", Promise.resolve(head))
+	const post = installDevHandler(server, "src/server.ts", { head: Promise.resolve(head) })
 	const used: unknown[] = []
 	server.middlewares.use = (handler) => void used.push(handler)
 	post?.()

@@ -236,10 +236,35 @@ it("static beside catch-all", () => {
 	for (const pair of pairs) expect(routesOf(pair).routes).toHaveLength(2)
 })
 
+// A folder holds one page. The error names the page to move, the one whose id string is not the folder's (else the
+// later file), the folder to move it into, named after its file, and the URL it then serves; it comes before the id
+// check, so a page meant for another URL is not reported as a wrong id (BUGS.md 480).
 it("two pages", () => {
 	const files = ["_root_/home.page.tsx", "_root_/index.page.tsx"]
-	expect(() => routesOf(files)).toThrow(/home\.page\.tsx/)
-	expect(() => routesOf(files)).toThrow(/index\.page\.tsx/)
+	expect(() => routesOf(files)).toThrow(
+		"two pages: src/routes/_root_/index.page.tsx: a folder holds one page; move it to src/routes/_root_/index/index.page.tsx for /index",
+	)
+	const sources: Record<string, string> = {
+		"_root_/root.root-layout.tsx": 'export const route = createRootLayout("_root_");\n',
+		"_root_/home.page.tsx": 'export const route = createPage("_root_/");\n',
+		"_root_/a-login.page.tsx": 'export const route = createPage("_root_/a-login");\n',
+		"_root_/about/about.page.tsx": 'export const route = createPage("_root_/about");\n',
+		"_root_/about/team.page.tsx": 'export const route = createPage("_root_/about");\n',
+	}
+	const root = ["_root_/root.root-layout.tsx", "_root_/home.page.tsx", "_root_/a-login.page.tsx"]
+	expect(() => generateRoutes(root, (file) => sources[file] ?? "")).toThrow(
+		"two pages: src/routes/_root_/a-login.page.tsx: a folder holds one page; move it to src/routes/_root_/a-login/a-login.page.tsx for /a-login",
+	)
+	// A page the scan cannot read yet, half written, is the one to move.
+	sources["_root_/b-draft.page.tsx"] = "export const route = createPage(\n"
+	const draft = ["_root_/root.root-layout.tsx", "_root_/b-draft.page.tsx", "_root_/home.page.tsx"]
+	expect(() => generateRoutes(draft, (file) => sources[file] ?? "")).toThrow(
+		"two pages: src/routes/_root_/b-draft.page.tsx: a folder holds one page; move it to src/routes/_root_/b-draft/b-draft.page.tsx for /b-draft",
+	)
+	const nested = ["_root_/root.root-layout.tsx", "_root_/about/about.page.tsx", "_root_/about/team.page.tsx"]
+	expect(() => generateRoutes(nested, (file) => sources[file] ?? "")).toThrow(
+		"two pages: src/routes/_root_/about/team.page.tsx: a folder holds one page; move it to src/routes/_root_/about/team/team.page.tsx for /about/team",
+	)
 })
 
 it("missing route export", () => {

@@ -3,7 +3,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path"
 import solid from "@solidjs/vite-plugin"
 import type { Plugin, UserConfig } from "vite"
 import { graphOf } from "../boundary/index.ts"
-import { chunkReferences, fillClosures, watchGenerated, writeGenerated } from "../codegen/index.ts"
+import { chunkReferences, fillClosures, watchGenerated, writeGenerated, type CodegenFailure } from "../codegen/index.ts"
 import { inject } from "../css/index.ts"
 import { imageEndpoint, imagePlugin } from "../../features/image/vite/index.ts"
 import { devEndpoints, targetGuard } from "../dev/guard.ts"
@@ -58,6 +58,7 @@ function flarePlugins(parsed: ParsedOptions): Plugin[] {
 		cloudflare: false,
 		build: false,
 		devHead: Promise.withResolvers(),
+		codegen: {},
 	}
 	// `image` turns optimization on. Absent, no image plugin runs and sharp is never loaded (dx/plugin.md image).
 	const image = parsed.image
@@ -96,6 +97,8 @@ type State = {
 	build: boolean
 	devHead: PromiseWithResolvers<string>
 	buildId?: string
+	// The last dev codegen failure, which the dev handler answers documents with until a pass succeeds (BUGS.md 480).
+	codegen: CodegenFailure
 }
 
 function core(parsed: ParsedOptions, state: State): Plugin {
@@ -139,10 +142,13 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 			handler(server) {
 				// Before the Cloudflare plugin's handler, which would parse a `//` target into a host (BUGS.md 118).
 				if (state.cloudflare) server.middlewares.use(targetGuard)
-				watchGenerated(server, server.config.root)
+				watchGenerated(server, server.config.root, { failure: state.codegen })
 				devHeadOf(server).then(state.devHead.resolve, state.devHead.reject)
 				installDevStyles(server, resolve(server.config.root, parsed.entry.client))
-				const listen = installDevHandler(server, parsed.entry.server, state.devHead.promise)
+				const listen = installDevHandler(server, parsed.entry.server, {
+					head: state.devHead.promise,
+					codegen: state.codegen,
+				})
 				// With the Cloudflare plugin, workerd answers through its post middleware, which a listener added from this
 				// earlier hook would shadow (BUGS.md 76, B109).
 				return state.cloudflare ? undefined : listen

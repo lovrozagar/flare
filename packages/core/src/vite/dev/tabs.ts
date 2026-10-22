@@ -5,6 +5,9 @@
 // The client hot channel event a tab announces its token with.
 export const TAB_EVENT = "flare:tab"
 
+// The event a dev error page loads again on: dev codegen passed after it failed (codegen/write.ts).
+export const RELOAD_EVENT = "flare:reload"
+
 // One connected tab, as Vite's hot channel hands it to a listener.
 export type TabClient = { send(payload: unknown): void }
 

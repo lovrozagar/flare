@@ -1,6 +1,6 @@
 import { createNodeListener } from "../../adapters/node/index.ts"
 import { mintTab, sentTab, tabMeta } from "../../shared/protocol/index.ts"
-import { createTabs, TAB_EVENT, tabbedPayload, type TabClient } from "./tabs.ts"
+import { createTabs, RELOAD_EVENT, TAB_EVENT, tabbedPayload, type TabClient } from "./tabs.ts"
 
 // What the handler needs from Vite's dev server. A real `ViteDevServer` is one. A test passes a small object.
 export type DevServer = {
@@ -41,7 +41,12 @@ export type DevDeps = {
 // (B95 (b)). A dev error opens Vite's overlay only in the tab that caused it: a server graph's `flare:error` by its
 // request's tab token, from the ssr environment, which renders in workerd when the Cloudflare plugin runs it (B95 (c),
 // B109), and a client's own `flare:error` back to that client (B93, B42).
-export function installDevHandler(server: DevServer, entry: string, head?: Promise<string>): (() => void) | undefined {
+export function installDevHandler(
+	server: DevServer,
+	entry: string,
+	at: { head?: Promise<string> | undefined; codegen?: { error?: unknown } } = {},
+): (() => void) | undefined {
+	const { head, codegen = {} } = at
 	if (server.config.server.middlewareMode) return undefined
 	const tabs = createTabs()
 	const client = server.environments.client.hot
@@ -57,7 +62,8 @@ export function installDevHandler(server: DevServer, entry: string, head?: Promi
 	})
 	client.on("vite:client:disconnect", (_payload, tab) => tabs.drop(tab))
 	const listener = devListener({
-		load: () => loadEntry(server, entry),
+		// While dev codegen has failed, a document shows that failure, not the app without the route (BUGS.md 480).
+		load: () => (codegen.error === undefined ? loadEntry(server, entry) : Promise.reject(codegen.error)),
 		tab: mintTab,
 		report: (error, token) => tabs.deliver(token, overlayPayload(error)),
 		log: (line) => server.config.logger.error(line),
@@ -102,16 +108,16 @@ async function loadEntry(server: DevServer, entry: string): Promise<AppServer> {
 // the dev head brings Vite's client, and a module announces the tab over Vite's hot channel, as the flare client would,
 // so the payload held for that token is delivered. Fixing the file brings the app back: Vite's client loads the page
 // again on a full reload, which Solid's plugin sends for a module only the server graph holds, and on its first update
-// while the overlay is open (plan 21 11.6).
+// while the overlay is open (plan 21 11.6), and on the event dev codegen sends once it passes after a failure, which no
+// module update carries (BUGS.md 480).
 function failed(error: unknown, token: string | undefined, head: string): Response {
 	const { err } = overlayPayload(error)
 	const tag = token === undefined ? "" : tabMeta(token)
 	const client = CLIENT_SRC.exec(head)?.[1] ?? "/@vite/client"
+	const tab = token === undefined ? "" : `hot.send(${JSON.stringify(TAB_EVENT)}, { token: ${JSON.stringify(token)} });`
 	const announce =
-		token === undefined
-			? ""
-			: `<script type="module">import { createHotContext } from ${JSON.stringify(client)};` +
-				`createHotContext("/@flare/dev-error").send("flare:tab", { token: ${JSON.stringify(token)} })</script>`
+		`<script type="module">import { createHotContext } from ${JSON.stringify(client)};` +
+		`const hot = createHotContext("/@flare/dev-error");${tab}hot.on(${JSON.stringify(RELOAD_EVENT)}, () => location.reload())</script>`
 	const pre = `<pre>${escape(`${err.message}\n${err.stack}`)}</pre>`
 	const body = `<!doctype html><html><head>${tag}${head}${announce}</head><body>${pre}</body></html>`
 	return new Response(body, { status: 500, headers: { "content-type": "text/html; charset=utf-8" } })

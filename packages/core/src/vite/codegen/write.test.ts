@@ -34,6 +34,30 @@ const BASE = {
 
 const generated = (root: string, name: string): string => readFileSync(join(root, "src/_gen", name), "utf8")
 
+// A second page beside a folder's page, as at the root beside the home page or beside a nested page: dev's id fixer
+// leaves its source as written, since the folder's id would make two pages share one, and the failure teaches the
+// rule (BUGS.md 480).
+it("two pages left alone", () => {
+	const login = page("_root_/login")
+	const team = page("_root_/about/team")
+	const root = app({
+		...BASE,
+		"src/routes/_root_/login.page.tsx": login,
+		"src/routes/_root_/about/about.page.tsx": page("_root_/about"),
+		"src/routes/_root_/about/team.page.tsx": team,
+	})
+	expect(() => writeGenerated(root, { fixIds: true })).toThrow(
+		"two pages: src/routes/_root_/about/team.page.tsx: a folder holds one page; move it to src/routes/_root_/about/team/team.page.tsx for /about/team",
+	)
+	expect(readFileSync(join(root, "src/routes/_root_/login.page.tsx"), "utf8")).toBe(login)
+	expect(readFileSync(join(root, "src/routes/_root_/about/team.page.tsx"), "utf8")).toBe(team)
+	rmSync(join(root, "src/routes/_root_/about/team.page.tsx"))
+	expect(() => writeGenerated(root, { fixIds: true })).toThrow(
+		"two pages: src/routes/_root_/login.page.tsx: a folder holds one page; move it to src/routes/_root_/login/login.page.tsx for /login",
+	)
+	expect(readFileSync(join(root, "src/routes/_root_/login.page.tsx"), "utf8")).toBe(login)
+})
+
 // The three files are written under src/_gen. Unchanged output is not written again: the file keeps its time.
 it("unchanged", () => {
 	const root = app(BASE)
@@ -82,6 +106,8 @@ it("watch", () => {
 	const listeners: Listener[] = []
 	const errors: string[] = []
 	const infos: string[] = []
+	const sent: unknown[] = []
+	const failure: { error?: unknown } = {}
 	watchGenerated(
 		{
 			watcher: { on: (_event: "all", listener: Listener) => void listeners.push(listener) },
@@ -91,8 +117,10 @@ it("watch", () => {
 					info: (message: string) => void infos.push(message),
 				},
 			},
+			environments: { client: { hot: { send: (payload: unknown) => void sent.push(payload) } } },
 		},
 		root,
+		{ failure },
 	)
 	const emit = (path: string): void => {
 		for (const listener of listeners) listener("change", join(root, path))
@@ -114,10 +142,22 @@ it("watch", () => {
 	vi.advanceTimersByTime(50)
 	expect(errors).toHaveLength(1)
 	expect(errors[0]).toMatch(/^\[flare:codegen\] .*two pages/)
+	// The failure also opens Vite's overlay, and stays for the dev handler, so a document load shows it rather than a
+	// missing route, until a pass succeeds (BUGS.md 480).
+	expect(String(failure.error)).toMatch(
+		/^Error: two pages: src\/routes\/_root_\/other\.page\.tsx: a folder holds one page/,
+	)
+	expect(sent).toEqual([{ type: "error", err: { message: String(failure.error), stack: "" } }])
 	rmSync(join(root, "src/routes/_root_/other.page.tsx"))
 	emit("src/routes/_root_/other.page.tsx")
 	vi.advanceTimersByTime(50)
 	expect(errors).toHaveLength(1)
+	expect(failure.error).toBeUndefined()
+	// The pass that recovers tells every tab to load again (dev-recovery); a pass after a pass tells nothing.
+	expect(sent.slice(1)).toEqual([{ type: "custom", event: "flare:reload", data: {} }])
+	emit("src/routes/_root_/about/about.page.tsx")
+	vi.advanceTimersByTime(50)
+	expect(sent).toHaveLength(2)
 })
 
 const LAYOUT_AT = (id: string): string =>

@@ -276,8 +276,9 @@ describe("build errors", () => {
 
 	it("two pages", async () => {
 		const about = { "_root_/about/a.page.tsx": page("_root_/about"), "_root_/about/b.page.tsx": page("_root_/about") }
-		expect(await failure({ ...ROOT, ...about })).toMatch(
-			/two pages: _root_\/about\/a\.page\.tsx, _root_\/about\/b\.page\.tsx/,
+		expect(await failure({ ...ROOT, ...about })).toContain(
+			"two pages: src/routes/_root_/about/b.page.tsx: a folder holds one page; move it to " +
+				"src/routes/_root_/about/b/b.page.tsx for /about/b",
 		)
 	})
 
