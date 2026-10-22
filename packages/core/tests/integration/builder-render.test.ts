@@ -198,7 +198,7 @@ function pageFile(name: string, render: string): string {
 // A route's render, a boundary's, and a layout's are text when they return a string, an array of strings at any
 // depth, a function or memo of one: escaped as JSX text is, on the server in dev and in a production build. An
 // element and a Loading result pass through as markup (BUGS.md 141): Solid's SSR `Errored`, which every slot sits in,
-// escapes them since 2.0.0-rc.16 (solidjs/solid#4119), Flare's peer floor.
+// escapes them since 2.0.0-rc.16 (solidjs/solid#4119); Flare's peer floor is rc.17.
 it("render text escaped", async () => {
 	const failed = createPage("_root_/failed")
 		.loader((): { text: string } => {
