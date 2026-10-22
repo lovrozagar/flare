@@ -326,7 +326,9 @@ it("readme node serve", async () => {
 		const bad = await rawStatus(port, "/%E0%A4%A")
 		expect(typeof bad).toBe("number")
 		expect((await fetch(`${origin}/`)).status).toBe(404)
-		const exited = new Promise<number | null>((resolve) => child.once("exit", (code) => resolve(code)))
+		const exited = new Promise<number | string | null>((resolve) =>
+			child.once("exit", (code, signal) => resolve(code ?? signal)),
+		)
 		child.kill("SIGTERM")
 		expect(await exited).toBe(0)
 	} finally {

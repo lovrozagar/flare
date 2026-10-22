@@ -52,9 +52,16 @@ export const route = createPage("_root_/n/[id]")
 	})
 }
 
-type Run = { status: number | null; output: string; seconds: number; peakMiB: number | undefined }
+type Run = {
+	status: number | null
+	signal: NodeJS.Signals | null
+	output: string
+	seconds: number
+	peakMiB: number | undefined
+}
 
-// `vite build` as a deploy runs it, timed, with the child's peak resident memory where Linux reports it.
+// `vite build` as a deploy runs it, timed, with the child's peak resident memory where Linux reports it. A build a
+// signal ended keeps its signal, so the host's kill reads as one, not as a status of null (BUGS.md 500).
 function build(root: string): Promise<Run> {
 	const started = performance.now()
 	const child = spawn(process.execPath, [VITE, "build"], {
@@ -73,9 +80,9 @@ function build(root: string): Promise<Run> {
 		if (kib !== undefined) peak = Math.max(peak ?? 0, Number(kib) / 1024)
 	}, 100)
 	return new Promise((done) =>
-		child.on("close", (status) => {
+		child.on("close", (status, signal) => {
 			clearInterval(poll)
-			done({ status, output, seconds: (performance.now() - started) / 1000, peakMiB: peak })
+			done({ status, signal, output, seconds: (performance.now() - started) / 1000, peakMiB: peak })
 		}),
 	)
 }
@@ -89,7 +96,7 @@ it("prerender at scale", { timeout: 10_000 }, async () => {
 	const root = app([])
 	const run = await build(root)
 	console.log(`prerender at scale: ${PAGES} pages in ${run.seconds.toFixed(1)} s, peak ${run.peakMiB?.toFixed(0)} MiB`)
-	expect([run.status, run.status === 0 ? "" : run.output]).toEqual([0, ""])
+	expect([run.status, run.signal, run.status === 0 ? "" : run.output]).toEqual([0, null, ""])
 	const client = join(root, "dist", "client")
 	expect(filesUnder(client).filter((path) => path.includes("_flare-static"))).toHaveLength(PAGES)
 	const sitemap = readFileSync(join(client, "sitemap.xml"), "utf8")

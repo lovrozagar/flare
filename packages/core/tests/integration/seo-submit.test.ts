@@ -120,9 +120,9 @@ function run(body: string): Promise<Run> {
 	child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()))
 	child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()))
 	return new Promise((resolve, reject) => {
-		child.on("close", (code) => {
+		child.on("close", (code, signal) => {
 			const line = output.split("\n").find((text) => text.startsWith("RESULT "))
-			if (code !== 0 || line === undefined) reject(new Error(`the child exited ${code}: ${output}`))
+			if (code !== 0 || line === undefined) reject(new Error(`the child exited ${code ?? signal}: ${output}`))
 			else resolve({ result: JSON.parse(line.slice(7)), output })
 		})
 	})
