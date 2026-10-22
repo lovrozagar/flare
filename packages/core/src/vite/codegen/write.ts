@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, relative, sep } from "node:path"
-import { RELOAD_EVENT } from "../dev/tabs.ts"
 import { fixIds } from "./fix-ids.ts"
 import { generateRoutes, routeIdOf, routePlaceOf } from "./routes.ts"
 import { scanRoute } from "./scan.ts"
@@ -110,15 +109,18 @@ export type WatchedServer = {
 	environments: { client: { hot: { send(payload: unknown): void } } }
 }
 
-// The last dev codegen failure, as thrown, cleared when a pass succeeds. The dev handler answers documents with it
-// (BUGS.md 480).
-export type CodegenFailure = { error?: unknown }
+// The last dev codegen failure, as thrown, cleared when a pass succeeds, and what a pass that succeeds calls. The dev
+// handler answers documents with the failure and sets `passed`, which loads each of its error pages again (BUGS.md 480,
+// 503).
+export type CodegenFailure = { error?: unknown; passed?: () => void }
 
 // `vite dev` writes the files again after a short debounce when a source under src changes, each route file's id
 // string first. A failure does not end the process: it is logged, opens Vite's overlay in every tab, and is kept in
-// `failure` until a pass succeeds (BUGS.md 480). That pass tells every tab to load again, which the dev error page
-// does: the fixed file may have no module in a graph for Vite to update, so no update or full reload reaches it. The
-// generated files themselves are not sources.
+// `failure` until a pass succeeds (BUGS.md 480). Every pass that succeeds calls `failure.passed`, a pass after a pass
+// too: one save can reach the watch as more than one event, and a page may have failed between two passes, so the dev
+// handler, which knows the tabs on its error page, decides who loads again (BUGS.md 503). The fixed file may have no
+// module in a graph for Vite to update, so no update or full reload reaches those tabs. The generated files themselves
+// are not sources.
 export function watchGenerated(
 	server: WatchedServer,
 	root: string,
@@ -134,9 +136,8 @@ export function watchGenerated(
 		timer = setTimeout(() => {
 			try {
 				writeGenerated(root, { fixIds: true, log: (line) => server.config.logger.info(line) })
-				if (failure.error !== undefined)
-					server.environments.client.hot.send({ type: "custom", event: RELOAD_EVENT, data: {} })
 				failure.error = undefined
+				failure.passed?.()
 			} catch (error) {
 				failure.error = error
 				server.config.logger.error(`[flare:codegen] ${String(error)}`)

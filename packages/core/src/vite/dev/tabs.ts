@@ -5,7 +5,7 @@
 // The client hot channel event a tab announces its token with.
 export const TAB_EVENT = "flare:tab"
 
-// The event a dev error page loads again on: dev codegen passed after it failed (codegen/write.ts).
+// The event a dev error page loads again on: a dev codegen pass succeeded (codegen/write.ts, handler.ts).
 export const RELOAD_EVENT = "flare:reload"
 
 // One connected tab, as Vite's hot channel hands it to a listener.
@@ -20,7 +20,7 @@ export type Tabs = {
 // A payload for a tab that has not announced yet, such as a document's own error, waits this long, and at most this
 // many wait across tabs: the 21st drops the oldest.
 const HOLD_MS = 30_000
-const HOLD_MAX = 20
+export const HOLD_MAX = 20
 
 type Held = { token: string; payload: unknown; at: number }
 

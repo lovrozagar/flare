@@ -1,6 +1,6 @@
 import { createNodeListener } from "../../adapters/node/index.ts"
 import { mintTab, sentTab, tabMeta } from "../../shared/protocol/index.ts"
-import { createTabs, RELOAD_EVENT, TAB_EVENT, tabbedPayload, type TabClient } from "./tabs.ts"
+import { createTabs, HOLD_MAX, RELOAD_EVENT, TAB_EVENT, tabbedPayload, type TabClient } from "./tabs.ts"
 
 // What the handler needs from Vite's dev server. A real `ViteDevServer` is one. A test passes a small object.
 export type DevServer = {
@@ -44,7 +44,7 @@ export type DevDeps = {
 export function installDevHandler(
 	server: DevServer,
 	entry: string,
-	at: { head?: Promise<string> | undefined; codegen?: { error?: unknown } } = {},
+	at: { head?: Promise<string> | undefined; codegen?: { error?: unknown; passed?: () => void } } = {},
 ): (() => void) | undefined {
 	const { head, codegen = {} } = at
 	if (server.config.server.middlewareMode) return undefined
@@ -61,11 +61,27 @@ export function installDevHandler(
 		if (typeof token === "string") tabs.announce(token, tab)
 	})
 	client.on("vite:client:disconnect", (_payload, tab) => tabs.drop(tab))
+	// Every tab on an error page, by the token the page announces with, the newest HOLD_MAX of them as the tabs hold
+	// payloads. Each codegen pass that succeeds tells each to load again, held for a page whose Vite client has not
+	// connected yet, and forgets them: a pass that lands while the page is still loading would otherwise reach no one,
+	// and nothing else would reload it (BUGS.md 503). A token no tab announces, as curl's, expires with the tabs' hold.
+	const failing = new Set<string | undefined>()
+	const remember = (token: string | undefined): void => {
+		failing.add(token)
+		if (failing.size > HOLD_MAX) failing.delete(failing.values().next().value)
+	}
+	codegen.passed = () => {
+		for (const token of failing) tabs.deliver(token, RELOAD_PAYLOAD)
+		failing.clear()
+	}
 	const listener = devListener({
 		// While dev codegen has failed, a document shows that failure, not the app without the route (BUGS.md 480).
 		load: () => (codegen.error === undefined ? loadEntry(server, entry) : Promise.reject(codegen.error)),
 		tab: mintTab,
-		report: (error, token) => tabs.deliver(token, overlayPayload(error)),
+		report: (error, token) => {
+			remember(token)
+			tabs.deliver(token, overlayPayload(error))
+		},
 		log: (line) => server.config.logger.error(line),
 		...(head === undefined ? {} : { head }),
 	})
@@ -108,8 +124,8 @@ async function loadEntry(server: DevServer, entry: string): Promise<AppServer> {
 // the dev head brings Vite's client, and a module announces the tab over Vite's hot channel, as the flare client would,
 // so the payload held for that token is delivered. Fixing the file brings the app back: Vite's client loads the page
 // again on a full reload, which Solid's plugin sends for a module only the server graph holds, and on its first update
-// while the overlay is open (plan 21 11.6), and on the event dev codegen sends once it passes after a failure, which no
-// module update carries (BUGS.md 480).
+// while the overlay is open (plan 21 11.6), and on the event its tab gets when a dev codegen pass succeeds, which no
+// module update carries (BUGS.md 480, 503).
 function failed(error: unknown, token: string | undefined, head: string): Response {
 	const { err } = overlayPayload(error)
 	const tag = token === undefined ? "" : tabMeta(token)
@@ -122,6 +138,9 @@ function failed(error: unknown, token: string | undefined, head: string): Respon
 	const body = `<!doctype html><html><head>${tag}${head}${announce}</head><body>${pre}</body></html>`
 	return new Response(body, { status: 500, headers: { "content-type": "text/html; charset=utf-8" } })
 }
+
+// What an error page loads again on.
+const RELOAD_PAYLOAD = { type: "custom", event: RELOAD_EVENT, data: {} }
 
 // The URL the dev head loads Vite's client from, under Vite's base.
 const CLIENT_SRC = /src="([^"]*@vite\/client)"/
