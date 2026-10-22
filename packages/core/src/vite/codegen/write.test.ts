@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { afterEach, expect, it, vi } from "vitest"
-import { GENERATED, watchGenerated, writeGenerated } from "./write.ts"
+import { GENERATED, watchGenerated, writeGenerated, type CodegenFailure } from "./write.ts"
 
 const roots: string[] = []
 
@@ -97,17 +97,15 @@ it("empty", () => {
 
 type Listener = (event: string, path: string) => void
 
-// `vite dev` rewrites the files after a short debounce when a source under src changes. A failure is reported, and
-// the watch goes on. A change inside src/_gen itself is not a source.
-it("watch", () => {
-	vi.useFakeTimers()
-	const root = app(BASE)
-	writeGenerated(root)
+// A dev watch over `root`, its logger, hot channel, and failure watched: `emit` hands it a change, `passes` counts the
+// passes that succeeded.
+function watching(root: string) {
 	const listeners: Listener[] = []
 	const errors: string[] = []
 	const infos: string[] = []
 	const sent: unknown[] = []
-	const failure: { error?: unknown } = {}
+	let passes = 0
+	const failure: CodegenFailure = { passed: () => void passes++ }
 	watchGenerated(
 		{
 			watcher: { on: (_event: "all", listener: Listener) => void listeners.push(listener) },
@@ -125,6 +123,16 @@ it("watch", () => {
 	const emit = (path: string): void => {
 		for (const listener of listeners) listener("change", join(root, path))
 	}
+	return { emit, errors, infos, sent, failure, passes: () => passes }
+}
+
+// `vite dev` rewrites the files after a short debounce when a source under src changes. A failure is reported, and
+// the watch goes on. A change inside src/_gen itself is not a source.
+it("watch", () => {
+	vi.useFakeTimers()
+	const root = app(BASE)
+	writeGenerated(root)
+	const { emit, errors, infos, sent, failure, passes } = watching(root)
 	// A new file with a wrong id: the dev watch writes the id its path gives, and says so (BUGS.md 130).
 	mkdirSync(join(root, "src/routes/_root_/about"))
 	writeFileSync(join(root, "src/routes/_root_/about/about.page.tsx"), page("_root_/new"))
@@ -151,13 +159,28 @@ it("watch", () => {
 	rmSync(join(root, "src/routes/_root_/other.page.tsx"))
 	emit("src/routes/_root_/other.page.tsx")
 	vi.advanceTimersByTime(50)
-	expect(errors).toHaveLength(1)
-	expect(failure.error).toBeUndefined()
-	// The pass that recovers tells every tab to load again (dev-recovery); a pass after a pass tells nothing.
-	expect(sent.slice(1)).toEqual([{ type: "custom", event: "flare:reload", data: {} }])
-	emit("src/routes/_root_/about/about.page.tsx")
-	vi.advanceTimersByTime(50)
-	expect(sent).toHaveLength(2)
+	expect([errors.length, failure.error, passes()]).toEqual([1, undefined, 2])
+})
+
+// Every pass that succeeds is told to the dev handler, which reloads each tab on its error page: a pass after a pass
+// too, since one save can reach the watch as more than one event and a page can fail between two passes, and fail,
+// pass, fail, pass alike. Nothing is broadcast to the tabs from the watch (BUGS.md 480.3, 503).
+it("watch passes", () => {
+	vi.useFakeTimers()
+	const root = app(BASE)
+	writeGenerated(root)
+	const { emit, sent, passes } = watching(root)
+	const other = "src/routes/_root_/other.page.tsx"
+	const save = (write: () => void): number => {
+		write()
+		emit(other)
+		vi.advanceTimersByTime(50)
+		return passes()
+	}
+	const broken = (): void => writeFileSync(join(root, other), page("_root_/"))
+	const fixed = (): void => rmSync(join(root, other), { force: true })
+	expect([save(broken), save(fixed), save(fixed), save(broken), save(fixed)]).toEqual([0, 1, 2, 2, 3])
+	expect(sent.map((payload) => Reflect.get(Object(payload), "type"))).toEqual(["error", "error"])
 })
 
 const LAYOUT_AT = (id: string): string =>

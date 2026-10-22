@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest"
+import type { CodegenFailure } from "../codegen/index.ts"
 import { devFetch, devListener, installDevHandler, type DevServer } from "./handler.ts"
 
 type AppFetch = (request: Request) => Promise<Response>
@@ -159,6 +160,86 @@ it("codegen failure page", async () => {
 	handler(request("/"), passed.res)
 	await settled()
 	expect(passed.sent.status).toBe(200)
+})
+
+// Each error page loads again on the next codegen pass that succeeds, whenever its tab announces: a page whose Vite
+// client connects after the pass still gets it, held for its token, and one that already announced gets it at once. A
+// pass reloads each page once; a page that never failed waits for nothing (BUGS.md 480.3, 503).
+it("codegen pass reloads error pages", async () => {
+	const own = devServer(false)
+	const codegen: CodegenFailure = { error: new Error("src/server.ts: Unexpected token") }
+	installDevHandler(own.server, "src/server.ts", { codegen })?.()
+	const handler = own.used[0]
+	if (typeof handler !== "function") throw new Error("handler")
+	const early = await errorPageToken(handler)
+	const late = await errorPageToken(handler)
+	const received: Record<string, unknown[]> = { early: [], late: [] }
+	const announce = own.clientListeners["flare:tab"]
+	if (announce === undefined) throw new Error("announce")
+	announce({ token: early }, { send: (payload) => void received["early"]?.push(payload) })
+	codegen.error = undefined
+	codegen.passed?.()
+	const reload = { type: "custom", event: "flare:reload", data: {} }
+	expect(received["early"]).toContainEqual(reload)
+	announce({ token: late }, { send: (payload) => void received["late"]?.push(payload) })
+	expect(received["late"]).toContainEqual(reload)
+	codegen.passed?.()
+	expect(received["early"]?.filter((payload) => Reflect.get(Object(payload), "type") === "custom")).toHaveLength(1)
+	const healthy = response()
+	handler(request("/"), healthy.res)
+	await settled()
+	expect(healthy.sent.status).toBe(200)
+})
+
+// The token one error page announces with: a document request the handler answers 500.
+async function errorPageToken(handler: unknown): Promise<string> {
+	if (typeof handler !== "function") throw new Error("handler")
+	const { res, sent } = response()
+	handler(request("/"), res)
+	await settled()
+	expect(sent.status).toBe(500)
+	const token = /\{ token: "([^"]+)" \}/.exec(new TextDecoder().decode(sent.chunks[0]))?.[1]
+	if (token === undefined) throw new Error("token")
+	return token
+}
+
+// The handler keeps the newest 20 error pages' tokens, forgets each once a pass hands it its reload, and a token no tab
+// ever announces, as curl's, expires with the tabs' 30 s hold: a long dev session keeps nothing for pages long gone
+// (BUGS.md 503).
+it("error page tokens bounded", async () => {
+	vi.useFakeTimers({ toFake: ["Date"] })
+	try {
+		const own = devServer(false)
+		const codegen: CodegenFailure = { error: new Error("broken") }
+		installDevHandler(own.server, "src/server.ts", { codegen })?.()
+		const announce = own.clientListeners["flare:tab"]
+		if (announce === undefined) throw new Error("announce")
+		const reloads = (token: string | undefined): number => {
+			let count = 0
+			const send = (payload: unknown): void => void (count += Reflect.get(Object(payload), "type") === "custom" ? 1 : 0)
+			announce({ token }, { send })
+			return count
+		}
+		// The oldest page's tab is connected, so a reload would reach it at once: only the cap keeps it from one.
+		let oldest = 0
+		const first = await errorPageToken(own.used[0])
+		announce(
+			{ token: first },
+			{ send: (payload) => void (oldest += Reflect.get(Object(payload), "type") === "custom" ? 1 : 0) },
+		)
+		const tokens: string[] = []
+		for (let page = 0; page < 20; page++) tokens.push(await errorPageToken(own.used[0]))
+		codegen.passed?.()
+		codegen.passed?.()
+		expect([oldest, reloads(tokens[0]), reloads(tokens[19])]).toEqual([0, 1, 1])
+		const curl = await errorPageToken(own.used[0])
+		codegen.passed?.()
+		vi.setSystemTime(Date.now() + 30_001)
+		codegen.passed?.()
+		expect(reloads(curl)).toBe(0)
+	} finally {
+		vi.useRealTimers()
+	}
 })
 
 // The failure page is a dev document: Vite's client and the plugins' tags from the dev head, so the overlay opens and
