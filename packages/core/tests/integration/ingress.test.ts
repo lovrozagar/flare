@@ -46,7 +46,11 @@ afterAll(() => {
 	server.close()
 })
 
-const HOSTILE = ["//evil/", "/\\evil", "http://evil/", "/a\u0001"]
+// A target that is no path on this origin, the absolute form or a control character, is the listener's own 400 and
+// never reaches the server; a path that starts `//` (a backslash read as `/`) is the pipeline's 400, as on Bun and
+// Workers, with the app's headers (BUGS.md 488).
+const REFUSED = ["http://evil/", "/a\u0001"]
+const DOUBLE_SLASH = ["//evil/", "/\\evil"]
 
 it("preview is not required", async () => {
 	const ok = await fetchPath({ port, method: "GET", path: "/" })
@@ -60,11 +64,17 @@ it("preview is not required", async () => {
 
 it("hostile table", async () => {
 	fetches = 0
-	for (const path of HOSTILE) {
+	for (const path of REFUSED) {
 		const response = await fetchPath({ port, method: "GET", path })
 		expect(response.status).toBe(400)
 	}
 	expect(fetches).toBe(0)
+	for (const path of DOUBLE_SLASH) {
+		const response = await fetchPath({ port, method: "GET", path })
+		expect(response.status).toBe(400)
+		expectSecurity(response.headers)
+	}
+	expect(fetches).toBe(DOUBLE_SLASH.length)
 })
 
 function expectSecurity(headers: http.IncomingHttpHeaders): void {

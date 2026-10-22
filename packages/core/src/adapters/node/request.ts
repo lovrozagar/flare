@@ -41,17 +41,18 @@ function rejected(): AdaptedRequest {
 // A backslash in the path reads as `/`, as WHATWG's URL parser reads it and as Bun and Workers hand it to Flare, so a
 // path is one answer on every runtime: `/a\b` is `/a/b`, and `/\a` is `//a`, which the rule below refuses (B22,
 // BUGS.md 163). The query and fragment keep theirs.
-function whatwgPath(url: string): string {
+export function whatwgPath(url: string): string {
 	const end = url.search(/[?#]/)
 	const path = end === -1 ? url : url.slice(0, end)
 	return path.replaceAll("\\", "/") + (end === -1 ? "" : url.slice(end))
 }
 
 // A target is a path in origin form: one that does not start with `/`, such as the absolute form `http://evil/`, is a
-// 400, and so is `//`, which a URL parser reads as a host. A URL in the query, `?next=https://…`, is plain query
-// text, served as Bun and Workers serve it (plan 21 3.14).
+// 400. A path that starts `//` is still a path on this origin, appended to it, and the pipeline refuses it with the
+// app's own security headers, as it does on Bun and Workers (BUGS.md 488). A URL in the query, `?next=https://…`, is
+// plain query text, served as Bun and Workers serve it (plan 21 3.14).
 function badTarget(url: string): boolean {
-	if (!url.startsWith("/") || url.startsWith("//")) return true
+	if (!url.startsWith("/")) return true
 	return hasControl(url)
 }
 

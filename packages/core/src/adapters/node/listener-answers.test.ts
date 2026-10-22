@@ -117,8 +117,9 @@ it("cut deadline", async () => {
 	}
 })
 
-// A target or Host the listener cannot route is its own 400, never the server's, and like every answer it names its
-// build and carries the default security set (BUGS.md 341).
+// A target or Host the listener cannot route, one that is no URL on this origin, is its own 400, never the server's,
+// and like every answer it names its build and carries the default security set (BUGS.md 341). A `//` path is a URL
+// here, and the server's to refuse (BUGS.md 488).
 it("bad target", async () => {
 	const seen: Request[] = []
 	const listener = createNodeListener({
@@ -128,7 +129,7 @@ it("bad target", async () => {
 		},
 	})
 	const answers: { status: number; named: string[] }[] = []
-	for (const asked of [{ url: "//evil" }, { headers: { host: "a?b" } }]) {
+	for (const asked of [{ url: "http://evil/" }, { headers: { host: "a?b" } }]) {
 		const answer = { status: 0, named: [] as string[] }
 		let ended = false
 		listener(
