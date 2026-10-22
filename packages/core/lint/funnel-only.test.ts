@@ -1,15 +1,14 @@
-import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
+import { lintVerdict } from "./oxlint.ts"
 import plugin from "./funnel-only.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
 const rule = plugin.rules["funnel-only"]
 
-function lint(code: string, relative: string): number {
+function lint(code: string, relative: string): 0 | 1 {
 	const dir = mkdtempSync(join(tmpdir(), "flare-funnel-"))
 	const file = join(dir, relative)
 	try {
@@ -44,8 +43,7 @@ function lint(code: string, relative: string): number {
 			"/client/server-fn/call.ts",
 		].some((end) => relative.endsWith(end))
 		expect(reports.length).toBe(allowed ? 0 : 1)
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
-		return proc.status ?? 1
+		return lintVerdict({ dir, rule: "funnel-only" })
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
 	}
@@ -71,7 +69,7 @@ it("new Response in loaders", () => {
 		'export function load() {\n\treturn new Response();\n}\nexport function other() {\n\treturn 1;\n\treturn new URL("https://example.com");\n}\n',
 		"src/server/loaders/run.ts",
 	)
-	expect(status).not.toBe(0)
+	expect(status).toBe(1)
 })
 
 it("new Response in finalize", () => {

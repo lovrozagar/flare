@@ -1,15 +1,14 @@
-import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
+import { lintVerdict } from "./oxlint.ts"
 import plugin from "./no-flare-header-branching.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
 const rule = plugin.rules["no-flare-header-branching"]
 
-function lint(code: string, relative: string, reported?: number): number {
+function lint(code: string, relative: string, reported?: number): 0 | 1 {
 	const dir = mkdtempSync(join(tmpdir(), "flare-header-"))
 	const file = join(dir, relative)
 	try {
@@ -36,8 +35,7 @@ function lint(code: string, relative: string, reported?: number): number {
 		walk(parsed.program, null, visitors)
 		const allowed = relative.endsWith("/finalize.ts") || relative.startsWith("src/client/")
 		expect(reports.length).toBe(reported ?? (allowed ? 0 : 4))
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
-		return proc.status ?? 1
+		return lintVerdict({ dir, rule: "no-flare-header-branching" })
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
 	}
@@ -63,7 +61,7 @@ it("request header", () => {
 		'export function read(request, headers, seen, name) {\n\tother();\n\tseen.get("flare-isr");\n\trequest.foo.get("flare-isr");\n\theaders.set(name, "1");\n\trequest.headers.get(name);\n\trequest.headers.get("accept");\n\trequest.headers.get("Flare-ISR");\n\theaders.set("flare-cache", "hit");\n\treturn request.headers.get("flare-isr");\n}\n',
 		"src/server/lifecycle/order.ts",
 	)
-	expect(status).not.toBe(0)
+	expect(status).toBe(1)
 })
 
 it("response header", () => {
@@ -90,5 +88,5 @@ it("dev tab header", () => {
 		"src/vite/dev/handler.ts",
 		2,
 	)
-	expect(status).not.toBe(0)
+	expect(status).toBe(1)
 })

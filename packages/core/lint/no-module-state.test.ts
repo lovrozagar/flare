@@ -1,15 +1,14 @@
-import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
+import { lintVerdict } from "./oxlint.ts"
 import plugin from "./no-module-state.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
 const rule = plugin.rules["no-module-state"]
 
-function lint(code: string): number {
+function lint(code: string): 0 | 1 {
 	const dir = mkdtempSync(join(tmpdir(), "flare-state-"))
 	const file = join(dir, "src/shared/state.ts")
 	try {
@@ -28,8 +27,7 @@ function lint(code: string): number {
 		writeFileSync(testFile, "let n = 0;\n")
 		visit(file, code)
 		visit(testFile, "let n = 0;\n")
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
-		return proc.status ?? 1
+		return lintVerdict({ dir, rule: "no-module-state" })
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
 	}
@@ -71,6 +69,6 @@ it("no-module-state", () => {
 	const clean = lint(
 		"const n = 1;\nfunction inner() {\n\tlet hidden = 1;\n\treturn hidden;\n}\n// per-process-constant: build id\nlet build = 1;\n",
 	)
-	expect(offender).not.toBe(0)
+	expect(offender).toBe(1)
 	expect(clean).toBe(0)
 })
