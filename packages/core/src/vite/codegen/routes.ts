@@ -123,9 +123,11 @@ function pageItem(file: string): Item {
 	return isRootFolder(folder) ? { ...page, id: `${page.id}/` } : page
 }
 
+// The folder a route file sits in is its id; a file directly under the routes folder has none (BUGS.md 498).
 function item(file: string, suffix: string): Item {
 	const stem = file.slice(0, -suffix.length)
-	return { file, id: stem.slice(0, stem.lastIndexOf("/")) }
+	const at = stem.lastIndexOf("/")
+	return { file, id: at === -1 ? "" : stem.slice(0, at) }
 }
 
 // The URL comes from idPattern, the same rule the router matches with, so the two cannot drift.

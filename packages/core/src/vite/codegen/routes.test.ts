@@ -1,6 +1,6 @@
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
-import { chunkReferences, defineLayouts, defineRouteTree, generateRoutes } from "./routes.ts"
+import { chunkReferences, defineLayouts, defineRouteTree, generateRoutes, routeIdOf } from "./routes.ts"
 
 const rootLayout = "_root_/root.root-layout.tsx"
 
@@ -185,6 +185,12 @@ it("own root", () => {
 		"no root layout for [locale]/_root_: [locale]/_root_/about/about.page.tsx",
 	)
 	expect(() => routesOf(["about/about.page.tsx"])).toThrow("no root layout for about/about.page.tsx")
+	// A layout outside every root folder, directly under the routes folder or in a group there, is no layout of any
+	// chain: it fails as a page there does, its id whole ("x" never read as "", "stray" never as "stra") (BUGS.md 498).
+	expect(() => routesOf(["stray.layout.tsx"])).toThrow("no root layout for stray.layout.tsx")
+	expect(() => routesOf(["x.layout.tsx"])).toThrow("no root layout for x.layout.tsx")
+	expect(() => routesOf(["(g)/g.layout.tsx"])).toThrow("no root layout for (g)/g.layout.tsx")
+	expect(routeIdOf("stray.layout.tsx")).toBe("")
 	expect(() => routesOf(["_root_/(blog)/a.layout.tsx", "_root_/(blog)/b.layout.tsx"])).toThrow(
 		"two layouts for _root_/(blog): _root_/(blog)/a.layout.tsx, _root_/(blog)/b.layout.tsx",
 	)

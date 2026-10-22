@@ -10,12 +10,13 @@ const ROOT_LAYOUT = ".root-layout.tsx"
 const PAGE = ".page.tsx"
 
 // Each page needs the root layout of its own root, its id up to the first root folder (`_admin_`, `[locale]/_root_`):
-// another root's layout is not in its chain, so it would render with no document (plan 21 13.3). Every page missing
-// one is named, by root.
+// another root's layout is not in its chain, so it would render with no document (plan 21 13.3). So does each layout:
+// one under no root folder, directly under the routes folder or in a group there, is in no chain (BUGS.md 498). Every
+// file missing one is named, by root.
 export function assertRoot(pages: readonly Named[], layouts: readonly Named[]): void {
 	const roots = new Set(layouts.filter((layout) => layout.file.endsWith(ROOT_LAYOUT)).map((layout) => layout.id))
 	const missing = new Map<string, string[]>()
-	for (const page of pages) {
+	for (const page of [...pages, ...layouts]) {
 		const root = rootOf(page.id)
 		if (root !== undefined && roots.has(root)) continue
 		const key = root === undefined ? "" : `${root}: `
