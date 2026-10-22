@@ -64,10 +64,10 @@ function run(
 	child.stderr.on("data", (chunk: Buffer) => void (stderr += chunk.toString()))
 	return new Promise((resolve, reject) => {
 		child.once("error", reject)
-		child.once("exit", (code) =>
+		child.once("exit", (code, signal) =>
 			code === 0
 				? resolve({ stdout, code })
-				: reject(new Error(`${command} ${args.join(" ")} exited ${code}\n${stderr}`)),
+				: reject(new Error(`${command} ${args.join(" ")} exited ${code ?? signal}\n${stderr}`)),
 		)
 	})
 }
@@ -84,7 +84,9 @@ function serve(command: string, args: readonly string[], cwd: string): Promise<{
 		}
 		child.stdout.on("data", read)
 		child.stderr.on("data", read)
-		child.once("exit", (code) => reject(new Error(`${command} exited ${code} before serving\n${seen}`)))
+		child.once("exit", (code, signal) =>
+			reject(new Error(`${command} exited ${code ?? signal} before serving\n${seen}`)),
+		)
 	})
 }
 

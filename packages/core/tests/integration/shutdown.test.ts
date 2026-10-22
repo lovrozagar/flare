@@ -54,7 +54,7 @@ process.once("SIGTERM", async () => {
 });
 `
 
-type Run = { body: string; lines: string[]; code: number | null }
+type Run = { body: string; lines: string[]; code: number | string | null }
 
 // Starts the child, asks it for a page, sends SIGTERM once the answer's headers arrive, and reads the rest of the body
 // and the child's lines until it exits.
@@ -72,7 +72,10 @@ function terminated(command: string, args: readonly string[]): Promise<Run> {
 			else lines.push(line)
 		}
 	})
-	const exited = new Promise<number | null>((resolve) => child.once("exit", (code) => resolve(code)))
+	// A signal that ended the child is its exit, so a kill reads as one (BUGS.md 500).
+	const exited = new Promise<number | string | null>((resolve) =>
+		child.once("exit", (code, signal) => resolve(code ?? signal)),
+	)
 	return port.promise.then(
 		(at) =>
 			new Promise<Run>((resolve, reject) => {
