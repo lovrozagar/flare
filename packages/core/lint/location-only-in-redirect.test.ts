@@ -1,15 +1,14 @@
-import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
+import { lintVerdict } from "./oxlint.ts"
 import plugin from "./location-only-in-redirect.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
 const code = `headers.set("Location", url);\nheaders.set("X-Request-Id", url);\nheaders.get("Location");\n`
 
-function lint(rel: string): number {
+function lint(rel: string): 0 | 1 {
 	const dir = mkdtempSync(join(tmpdir(), "flare-location-"))
 	const file = join(dir, rel)
 	try {
@@ -25,8 +24,7 @@ function lint(rel: string): number {
 		)
 		writeFileSync(file, code)
 		exercise(file, code)
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
-		return proc.status ?? 1
+		return lintVerdict({ dir, rule: "location-only-in-redirect" })
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
 	}
@@ -54,7 +52,7 @@ function walk(node: unknown, parent: unknown, visitors: Record<string, (node: ne
 }
 
 it("Location outside redirect", () => {
-	expect(lint("src/server/loaders/run.ts")).not.toBe(0)
+	expect(lint("src/server/loaders/run.ts")).toBe(1)
 })
 
 it("Location inside builder", () => {

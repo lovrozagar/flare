@@ -1,14 +1,12 @@
-import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
+import { lintVerdict } from "./oxlint.ts"
 import plugin from "./path-prefix.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
-
-function lint(code: string): number {
+function lint(code: string): 0 | 1 {
 	const dir = mkdtempSync(join(tmpdir(), "flare-prefix-"))
 	const file = join(dir, "src/shared/pathname.ts")
 	try {
@@ -24,8 +22,7 @@ function lint(code: string): number {
 		)
 		writeFileSync(file, code)
 		exercise(file, code)
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
-		return proc.status ?? 1
+		return lintVerdict({ dir, rule: "path-prefix" })
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
 	}
@@ -53,8 +50,8 @@ function walk(node: unknown, parent: unknown, visitors: Record<string, (node: ne
 }
 
 it("startsWith banned", () => {
-	expect(lint(`pathname.startsWith("/admin");\n`)).not.toBe(0)
-	expect(lint(`pathname.endsWith("/admin");\n`)).not.toBe(0)
+	expect(lint(`pathname.startsWith("/admin");\n`)).toBe(1)
+	expect(lint(`pathname.endsWith("/admin");\n`)).toBe(1)
 })
 
 it("helper allowed", () => {

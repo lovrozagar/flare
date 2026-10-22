@@ -1,15 +1,14 @@
-import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
+import { lintVerdict } from "./oxlint.ts"
 import plugin from "./no-module-side-effects.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
 const rule = plugin.rules["no-module-side-effects"]
 
-function lint(code: string): number {
+function lint(code: string): 0 | 1 {
 	const dir = mkdtempSync(join(tmpdir(), "flare-pure-"))
 	const file = join(dir, "src/shared/call.ts")
 	try {
@@ -28,8 +27,7 @@ function lint(code: string): number {
 		writeFileSync(testFile, "foo();\n")
 		visit(file, code)
 		visit(testFile, "foo();\n")
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
-		return proc.status ?? 1
+		return lintVerdict({ dir, rule: "no-module-side-effects" })
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
 	}
@@ -69,6 +67,6 @@ function walk(node: unknown, parent: unknown, visitors: Record<string, (node: ne
 it("no-module-side-effects", () => {
 	const offender = lint("/* keep */\nfoo();\nfunction inner() {\n\tbar();\n}\n1;\n")
 	const clean = lint("/* @__PURE__ */ foo();\n")
-	expect(offender).not.toBe(0)
+	expect(offender).toBe(1)
 	expect(clean).toBe(0)
 })

@@ -1,15 +1,14 @@
-import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
+import { lintVerdict } from "./oxlint.ts"
 import plugin from "./boundaries.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
 const rule = plugin.rules.boundaries
 
-function lint(files: Record<string, string>): number {
+function lint(files: Record<string, string>): 0 | 1 {
 	const dir = mkdtempSync(join(tmpdir(), "flare-boundaries-"))
 	try {
 		writeFileSync(
@@ -26,8 +25,7 @@ function lint(files: Record<string, string>): number {
 			writeFileSync(join(dir, name), body)
 		}
 		for (const [name, body] of Object.entries(files)) visit(join(dir, name), body)
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
-		return proc.status ?? 1
+		return lintVerdict({ dir, rule: "boundaries" })
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
 	}
@@ -79,7 +77,7 @@ it("boundaries", () => {
 			'import { shared } from "../../../shared/ok.ts";\nimport { local } from "./local.ts";\nexport const value = shared ?? local;\n',
 		"tests/e2e/apps/minimal/src/page.ts": 'import { router } from "./router.ts";\nexport const page = router;\n',
 	})
-	expect(offender).not.toBe(0)
+	expect(offender).toBe(1)
 	expect(clean).toBe(0)
 })
 
@@ -97,8 +95,8 @@ it("vite dev adapters", () => {
 			'import { createBunFetch } from "../../adapters/bun/index.ts";\nexport const serve = createBunFetch;\n',
 	})
 	expect(dev).toBe(0)
-	expect(plugin).not.toBe(0)
-	expect(bun).not.toBe(0)
+	expect(plugin).toBe(1)
+	expect(bun).toBe(1)
 })
 
 it("vite node", () => {
@@ -109,7 +107,7 @@ it("vite node", () => {
 		"src/server/hash.ts": 'import { createHash } from "node:crypto";\nexport const hash = createHash;\n',
 	})
 	expect(vite).toBe(0)
-	expect(server).not.toBe(0)
+	expect(server).toBe(1)
 })
 
 // The three providers may import the cross-tab channel through its index. No other feature file may import client/,
@@ -118,12 +116,12 @@ it("sync import", () => {
 	const index = 'import { post } from "../../../client/sync/index.ts";\nexport const send = post;\n'
 	for (const feature of ["theme", "direction", "i18n"])
 		expect(lint({ [`src/features/${feature}/shared/provider.tsx`]: index })).toBe(0)
-	expect(lint({ "src/features/theme/shared/script.tsx": index })).not.toBe(0)
-	expect(lint({ "src/features/image/shared/provider.tsx": index })).not.toBe(0)
+	expect(lint({ "src/features/theme/shared/script.tsx": index })).toBe(1)
+	expect(lint({ "src/features/image/shared/provider.tsx": index })).toBe(1)
 	const channel = 'import { post } from "../../../client/sync/channel.ts";\nexport const send = post;\n'
-	expect(lint({ "src/features/theme/shared/provider.tsx": channel })).not.toBe(0)
+	expect(lint({ "src/features/theme/shared/provider.tsx": channel })).toBe(1)
 	const navigation = 'import { navigate } from "../../../client/navigation/index.ts";\nexport const go = navigate;\n'
-	expect(lint({ "src/features/i18n/shared/provider.tsx": navigation })).not.toBe(0)
+	expect(lint({ "src/features/i18n/shared/provider.tsx": navigation })).toBe(1)
 })
 
 // The Node adapter and the filesystem store may import Node builtins. The Workers adapter and the Cache API store
@@ -132,8 +130,8 @@ it("node adapters", () => {
 	const fs = 'import { readFile } from "node:fs/promises";\nexport const read = readFile;\n'
 	expect(lint({ "src/adapters/node/disk.ts": fs })).toBe(0)
 	expect(lint({ "src/adapters/stores/fs/disk.ts": fs })).toBe(0)
-	expect(lint({ "src/adapters/workers/disk.ts": fs })).not.toBe(0)
-	expect(lint({ "src/adapters/stores/cache-api/disk.ts": fs })).not.toBe(0)
+	expect(lint({ "src/adapters/workers/disk.ts": fs })).toBe(1)
+	expect(lint({ "src/adapters/stores/cache-api/disk.ts": fs })).toBe(1)
 })
 
 // vite/ composes a feature's vite factory. It reaches no other side of a feature.
@@ -142,7 +140,7 @@ it("vite features", () => {
 		'import { imagePlugin } from "../../features/image/vite/index.ts";\nexport const plugin = imagePlugin;\n'
 	expect(lint({ "src/vite/plugin/flare.ts": factory })).toBe(0)
 	const shared = 'import { Image } from "../../features/image/shared/index.ts";\nexport const image = Image;\n'
-	expect(lint({ "src/vite/plugin/flare.ts": shared })).not.toBe(0)
+	expect(lint({ "src/vite/plugin/flare.ts": shared })).toBe(1)
 })
 
 // The font generator runs in Node at authoring time: it may read and write files and import its own feature's shared
@@ -151,13 +149,13 @@ it("font generate", () => {
 	const generator =
 		'import { readFileSync } from "node:fs";\nimport type { Font } from "./shared/create-font.ts";\nexport const read = readFileSync;\nexport type F = Font;\n'
 	expect(lint({ "src/features/fonts/generate.ts": generator })).toBe(0)
-	expect(lint({ "src/features/image/generate.ts": generator })).not.toBe(0)
+	expect(lint({ "src/features/image/generate.ts": generator })).toBe(1)
 	const other = 'import { Image } from "../image/shared/index.ts";\nexport const image = Image;\n'
-	expect(lint({ "src/features/fonts/generate.ts": other })).not.toBe(0)
+	expect(lint({ "src/features/fonts/generate.ts": other })).toBe(1)
 	// The registry is the fonts feature's data: its vite side reads it, and no other feature does.
 	const registry = 'import registry from "../registry.json" with { type: "json" };\nexport const data = registry;\n'
 	expect(lint({ "src/features/fonts/vite/registry.ts": registry })).toBe(0)
-	expect(lint({ "src/features/image/vite/registry.ts": registry })).not.toBe(0)
+	expect(lint({ "src/features/image/vite/registry.ts": registry })).toBe(1)
 })
 
 // src imports only `node:` builtins, its own package, and the dependencies and peers its manifest declares, in every
@@ -192,15 +190,15 @@ it("package imports", () => {
 it("fixture exempt", () => {
 	const code = 'import { vi } from "vitest";\nexport const mock = vi;\n'
 	expect(lint({ "src/client/navigation/mock.fixture.ts": code })).toBe(0)
-	expect(lint({ "src/client/navigation/mock.ts": code })).not.toBe(0)
+	expect(lint({ "src/client/navigation/mock.ts": code })).toBe(1)
 })
 
 // A re-export and a literal `import()` meet the module boundaries as a declaration does. The barrels' relations are
 // permitted: exports/ re-exports any feature side, and testing/ its own files (00-rules).
 it("every import form", () => {
-	expect(lint({ "src/client/reach.ts": 'export { secret } from "../server/secret.ts";\n' })).not.toBe(0)
-	expect(lint({ "src/client/reach.ts": 'export * from "../server/secret.ts";\n' })).not.toBe(0)
-	expect(lint({ "src/client/reach.ts": 'export const load = () => import("../server/secret.ts");\n' })).not.toBe(0)
+	expect(lint({ "src/client/reach.ts": 'export { secret } from "../server/secret.ts";\n' })).toBe(1)
+	expect(lint({ "src/client/reach.ts": 'export * from "../server/secret.ts";\n' })).toBe(1)
+	expect(lint({ "src/client/reach.ts": 'export const load = () => import("../server/secret.ts");\n' })).toBe(1)
 	const barrels = lint({
 		"src/exports/query.ts": 'export { useSuspenseQuery } from "../features/query/client/index.ts";\n',
 		"src/exports/seo.ts": 'export { sitemap } from "../features/seo/vite/index.ts";\n',

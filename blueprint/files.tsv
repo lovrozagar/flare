@@ -14,6 +14,8 @@ packages/core/lint/no-module-state.js	P0	lint	node	Reject module-scope let, map,
 packages/core/lint/no-module-state.test.ts	P0	test	node	Unit cases for no-module-state.js
 packages/core/lint/no-v8-ignore.js	P0	lint	node	Reject v8 ignore comments
 packages/core/lint/no-v8-ignore.test.ts	P0	test	node	Unit cases for no-v8-ignore.js
+packages/core/lint/oxlint.ts	P0	lint	node	The lint rules' tests read oxlint's verdict through it: 0 or 1 with the rule named, anything else (a binary that never ran, a signal, another status) throws with oxlint's output (BUGS.md 494)
+packages/core/lint/oxlint.test.ts	P0	test	node	Unit cases for oxlint.ts: fired and clean, and no verdict from a missing binary, a SIGKILL, a 1 without the rule, another status
 packages/core/lint/path-prefix.js	P2	lint	node	Reject startsWith and endsWith on a pathname
 packages/core/lint/path-prefix.test.ts	P2	test	node	Unit cases for path-prefix.js
 packages/core/lint/location-only-in-redirect.js	P2	lint	node	Reject a Location header built outside server/redirect

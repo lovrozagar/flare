@@ -1,15 +1,14 @@
-import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
+import { lintVerdict } from "./oxlint.ts"
 import plugin from "./no-v8-ignore.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
 const rule = plugin.rules["no-v8-ignore"]
 
-function lint(code: string): number {
+function lint(code: string): 0 | 1 {
 	const dir = mkdtempSync(join(tmpdir(), "flare-v8-"))
 	const file = join(dir, "src/shared/coverage.ts")
 	try {
@@ -37,8 +36,7 @@ function lint(code: string): number {
 			},
 		})
 		walk(parsed.program, null, visitors)
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
-		return proc.status ?? 1
+		return lintVerdict({ dir, rule: "no-v8-ignore" })
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
 	}
@@ -62,6 +60,6 @@ function walk(node: unknown, parent: unknown, visitors: Record<string, (node: ne
 it("no-v8-ignore", () => {
 	const offender = lint("/* v8 ignore next */\nconst n = 1;\nexport const value = n;\n")
 	const clean = lint("/* ordinary */\nconst n = 1;\nexport const value = n;\n")
-	expect(offender).not.toBe(0)
+	expect(offender).toBe(1)
 	expect(clean).toBe(0)
 })
