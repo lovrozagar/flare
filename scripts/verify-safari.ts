@@ -5,7 +5,7 @@ import { hostname } from "node:os"
 import { boot } from "../packages/core/tests/e2e/boot.ts"
 import { envelopeOf, fnId, wire } from "../packages/core/tests/e2e/docs.fixture.ts"
 import { onFreePort } from "./free-port.ts"
-import { SafariSession, type Fetcher } from "./safari-driver.ts"
+import { ENTER, ESCAPE, SafariSession, TAB, type Fetcher } from "./safari-driver.ts"
 import { acquire, quote, release, type Lock, type Remote } from "./safari-lock.ts"
 
 // `bun run verify:safari` (AGENTS.md, Every gate passes before moving on): the client's core flows in real Safari on
@@ -36,8 +36,13 @@ export function configOf(env: Record<string, string | undefined>, tailscale: () 
 
 // One flow: what it checks, and the failure it saw, or undefined when it passed.
 export type Flow = { name: string; run: (safari: SafariSession, site: Site) => Promise<string | undefined> }
-// The docs app as Safari reaches it (`origin`), and a server function called from this machine.
-export type Site = { origin: string; callFn: (id: string, data: unknown) => Promise<unknown> }
+// The docs app as Safari reaches it (`origin`), a server function called from this machine, and the basepath app's
+// origin, booted the first time a flow asks for it.
+export type Site = {
+	origin: string
+	callFn: (id: string, data: unknown) => Promise<unknown>
+	basepath: () => Promise<string>
+}
 
 const HYDRATED = "return document.documentElement.hasAttribute('data-flare-hydrated')"
 const SCROLL = "return Math.round(window.scrollY)"
@@ -142,6 +147,136 @@ async function open(safari: SafariSession, url: string): Promise<void> {
 	await safari.js(MARK)
 	await safari.js(WATCH)
 }
+
+// The playground's NotesCard blocks leaving while its draft holds text (plan 21 3.5). A client navigation asks through
+// the app's own confirm, a WebDriver user prompt here. Leaving the document asks through `beforeunload`, which Safari
+// 26.6.1 under WebDriver never shows as a prompt (probed 2026-10-22: a document navigation away left with no alert), so
+// the flow dispatches the event itself: the blocker asks the same confirm, and the event comes back prevented once it
+// is dismissed. With the draft empty, nothing asks.
+async function unsavedDraft(safari: SafariSession, site: Site): Promise<string | undefined> {
+	await open(safari, `${site.origin}/playground`)
+	await safari.keys("#draft", "notes")
+	if (!(await safari.wait("return document.querySelector('#draft').value === 'notes'")))
+		return "the draft was not typed"
+	await safari.click("#nav a[href^='/api']").catch(() => undefined)
+	const asked = await safari.alertText().catch(() => undefined)
+	if (asked !== "Discard your notes?") return `a link asked ${JSON.stringify(asked)}, not the app's confirm`
+	await safari.dismissAlert()
+	if (
+		!(await safari.wait(
+			"return location.pathname === '/playground' && document.querySelector('#draft').value === 'notes'",
+		))
+	) {
+		return "the link left the page with its draft"
+	}
+	await safari.js(UNLOAD)
+	const unloadAsked = await safari.alertText().catch(() => undefined)
+	if (unloadAsked !== "Discard your notes?")
+		return `leaving asked ${JSON.stringify(unloadAsked)}, not the app's confirm`
+	await safari.dismissAlert()
+	if (!(await safari.wait("return window.__unload === true"))) return "a dismissed confirm did not hold the page"
+	await safari.js(
+		"const el = document.querySelector('#draft'); el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true }))",
+	)
+	await safari.js(UNLOAD)
+	return (await safari.wait("return window.__unload === false")) ? undefined : "an empty draft held the page"
+}
+
+// A cancelable beforeunload, dispatched from a timer so the script returns before the blocker's confirm opens.
+const UNLOAD = `window.__unload = undefined;
+setTimeout(() => { const event = new Event("beforeunload", { cancelable: true }); dispatchEvent(event); window.__unload = event.defaultPrevented }, 0)`
+
+// The basepath app, under `/app` (plan 21 3.7): its Link and its navigate button each reach /app/about as a client
+// navigation, and its data request is under the base too. Built assets are not: they follow Vite's `base`, which
+// basePath does not set (dx/router.md). setLocale builds its URL through the same resolveTarget and stays proven
+// by tests/integration/basepath-client.test (dx/testing.md).
+async function underBase(safari: SafariSession, site: Site): Promise<string | undefined> {
+	const origin = await site.basepath()
+	for (const [how, act] of [
+		["Link", () => safari.click("#to-about")],
+		["navigate", () => safari.click("#go-about")],
+	] as const) {
+		await open(safari, `${origin}/app/`)
+		await safari.js("window.__before = performance.getEntriesByType('resource').length")
+		await act()
+		if (
+			!(await safari.wait(
+				"return location.pathname === '/app/about' && document.querySelector('#app').textContent === 'About'",
+			))
+		) {
+			return `${how} left ${String(await safari.js("return location.pathname"))}`
+		}
+		if ((await safari.js(MARKED)) !== true) return `${how} loaded a document`
+		const outside = await safari.js(
+			"return performance.getEntriesByType('resource').slice(window.__before).map((entry) => new URL(entry.name)).filter((url) => url.searchParams.has('_flare') && !url.pathname.startsWith('/app/')).map((url) => url.pathname + url.search)",
+		)
+		if (Array.isArray(outside) && outside.length > 0)
+			return `${how} asked for data outside the base: ${outside.join(", ")}`
+		const under = await safari.js(
+			"return performance.getEntriesByType('resource').slice(window.__before).filter((entry) => { const url = new URL(entry.name); return url.searchParams.has('_flare') && url.pathname.startsWith('/app/') }).length",
+		)
+		if (!(Number(under) > 0)) return `${how} asked for no data under the base`
+	}
+	return undefined
+}
+
+// A client navigation from the keyboard (the link focused, then Enter, so macOS WebKit's rule of no focus on a click
+// plays no part) moves focus to the new page's heading, and the announcer reads its title (plan 21 4.1).
+async function arrival(safari: SafariSession, site: Site): Promise<string | undefined> {
+	await open(safari, `${site.origin}/docs/routing`)
+	await safari.js("document.querySelector(\"#sidebar a[href='/docs/defer']\").focus()")
+	await safari.press(ENTER)
+	if (!(await safari.wait("return location.pathname === '/docs/defer'")))
+		return "Enter on the sidebar link did not navigate"
+	const heading = await safari.wait(
+		"return document.activeElement === (document.querySelector('main h1') ?? document.querySelector('h1'))",
+	)
+	if (!heading) return `focus is on ${String(await safari.js("return document.activeElement?.outerHTML.slice(0, 80)"))}`
+	const read = await safari.wait("return document.getElementById('flare-announcer')?.textContent === document.title")
+	return read
+		? undefined
+		: `the announcer read ${JSON.stringify(await safari.js("return document.getElementById('flare-announcer')?.textContent"))}`
+}
+
+// The search overlay over a docs page (plan 21 4.1): Tab walks every focusable element inside it and wraps to the first
+// one past the end; Escape closes it, and focus returns to the search field that opened it.
+async function overlayFocus(safari: SafariSession, site: Site): Promise<string | undefined> {
+	await open(safari, `${site.origin}/docs/routing`)
+	await safari.keys("#search-input", "route")
+	await safari.keys("#search-input", ENTER)
+	if (!(await safari.wait("return document.getElementById('search-modal') !== null")))
+		return "the search overlay did not open"
+	const count = Number(await safari.js(FOCUSABLE_COUNT))
+	if (!(count > 1)) return `the overlay holds ${count} focusable elements`
+	await safari.wait("return document.getElementById('search-modal').contains(document.activeElement)")
+	const first = await safari.js("return window.__first = document.activeElement, true")
+	if (first !== true) return "no first focus"
+	// Safari's own Tab reaches the overlay's controls and skips its links unless the user turned that on, so the walk
+	// is its own cycle: every Tab stays inside, and within one Tab past every element it comes back to the first.
+	let back = false
+	for (let step = 1; step <= count + 1 && !back; step += 1) {
+		await safari.press(TAB)
+		if ((await safari.js("return document.getElementById('search-modal').contains(document.activeElement)")) !== true) {
+			return `Tab ${step} left the overlay`
+		}
+		back = (await safari.js("return document.activeElement === window.__first")) === true
+	}
+	if (!back) return `${count + 1} Tabs never came back to the first element`
+	await safari.press(ESCAPE)
+	if (
+		!(await safari.wait(
+			"return document.getElementById('search-modal') === null && location.pathname === '/docs/routing'",
+		))
+	) {
+		return "Escape did not close the overlay"
+	}
+	return (await safari.wait("return document.activeElement?.id === 'search-input'"))
+		? undefined
+		: `focus returned to ${String(await safari.js("return document.activeElement?.outerHTML.slice(0, 80)"))}`
+}
+
+// The overlay's focusable elements, as its focus trap counts them.
+const FOCUSABLE_COUNT = `return [...document.getElementById("search-modal").querySelectorAll("a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex='-1'])")].filter((el) => el.offsetParent !== null).length`
 
 export const FLOWS: readonly Flow[] = [
 	{
@@ -253,6 +388,10 @@ export const FLOWS: readonly Flow[] = [
 			return undefined
 		},
 	},
+	{ name: "an unsaved draft asks before leaving", run: unsavedDraft },
+	{ name: "Link and navigate stay under the base path", run: underBase },
+	{ name: "a keyboard navigation focuses the heading and announces it", run: arrival },
+	{ name: "the search overlay holds focus and Escape returns it", run: overlayFocus },
 ]
 
 // Every flow, each reported as it ends. The exit code is the number of failed flows, capped at 1.
@@ -427,6 +566,7 @@ async function drive(config: SafariConfig, signal: AbortSignal): Promise<number>
 		opened.push(() => exposed.server.close())
 		const upstream = docs.origin
 		const site: Site = {
+			basepath: () => Promise.reject(new Error("the basepath app is booted once the session opens")),
 			origin: `http://${config.host}:${exposed.port}`,
 			// A server function's input and its envelope's data are wire values (B145).
 			callFn: async (id, data) =>
@@ -440,6 +580,15 @@ async function drive(config: SafariConfig, signal: AbortSignal): Promise<number>
 					).json(),
 				),
 		}
+		let basepath: Promise<string> | undefined
+		site.basepath = () =>
+			(basepath ??= (async () => {
+				const app = await boot({ app: "basepath", runtime: "node", mode: "prod" })
+				opened.push(app.close)
+				const shown = await expose(app.origin)
+				opened.push(() => shown.server.close())
+				return `http://${config.host}:${shown.port}`
+			})())
 		const safari = await SafariSession.open(driver.base, fetch)
 		opened.push(() => safari.close())
 		return await runFlows(safari, site, { log: (line) => console.log(line) })

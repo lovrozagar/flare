@@ -9,6 +9,11 @@ export type Fetcher = (
 	json: () => Promise<unknown>
 }>
 
+// WebDriver's Enter, Tab, and Escape keys, sent with `keys` or `press`.
+export const ENTER = "\ue007"
+export const TAB = "\ue004"
+export const ESCAPE = "\ue00c"
+
 export class SafariSession {
 	readonly #base: string
 	readonly #fetch: Fetcher
@@ -52,15 +57,42 @@ export class SafariSession {
 	}
 
 	async click(css: string): Promise<void> {
-		const found = Object(await this.#call("POST", "/element", { using: "css selector", value: css }))
-		const element = String(Object.values(found)[0])
-		await this.#call("POST", `/element/${element}/click`, {})
+		await this.#call("POST", `/element/${await this.#element(css)}/click`, {})
+	}
+
+	// Keys typed into the element a selector finds, as a person would; WebDriver's special keys, ENTER among them, are
+	// Private Use characters.
+	async keys(css: string, text: string): Promise<void> {
+		await this.#call("POST", `/element/${await this.#element(css)}/value`, { text })
+	}
+
+	// The open user prompt's text, a page's own `alert` or `confirm`: WebDriver errors when none is open.
+	async alertText(): Promise<string> {
+		return String(await this.#call("GET", "/alert/text", undefined))
+	}
+
+	// Dismisses the open prompt: a `confirm` answers false.
+	dismissAlert(): Promise<unknown> {
+		return this.#call("POST", "/alert/dismiss", {})
 	}
 
 	// One mouse's moves and presses, through Perform Actions: the page hit-tests the point as it would for a person.
 	pointer(actions: readonly Record<string, unknown>[]): Promise<unknown> {
 		const mouse = { type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions }
 		return this.#call("POST", "/actions", { actions: [mouse] })
+	}
+
+	// A key pressed and released on whatever holds focus, through Perform Actions: a person's Tab or Escape.
+	press(key: string): Promise<unknown> {
+		const keyboard = {
+			type: "key",
+			id: "keyboard",
+			actions: [
+				{ type: "keyDown", value: key },
+				{ type: "keyUp", value: key },
+			],
+		}
+		return this.#call("POST", "/actions", { actions: [keyboard] })
 	}
 
 	back(): Promise<unknown> {
@@ -79,6 +111,11 @@ export class SafariSession {
 
 	close(): Promise<unknown> {
 		return this.#call("DELETE", "", undefined)
+	}
+
+	async #element(css: string): Promise<string> {
+		const found = Object(await this.#call("POST", "/element", { using: "css selector", value: css }))
+		return String(Object.values(found)[0])
 	}
 
 	#call(method: string, path: string, body: unknown): Promise<unknown> {

@@ -35,7 +35,7 @@ const driver: Fetcher = async (url) => ({
 // One failed flow, by its answer or by a throw, fails the run, and every flow still runs and reports.
 it("failed flow fails", async () => {
 	const safari = await SafariSession.open("http://driver", driver)
-	const site = { origin: "http://site", callFn: async () => undefined }
+	const site = { origin: "http://site", callFn: async () => undefined, basepath: async () => "http://base" }
 	const flows: Flow[] = [
 		{ name: "passes", run: async () => undefined },
 		{ name: "answers", run: async () => "stuck" },
@@ -66,7 +66,7 @@ it("console problems fail", async () => {
 	const safari = await SafariSession.open("http://driver", said)
 	const lines: string[] = []
 	const flows: Flow[] = [{ name: "quiet", run: async () => undefined }]
-	const site = { origin: "http://site", callFn: async () => undefined }
+	const site = { origin: "http://site", callFn: async () => undefined, basepath: async () => "http://base" }
 	expect(await runFlows(safari, site, { log: (line) => lines.push(line), flows })).toBe(1)
 	expect(lines[0]).toBe("FAIL  quiet: the page logged warn: hydration mismatch")
 })
@@ -89,7 +89,11 @@ async function hrFlow(mark: (backed: boolean) => boolean): Promise<string | unde
 	})
 	const safari = await SafariSession.open("http://driver", fake)
 	const flow = FLOWS.find((entry) => entry.name === "Back restores the position at the click")
-	return flow?.run(safari, { origin: "http://site", callFn: async () => undefined })
+	return flow?.run(safari, {
+		origin: "http://site",
+		callFn: async () => undefined,
+		basepath: async () => "http://base",
+	})
 }
 
 // Client navigations both ways pass.
@@ -130,7 +134,7 @@ async function pointerFlow(page: PointerPage): Promise<string | undefined> {
 	const safari = await SafariSession.open("http://driver", fake)
 	const flow = FLOWS.find((entry) => entry.name === "pointer during transition")
 	if (flow === undefined) throw new Error("no pointer during transition flow")
-	return flow.run(safari, { origin: "http://site", callFn: async () => undefined })
+	return flow.run(safari, { origin: "http://site", callFn: async () => undefined, basepath: async () => "http://base" })
 }
 
 const live: PointerPage = {
@@ -186,7 +190,7 @@ async function warmFlow(page: { settled: boolean; fetched: string[] }): Promise<
 	const safari = await SafariSession.open("http://driver", fake)
 	const flow = FLOWS.find((entry) => entry.name === "modules warm in Safari")
 	if (flow === undefined) throw new Error("no modules warm in Safari flow")
-	return flow.run(safari, { origin: "http://site", callFn: async () => undefined })
+	return flow.run(safari, { origin: "http://site", callFn: async () => undefined, basepath: async () => "http://base" })
 }
 
 // The idle step settled and the navigation fetched no script (BUGS.md 124).

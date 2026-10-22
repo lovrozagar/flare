@@ -975,9 +975,10 @@ packages/core/tests/e2e/apps/basepath/src/router.ts	P2	app	-	createRouter
 packages/core/tests/e2e/apps/basepath/src/_gen/routes.gen.ts	P12	app	-	Generated route tree, layouts, and chunks, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/basepath/src/_gen/types.gen.ts	P12	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/basepath/src/_gen/server-fns.gen.ts	P12	app	-	Generated server function list, committed so a run writes nothing in the app
-packages/core/tests/e2e/apps/basepath/src/routes/_root_/root.root-layout.tsx	P2	app	-	Document root
+packages/core/tests/e2e/apps/basepath/src/routes/_root_/root.root-layout.tsx	P2	app	-	Document root, with a Link and a navigate button to /about
 packages/core/tests/e2e/apps/basepath/src/routes/_root_/home.page.tsx	P2	app	-	Home page
 packages/core/tests/e2e/apps/basepath/src/routes/_root_/cdn/cdn.page.tsx	P9	app	-	A public CDN page with no store that counts its renders, for minimal.test `cdn page fresh` (BUGS.md 135)
+packages/core/tests/e2e/apps/basepath/src/routes/_root_/about/about.page.tsx	P16	app	-	A second page the root's Link and navigate button reach under the base, for verify:safari's basePath flow (plan 35)
 packages/core/tests/e2e/apps/basepath/wrangler.jsonc	P12	app	-	Workers config so workers-prod can boot this app (B70)
 packages/core/src/features/fonts/generate.ts	P14	src	node	Turn registry.json into one module per family. No runtime entry imports it (B78)
 packages/core/src/features/fonts/generate.test.ts	P14	test	node	Unit cases for generate.ts
