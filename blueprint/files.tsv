@@ -39,7 +39,6 @@ packages/core/tests/consumers/optional.consumer.test.ts	P14	test	node	The minima
 packages/core/tests/consumers/fixture/ts5/package.json	P14	app	-	The TypeScript floor cell's pin: typescript 5.9.3 exact
 packages/core/tests/consumers/fixture/ts5/tsconfig.json	P14	app	-	The TypeScript floor cell's settings: nodenext module and resolution, consumer strict's others, skipLibCheck off
 packages/core/tests/structure/workflows.test.ts	P14	test	node	The GitHub workflows pin every action by commit SHA and install nothing @latest (BUGS.md 219)
-packages/core/tests/structure/errored.test.ts	P14	test	node	No source file but safe-errored.ts reaches Solid's Errored, by import or namespace member (BUGS.md 141)
 packages/core/tests/structure/json-only.test.ts	P14	test	node	No source file decodes a form body (formData, multipart, a urlencoded body read): server functions are JSON-only by B4 (plan 21 16.8)
 packages/core/tests/structure/api.test.ts	P14	test	node	Each entry's public d.ts matches its snapshot
 packages/core/tests/structure/dx-options.test.ts	P14	test	node	Every dx option table names only keys of its type; Planned (plan 15) tables and named exemptions aside (BUGS.md 113)
@@ -203,8 +202,6 @@ packages/core/src/shared/head/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/components/boundary.ts	P5	src	shared	Nearest boundary toward the root, and the builtin text (B77)
 packages/core/src/shared/components/boundary.test.ts	P5	test	shared	Unit cases for boundary.ts
 packages/core/src/shared/components/outlet.tsx	P1	src	dom	Outlet
-packages/core/src/shared/components/safe-errored.ts	P1	src	dom	Solid's Errored for every Flare boundary, its children escaped on the server first: Solid's SSR Errored writes a string child raw (BUGS.md 141)
-packages/core/src/shared/components/safe-errored.test.ts	P1	test	node	Unit cases for safe-errored.ts: Errored raw beside SafeErrored escaped, every shape of child, the fallback
 packages/core/src/shared/components/use-deferred.ts	P10	src	shared	useDeferred: reads a deferred value under Loading. A stored stream hole is a client source, so the server hands its boundary to the client
 packages/core/src/shared/components/use-deferred.test.ts	P10	test	shared	Unit cases for use-deferred.ts
 packages/core/src/shared/components/outlet.test.tsx	P1	test	dom	Unit cases for outlet.tsx

@@ -3,26 +3,26 @@ import { newestReport, peerSpecs } from "./stage.ts"
 
 // A manifest shaped as packages/core/package.json: each peer's range is `>=` its exact devDependency (B79).
 const MANIFEST = {
-	peerDependencies: { "solid-js": ">=2.0.0-rc.15 <2.0.0-rc.16", vite: ">=8.1.4", sharp: ">=0.35.5", isbot: ">=5.2.0" },
+	peerDependencies: { "solid-js": ">=2.0.0-rc.17", vite: ">=8.1.4", sharp: ">=0.35.5", isbot: ">=5.2.0" },
 	peerDependenciesMeta: { sharp: { optional: true }, isbot: { optional: true } },
-	devDependencies: { "solid-js": "2.0.0-rc.15", vite: "8.1.4", sharp: "0.35.5", isbot: "5.2.0", vitest: "4.1.10" },
+	devDependencies: { "solid-js": "2.0.0-rc.17", vite: "8.1.4", sharp: "0.35.5", isbot: "5.2.0", vitest: "4.1.10" },
 }
 
 it("floor specs", () => {
-	expect(peerSpecs(MANIFEST, "floor")).toEqual(["isbot@5.2.0", "sharp@0.35.5", "solid-js@2.0.0-rc.15", "vite@8.1.4"])
+	expect(peerSpecs(MANIFEST, "floor")).toEqual(["isbot@5.2.0", "sharp@0.35.5", "solid-js@2.0.0-rc.17", "vite@8.1.4"])
 })
 
 it("newest specs", () => {
 	expect(peerSpecs(MANIFEST, "newest")).toEqual([
 		"isbot@>=5.2.0",
 		"sharp@>=0.35.5",
-		"solid-js@>=2.0.0-rc.15 <2.0.0-rc.16",
+		"solid-js@>=2.0.0-rc.17",
 		"vite@>=8.1.4",
 	])
 })
 
 it("without optional peers", () => {
-	expect(peerSpecs(MANIFEST, "floor", { without: ["sharp", "isbot"] })).toEqual(["solid-js@2.0.0-rc.15", "vite@8.1.4"])
+	expect(peerSpecs(MANIFEST, "floor", { without: ["sharp", "isbot"] })).toEqual(["solid-js@2.0.0-rc.17", "vite@8.1.4"])
 })
 
 it("without a required peer", () => {

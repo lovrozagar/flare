@@ -1,7 +1,6 @@
-import { createComponent, flush } from "solid-js"
+import { createComponent, Errored, flush } from "solid-js"
 import { render } from "@solidjs/web"
 import { afterEach, expect, it } from "vitest"
-import { SafeErrored } from "./safe-errored.ts"
 import { ViewTransitionCSS } from "./view-transition-css.tsx"
 
 type FlareScope = typeof globalThis & { flare?: { nonce: string } }
@@ -41,7 +40,7 @@ function caught(duration: number): string {
 	const host = document.createElement("div")
 	const dispose = render(
 		() =>
-			createComponent(SafeErrored, {
+			createComponent(Errored, {
 				fallback: (error: () => unknown) => String(Reflect.get(Object(error()), "message")),
 				get children() {
 					return createComponent(ViewTransitionCSS, { duration })

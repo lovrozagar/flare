@@ -259,7 +259,6 @@ A registry font is the default export of `@lovrozagar/flare/fonts/<id>` (B78). `
 
 Peer `@tanstack/solid-query` (Optional peers).
 
-Known issue, upstream: with `@solidjs/signals` 2.0.0-rc.16, a query that fails, read in an element child (`<span>{query.data}</span>`, or a `Dynamic`'s children), never reaches its `<Errored>` or the route's `errorRender`, and the slot stays empty (solidjs/solid#4189, from Solid's fb6006eb). A read returned directly as a `<Loading>`'s child is not affected. Flare's `solid-js` and `@solidjs/web` peers stay below rc.16, but `solid-js` rc.15 depends on `@solidjs/signals ^2.0.0-rc.15`, so a fresh install resolves signals rc.16 and has the issue; a lockfile that resolves `@solidjs/signals` 2.0.0-rc.15 does not (BUGS.md 426).
 
 | API | required args | outcome | pitfall | test |
 | --- | --- | --- | --- | --- |

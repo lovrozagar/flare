@@ -131,9 +131,9 @@ Required peers:
 
 | package | devDependency | peerDependency |
 | --- | --- | --- |
-| `solid-js` | `2.0.0-rc.15` | `>=2.0.0-rc.15 <2.0.0-rc.16` |
-| `@solidjs/web` | `2.0.0-rc.15` | `>=2.0.0-rc.15 <2.0.0-rc.16` |
-| `@solidjs/vite-plugin` | `3.0.0-next.50` | `>=3.0.0-next.50 <3.0.0-next.51` |
+| `solid-js` | `2.0.0-rc.17` | `>=2.0.0-rc.17` |
+| `@solidjs/web` | `2.0.0-rc.17` | `>=2.0.0-rc.17` |
+| `@solidjs/vite-plugin` | `3.0.0-next.51` | `>=3.0.0-next.51` |
 | `vite` | `8.1.4` | `>=8.1.4` |
 | `oxc-parser` | `0.139.0` | `>=0.139.0` |
 | `magic-string` | `0.30.21` | `>=0.30.21` |
