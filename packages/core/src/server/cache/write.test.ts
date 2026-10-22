@@ -334,6 +334,19 @@ function forever(cache: CacheConfig = { isr: true }): RouteModule {
 		.render(() => slot(() => new Promise(() => undefined), "forever"))
 }
 
+// The fake clock passes the 10 s settle deadline until `pending` settles. While a hole is pending, Solid's server render
+// waits a real setImmediate turn before its shell (since 2.0.0-rc.16), which it binds at load, so fake timers cannot
+// drive it: each round yields one real turn, and the deadline the shell starts falls inside the next advance.
+async function pastSettle<T>(pending: Promise<T>): Promise<T> {
+	let settled = false
+	void pending.finally(() => (settled = true))
+	for (let round = 0; round < 10 && !settled; round++) {
+		await vi.advanceTimersByTimeAsync(10_001)
+		await new Promise((resolve) => setImmediate(resolve))
+	}
+	return pending
+}
+
 function warnings(): { log: Logger; seen: string[] } {
 	const seen: string[] = []
 	return { log: { ...quiet, warn: (_tag, message) => void seen.push(message) }, seen }
@@ -344,9 +357,7 @@ it("incomplete render not stored", async () => {
 	try {
 		const { log, seen } = warnings()
 		const { server, set } = storing(forever(), true, log)
-		const answer = server.fetch(new Request(`${SITE}/p`))
-		await vi.advanceTimersByTimeAsync(10_001)
-		const response = await answer
+		const response = await pastSettle(server.fetch(new Request(`${SITE}/p`)))
 		expect(response.headers.get("cache-control")).toBe("private, no-store")
 		expect(set).not.toHaveBeenCalled()
 		expect(seen).toEqual([expect.stringContaining("_root_/p")])
@@ -362,9 +373,7 @@ it("prerender incomplete fails", async () => {
 		const { log, seen } = warnings()
 		const { server } = storing(forever({ ssg: true }), true, log)
 		const pages = prerendererOf(server)
-		const rendered = pages?.render({ id: "_root_/p", params: {}, env: {} })
-		await vi.advanceTimersByTimeAsync(10_001)
-		const result = await rendered
+		const result = await pastSettle(Promise.resolve(pages?.render({ id: "_root_/p", params: {}, env: {} })))
 		expect(result?.entry).toBeUndefined()
 		expect(seen).toEqual([expect.stringContaining("_root_/p")])
 	} finally {
