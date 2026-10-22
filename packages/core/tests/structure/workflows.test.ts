@@ -65,7 +65,7 @@ it("browsers from browser-server", () => {
 	)
 })
 
-// The nightly (plan 21 15.6): scheduled and on demand; every job feeds the issues job, which runs whatever they did and
+// The nightly (plan 21 15.6, 17.1): scheduled and on demand; every job feeds the issues job, which runs whatever they did and
 // alone may write issues, so a job 17.1 adds without joining it fails here; the benches restore the previous night
 // before comparing and save tonight only after a pass; the baseline checks its budgets.
 it("nightly", () => {
@@ -73,8 +73,24 @@ it("nightly", () => {
 	expect(text).toContain('cron: "41 3 * * *"')
 	expect(text).toContain("workflow_dispatch:")
 	const jobs = [...text.slice(text.indexOf("\njobs:\n")).matchAll(/^ {2}([\w-]+):$/gm)].map((found) => found[1])
-	expect(jobs).toEqual(["benches", "baseline", "perf-e2e", "issues"])
-	expect(text).toContain(`needs: [${jobs.filter((job) => job !== "issues").join(", ")}]`)
+	expect(jobs).toEqual([
+		"benches",
+		"baseline",
+		"perf-e2e",
+		"black-box-hostile",
+		"black-box-parity",
+		"black-box-chaos",
+		"issues",
+	])
+	const reported = jobs.filter((job) => job !== "issues")
+	expect(text).toContain(`needs: [${reported.join(", ")}]`)
+	// The issues job reports every job it waits for: one left out of its loop would fail in silence.
+	expect(text).toContain(`for job in ${reported.join(" ")}; do`)
+	// A black-box job's failure names its seed and the command that replays it.
+	for (const job of reported.filter((name) => name.startsWith("black-box-"))) {
+		expect(text).toMatch(new RegExp(`${job}:[\\s\\S]*?outputs:\\s+replay:`))
+	}
+	expect(text).toContain(".outputs.replay")
 	expect(text).toContain("if: always()")
 	expect(text.match(/issues: write/g)).toHaveLength(1)
 	expect(text.indexOf("issues: write")).toBeGreaterThan(text.indexOf("  issues:"))
