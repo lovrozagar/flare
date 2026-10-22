@@ -129,3 +129,34 @@ it.skipIf(noHooks)(
 	},
 	180_000,
 )
+
+// An app with a page that renders at build fails the build when prerender is omitted or off, naming the route, with the
+// Cloudflare plugin as without it, and an app with none builds (dx/plugin.md Options, BUGS.md 497).
+it.skipIf(noHooks)(
+	"workers ssg needs prerender",
+	async () => {
+		for (const options of ["{}", "{ prerender: false }"]) {
+			const root = apps.make({
+				...ROUTES,
+				"vite.config.mjs": config(options),
+				"wrangler.json": wrangler("@lovrozagar/flare/worker"),
+			})
+			const built = await viteBuild(root)
+			expect([options, built.status === 0, built.output]).toEqual([
+				options,
+				false,
+				expect.stringContaining("_root_/seeded renders at build, and flare({ prerender }) is off"),
+			])
+		}
+		// An app with no such page builds with prerender omitted.
+		const { "src/routes/_root_/seeded/seeded.page.tsx": _, ...live } = ROUTES
+		const plain = apps.make({
+			...live,
+			"vite.config.mjs": config("{}"),
+			"wrangler.json": wrangler("@lovrozagar/flare/worker"),
+		})
+		const built = await viteBuild(plain)
+		expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	},
+	540_000,
+)
