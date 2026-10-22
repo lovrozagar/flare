@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net"
 import { hostname } from "node:os"
 import { boot } from "../packages/core/tests/e2e/boot.ts"
 import { envelopeOf, fnId, wire } from "../packages/core/tests/e2e/docs.fixture.ts"
+import { onFreePort } from "./free-port.ts"
 import { SafariSession, type Fetcher } from "./safari-driver.ts"
 import { acquire, quote, release, type Lock, type Remote } from "./safari-lock.ts"
 
@@ -280,9 +281,17 @@ function logged(problems: unknown): string | undefined {
 	return lines.length === 0 ? undefined : `the page logged ${lines.join("; ")}`
 }
 
-// The tunnel to the Mac's driver, ready once the driver answers `/status` as ready.
-export async function tunnel(config: SafariConfig, fetch: Fetcher): Promise<{ base: string; close: () => void }> {
-	const port = await freePort()
+// The tunnel to the Mac's driver, ready once the driver answers `/status` as ready. ssh exits when its local port was
+// taken before it listened, and the tunnel runs again on another (BUGS.md 493).
+export function tunnel(config: SafariConfig, fetch: Fetcher): Promise<{ base: string; close: () => void }> {
+	return onFreePort((port) => tunnelOn(config, fetch, port))
+}
+
+async function tunnelOn(
+	config: SafariConfig,
+	fetch: Fetcher,
+	port: number,
+): Promise<{ base: string; close: () => void }> {
 	const ssh: ChildProcess = spawn(
 		"ssh",
 		[
@@ -312,17 +321,6 @@ export async function tunnel(config: SafariConfig, fetch: Fetcher): Promise<{ ba
 	throw new Error(
 		`The Mac's safaridriver is not reachable through \`ssh ${config.ssh}\` on port ${config.driverPort}${stderr === "" ? "" : ` (${stderr.trim()})`}. Run \`safaridriver -p ${config.driverPort}\` in a Terminal on the Mac.`,
 	)
-}
-
-function freePort(): Promise<number> {
-	return new Promise((resolve, reject) => {
-		const server = createServer()
-		server.on("error", reject)
-		server.listen(0, "127.0.0.1", () => {
-			const { port } = server.address() as AddressInfo
-			server.close(() => resolve(port))
-		})
-	})
 }
 
 // The docs server on every interface, so the Mac reaches it. Bodies stream through as they arrive. A browser that

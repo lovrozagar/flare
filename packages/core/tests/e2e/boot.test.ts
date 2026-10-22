@@ -5,7 +5,8 @@ import { connect } from "node:net"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { expect, it } from "vitest"
-import { boot, bootChild } from "./boot.ts"
+import { boot } from "./boot.ts"
+import { bootChild } from "./child.ts"
 
 // A test that boots a real vite dev server in a child process. Under the parallel suite that boot can pass the 5 s
 // default, so these tests alone get more room. The global timeout stays.

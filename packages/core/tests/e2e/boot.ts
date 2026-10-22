@@ -1,13 +1,13 @@
 import { spawn } from "node:child_process"
-import { mkdirSync, readdirSync, rmSync } from "node:fs"
+import { mkdirSync, readdirSync } from "node:fs"
 import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
-import { exited, exitOf, readOrigin, signalGroup } from "./child.ts"
-import { freePort } from "../free-port.ts"
+import { bootChild, exitOf, remove } from "./child.ts"
+import { onFreePort } from "../../../../scripts/free-port.ts"
 import { E2E_ENV, traceEnv } from "./e2e-env.ts"
 import { capture, tracked } from "./server-log.ts"
 
@@ -39,7 +39,14 @@ export async function boot(input: { app: string; runtime: string; mode: string }
 	return bootApp({ appDir: join(apps, input.app), runtime: input.runtime, mode: input.mode })
 }
 
-type BootInput = { appDir: string; runtime: string; mode: string; dirs?: readonly string[] }
+type BootInput = {
+	appDir: string
+	runtime: string
+	mode: string
+	dirs?: readonly string[]
+	// Where a dev boot picks its ports, a free one by default; boot.test hands it ports it holds.
+	ports?: () => Promise<number>
+}
 
 // The same boot over any app directory, as golden.test stages one (bits/14). `dirs` go when a dev boot closes. A failed
 // case carries what the boot logged during it (server-log.ts).
@@ -50,11 +57,9 @@ export async function bootApp(input: BootInput): Promise<Boot> {
 async function start(input: BootInput): Promise<Boot> {
 	if (!RUNTIMES.has(input.runtime)) throw new Error(input.runtime)
 	if (input.mode !== "dev" && input.mode !== "prod") throw new Error(input.mode)
+	if (input.mode === "dev") return bootDev(input)
 	const appDir = input.appDir
 	const cacheDir = await mkdtemp(join(tmpdir(), "flare-vite-"))
-	// A child process, so the app's Vite and the framework it loads stay out of the test process.
-	const dirs = input.dirs ?? []
-	if (input.mode === "dev") return bootChild({ appDir, cacheDir, dirs, ...devCommand(input.runtime, await freePort()) })
 	mkdirSync(outputs, { recursive: true })
 	const outDir = await mkdtemp(join(outputs, "out-"))
 	try {
@@ -67,6 +72,36 @@ async function start(input: BootInput): Promise<Boot> {
 	const [bin, args] = input.runtime === "bun" ? ["bun", ["-e", BUN_SERVE]] : [process.execPath, NODE_ARGS]
 	const env = E2E_ENV
 	return { ...(await bootChild({ appDir, cacheDir, bin, args: [...args, outDir], dirs: [outDir], env })), outDir }
+}
+
+// `vite dev` in a child process, so the app's Vite and the framework it loads stay out of the test process. Its port is
+// picked, then taken strictly, and another process can take it in between: the boot runs again on another, each try
+// with a cache dir of its own (scripts/free-port.ts, BUGS.md 493). `dirs` go once, when the boot closes, when it cannot
+// start, or when the test process exits first.
+async function bootDev(input: BootInput): Promise<Boot> {
+	const dirs = input.dirs ?? []
+	try {
+		const started = await onFreePort(
+			async (port) => {
+				const cacheDir = await mkdtemp(join(tmpdir(), "flare-vite-"))
+				return bootChild({ appDir: input.appDir, cacheDir, ...devCommand(input.runtime, port) })
+			},
+			input.ports === undefined ? {} : { pick: input.ports },
+		)
+		const onExit = (): void => remove(dirs)
+		process.once("exit", onExit)
+		return {
+			...started,
+			async close() {
+				process.off("exit", onExit)
+				await started.close()
+				remove(dirs)
+			},
+		}
+	} catch (error) {
+		remove(dirs)
+		throw error
+	}
 }
 
 const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", import.meta.url))
@@ -94,64 +129,6 @@ function devCommand(
 	return { bin: viteBin, args: listen, env }
 }
 const viteJs = fileURLToPath(new URL("../../../../node_modules/vite/bin/vite.js", import.meta.url))
-
-// The cache dir, and any other dir the boot made, go when the child exits for any reason, when it cannot start, and
-// when the test process exits first, so a failed or timed-out run leaves nothing behind. The child leads its own
-// process group, so its own children (the Workers dev server's workerd) end with it: when it cannot start, on close,
-// and when the test process exits (BUGS.md 128.7).
-export function bootChild(input: {
-	appDir: string
-	cacheDir: string
-	bin: string
-	args?: readonly string[]
-	dirs?: readonly string[]
-	env?: Record<string, string>
-}): Promise<Boot> {
-	const { appDir, cacheDir } = input
-	const child = spawn(input.bin, input.args ?? [], {
-		cwd: appDir,
-		// Playwright sets FORCE_COLOR. A colored URL would never match readOrigin, and NO_COLOR wins over it.
-		env: { ...process.env, ...input.env, FLARE_VITE_CACHE: cacheDir, NO_COLOR: "1" },
-		stdio: ["ignore", "pipe", "pipe"],
-		detached: true,
-	})
-	const output = capture()
-	output.attach(child.stdout)
-	output.attach(child.stderr)
-	const clean = (): void => remove([cacheDir, ...(input.dirs ?? [])])
-	// The exiting test process cannot await the child: SIGKILL, and a second removal after a write in flight lands.
-	const onExit = (): void => {
-		signalGroup(child, "SIGKILL")
-		clean()
-		Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
-		clean()
-	}
-	child.once("exit", clean)
-	child.once("error", clean)
-	process.once("exit", onExit)
-	const started = readOrigin(child).catch((error: unknown) => {
-		signalGroup(child, "SIGKILL")
-		throw error
-	})
-	return started.then((url) => ({
-		origin: url,
-		appDir,
-		cacheDir,
-		logs: output.logs,
-		// The group gets SIGTERM, the child is awaited, and whatever of the group ignored it is killed.
-		async close() {
-			process.off("exit", onExit)
-			signalGroup(child, "SIGTERM")
-			await exited(child)
-			signalGroup(child, "SIGKILL")
-			clean()
-		},
-	}))
-}
-
-function remove(dirs: readonly string[]): void {
-	for (const dir of dirs) rmSync(dir, { recursive: true, force: true, maxRetries: 3 })
-}
 
 // `vite build` on Node into `outDir`, as a deploy runs it, with NODE_ENV `production`: a runner's `test` would resolve
 // development builds, Solid's dev server among them. vite.config reads FLARE_E2E_RUNTIME to compose the Cloudflare
