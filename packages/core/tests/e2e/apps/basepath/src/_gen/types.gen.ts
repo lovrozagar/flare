@@ -4,18 +4,21 @@ export {};
 declare module "@lovrozagar/flare" {
 	interface FlareRegister {
 		routes: {
+			"/about": { params: {} };
 			"/cdn": { params: {} };
 			"/": { params: {} };
 		};
-		pageIds: "_root_/" | "_root_/cdn";
+		pageIds: "_root_/" | "_root_/about" | "_root_/cdn";
 		routeModules: {
 			"_root_": typeof import("../routes/_root_/root.root-layout.tsx").route;
 			"_root_/": typeof import("../routes/_root_/home.page.tsx").route;
+			"_root_/about": typeof import("../routes/_root_/about/about.page.tsx").route;
 			"_root_/cdn": typeof import("../routes/_root_/cdn/cdn.page.tsx").route;
 		};
 		routeParents: {
 			"_root_": [];
 			"_root_/": ["_root_"];
+			"_root_/about": ["_root_"];
 			"_root_/cdn": ["_root_"];
 		};
 	}
