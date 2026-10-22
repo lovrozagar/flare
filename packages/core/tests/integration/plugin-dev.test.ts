@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { createServer as createViteServer, type ViteDevServer } from "vite"
 import { afterAll, beforeAll, expect, it } from "vitest"
-import { freePort } from "../free-port.ts"
+import { onFreePort } from "../../../../scripts/free-port.ts"
 import { flare } from "../../src/vite/plugin/flare.ts"
 import { builtServer, fixtureApps, rootLayout, type Server } from "./vite-app.ts"
 
@@ -34,14 +34,22 @@ const received: Payload[] = []
 
 beforeAll(async () => {
 	root = apps.make(PAGES)
-	vite = await createViteServer({
-		root,
-		configFile: false,
-		logLevel: "silent",
-		plugins: [flare()],
-		server: { host: "127.0.0.1", port: await freePort(), strictPort: true },
+	// A port taken between the pick and the strict listen is picked again (BUGS.md 493).
+	vite = await onFreePort(async (port) => {
+		const server = await createViteServer({
+			root,
+			configFile: false,
+			logLevel: "silent",
+			plugins: [flare()],
+			server: { host: "127.0.0.1", port, strictPort: true },
+		})
+		try {
+			return await server.listen()
+		} catch (error) {
+			await server.close()
+			throw error
+		}
 	})
-	await vite.listen()
 	origin = vite.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? ""
 	const socket = new WebSocket(`${origin.replace("http", "ws")}/?token=${vite.config.webSocketToken}`, "vite-hmr")
 	await new Promise<void>((resolve, reject) => {

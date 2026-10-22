@@ -921,8 +921,7 @@ packages/core/tests/types/app/src/routes/[locale]/_root_/about/about.page.tsx	P7
 packages/core/tests/e2e/playwright.config.ts	P1	config	-	One Playwright config: every server crossed with chromium, firefox, and webkit, 18 projects from the pinned browsers on any OS (B70, B97), plus the browser floor (B123); a local run's workers sized to the free memory (workers.ts, BUGS.md 128)
 packages/core/tests/e2e/static.test.ts	P12	test	node	Playwright: SSG seeds read through the static store on every prod runtime, and a live render in dev. Calls boot
 packages/core/tests/e2e/boot.ts	P1	script	node	Start one e2e app on an ephemeral port. Does not copy the app (B70)
-packages/core/tests/free-port.ts	P1	test	node	A port the OS just assigned on 127.0.0.1, for a server that takes it strictly: the e2e dev boots, the dev integration servers, the consumer stage, exports.test (BUGS.md 486)
-packages/core/tests/e2e/child.ts	P1	script	node	A boot child's printed origin, its end, how it ended (exit code or signal), and its process group (BUGS.md 128); split from boot.ts at the 300-line limit
+packages/core/tests/e2e/child.ts	P1	script	node	A boot child: its start (bootChild, its dirs removed when it ends), its printed origin, its end, how it ended (exit code or signal), and its process group (BUGS.md 128); split from boot.ts at the 300-line limit
 packages/core/tests/e2e/cache-sharing.test.ts	P16	test	node	Visitors behind a shared cache at the permissive edge of RFC 9111: one visitor's answer never reaches another (plan 21 5.3)
 packages/core/tests/e2e/shared-cache.ts	P16	test	node	A shared HTTP cache for e2e: RFC 9111's shared-cache rules and RFC 9213's CDN-Cache-Control, each at its permissive edge
 packages/core/tests/e2e/shared-cache.test.ts	P16	test	node	Unit tests for shared-cache.ts, one case per rule it implements
@@ -935,6 +934,7 @@ packages/core/tests/e2e/child.test.ts	P1	test	node	Unit cases for child.ts
 packages/core/tests/e2e/copy-boot.ts	P15	test	node	A dev boot over a private temp copy of an app, for a case that writes into it, such as an HMR edit (B70, BUGS.md 111)
 packages/core/tests/e2e/copy-boot.test.ts	P15	test	node	Unit cases for copy-boot.ts
 packages/core/tests/e2e/boot.test.ts	P1	test	node	Unit cases for boot.ts
+packages/core/tests/e2e/boot-port.test.ts	P1	test	node	The dev boot's port race (BUGS.md 493): a port taken between the pick and Vite's strict listen is picked again, and every tried port is named once all are taken
 packages/core/tests/e2e/minimal.test.ts	P1	test	node	Playwright: the minimal app renders and hydrates. Calls boot
 packages/core/tests/e2e/navigation.test.ts	P6	test	node	Playwright: client navigation, back, and scroll. Calls boot
 packages/core/tests/e2e/server-fn.test.ts	P7	test	node	Playwright: a server function round-trip. Calls boot
@@ -1060,6 +1060,8 @@ scripts/browser-server.ts	P16	script	node	Browsers for the hydrate harness and t
 scripts/browser-server.test.ts	P16	test	node	Unit cases for browser-server.ts
 scripts/docker-run.ts	P16	script	node	A pinned image's `docker run` that survives the machine's pruner: on a missing image or layer it pulls the image again by digest and retries, three runs at most (BUGS.md 484)
 scripts/docker-run.test.ts	P16	test	node	Unit cases for docker-run.ts: a pruned image pulled again, other failures passed through, the bound
+scripts/free-port.ts	P1	script	node	A port the OS just assigned on 127.0.0.1, for a server that takes it strictly (BUGS.md 486), and the retry on another when a process took it between the pick and the listen (BUGS.md 493): the e2e dev boots, the dev integration servers, the consumer stage, exports.test, verify-safari's tunnel
+scripts/free-port.test.ts	P1	test	node	Unit cases for free-port.ts: a port taken in between picked again, every tried port named, other failures not retried, the taken-port signatures
 scripts/loopback-proxy.ts	P16	script	node	The isolated Chromium's way to the host's loopback (BUGS.md 484): a forwarding proxy on a Unix socket that reaches 127.0.0.1 ports 1024 and up only, and the relay inside Chromium's container
 scripts/loopback-proxy.test.ts	P16	test	node	Unit cases for loopback-proxy.ts: streaming, keep-alive across ports, headers as written, CONNECT, refusals, socket-only listen, caps, the relay
 packages/core/tests/e2e/global-setup.ts	P16	config	node	Playwright global setup: set FLARE_BROWSER_WS from browser-server.ts for the run

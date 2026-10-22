@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { rcompare, satisfies } from "semver"
-import { freePort } from "../free-port.ts"
+import { onFreePort } from "../../../../scripts/free-port.ts"
 import { nodeAt, type PinnedNode } from "../../../../scripts/node-at.ts"
 import { packTarball, stagePackage } from "../../../../scripts/release.ts"
 import { marked, readme } from "../structure/readme.ts"
@@ -180,9 +180,13 @@ export type Served = { origin: string; output: () => string; stop: () => Promise
 
 export type Start = { dir: string; args: (port: number) => readonly string[]; timeout: number }
 
-// Starts `args` with the given Node on a free port and waits until GET / answers, at most `timeout` ms.
-export async function serve(node: PinnedNode, start: Start): Promise<Served> {
-	const port = await freePort()
+// Starts `args` with the given Node on a free port and waits until GET / answers, at most `timeout` ms. A port taken
+// between the pick and the server's listen is picked again (BUGS.md 493).
+export function serve(node: PinnedNode, start: Start): Promise<Served> {
+	return onFreePort((port) => serveOn(node, start, port))
+}
+
+async function serveOn(node: PinnedNode, start: Start, port: number): Promise<Served> {
 	const args = start.args(port)
 	const child = spawn(node.node, args, { cwd: start.dir, env: envOf(node, { PORT: String(port) }) })
 	let output = ""

@@ -59,6 +59,7 @@ export default defineConfig<object, FloorOptions>({
 	// tarball (B70, bits/14).
 	testIgnore: [
 		"**/boot.test.ts",
+		"**/boot-port.test.ts",
 		"**/child.test.ts",
 		"**/copy-boot.test.ts",
 		"**/flush.test.ts",

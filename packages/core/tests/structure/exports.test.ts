@@ -1,10 +1,10 @@
-import { execFileSync, spawn, spawnSync } from "node:child_process"
+import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process"
 import { connect } from "node:net"
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import { parseSync } from "oxc-parser"
-import { freePort } from "../free-port.ts"
+import { onFreePort } from "../../../../scripts/free-port.ts"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { packCore, type Packed } from "../../../../scripts/release.ts"
 import { identifiers, marked, quickStart, readme, tableRows } from "./readme.ts"
@@ -278,6 +278,31 @@ it(
 	BUILD,
 )
 
+// The README's serve.js in `app`, once it answers the stub's 404. A server that never answers says why, its exit and its
+// output (BUGS.md 492); one whose port was taken before it listened runs again on another (BUGS.md 493).
+function serveReadme(app: string): Promise<{ child: ChildProcess; port: number }> {
+	return onFreePort(async (port) => {
+		const child = spawn(process.execPath, [join(app, "serve.js")], {
+			cwd: app,
+			env: { ...process.env, PORT: String(port) },
+		})
+		let output = ""
+		child.stdout?.on("data", (chunk: Buffer) => void (output += String(chunk)))
+		child.stderr?.on("data", (chunk: Buffer) => void (output += String(chunk)))
+		const deadline = Date.now() + 10_000
+		while (Date.now() < deadline && child.exitCode === null) {
+			const status = await fetch(`http://127.0.0.1:${port}/`).then(
+				(response) => response.status,
+				() => 0,
+			)
+			if (status === 404) return { child, port }
+			await new Promise((resolve) => setTimeout(resolve, 100))
+		}
+		child.kill()
+		throw new Error(`no answer; exit ${child.exitCode ?? child.signalCode ?? "none yet"}; output: ${output}`)
+	})
+}
+
 // The README's Node server runs: written beside a stub build in the stage, it serves a client file, hands the rest to
 // the listener, answers a path `decodeURIComponent` rejects with a status instead of dying on the rejection, and exits
 // 0 on SIGTERM once drained (plan 21 16.11).
@@ -293,27 +318,9 @@ it("readme node serve", async () => {
 		'export const server = { fetch: () => new Response("app", { status: 404 }), bodyLimit: 1 };\n',
 	)
 	writeFileSync(join(app, "dist/client/app.js"), "export {};\n")
-	const port = await freePort()
-	const child = spawn(process.execPath, [join(app, "serve.js")], {
-		cwd: app,
-		env: { ...process.env, PORT: String(port) },
-	})
-	// A server that never answers says why: its exit and its output (CI's Bun run at load 37 saw only status 0).
-	let output = ""
-	child.stdout.on("data", (chunk: Buffer) => void (output += String(chunk)))
-	child.stderr.on("data", (chunk: Buffer) => void (output += String(chunk)))
+	const { child, port } = await serveReadme(app)
 	try {
 		const origin = `http://127.0.0.1:${port}`
-		await expect
-			.poll(
-				() =>
-					fetch(`${origin}/`).then(
-						(response) => response.status,
-						() => `no answer; exit ${child.exitCode ?? child.signalCode ?? "none yet"}; output: ${output}`,
-					),
-				{ timeout: 10_000 },
-			)
-			.toBe(404)
 		const file = await fetch(`${origin}/app.js`)
 		expect([file.status, file.headers.get("content-type")]).toEqual([200, "text/javascript"])
 		const bad = await rawStatus(port, "/%E0%A4%A")
