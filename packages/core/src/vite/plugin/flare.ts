@@ -174,7 +174,8 @@ function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): U
 	state.cloudflare = composesCloudflare(config.plugins)
 	state.workerSource = state.cloudflare ? workerModule(entry.server, readWrangler(root)?.binding) : ""
 	// Prerender runs once the server is built, and writes its seeds into the client output (bits/12). With the
-	// Cloudflare plugin it runs only when on, from its own Node build of the server.
+	// Cloudflare plugin it runs from its own Node build of the server, also when off: a page that renders at build then
+	// fails the build, naming the route, as without the plugin (dx/plugin.md Options, BUGS.md 497).
 	const afterBuild = (built: { clientDir: string; serverFile: string }): Promise<void> =>
 		prerenderApp({
 			root,
@@ -183,7 +184,6 @@ function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): U
 			config: parsed.prerender,
 			...(state.cloudflare ? { workers: true } : {}),
 		})
-	const prerender = !state.cloudflare || parsed.prerender !== false
 	return {
 		root,
 		appType: "custom",
@@ -197,7 +197,7 @@ function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): U
 			entry,
 			user,
 			cloudflare: state.cloudflare,
-			...(prerender ? { afterBuild } : {}),
+			afterBuild,
 		}),
 		// A Web Worker bundle is a client graph: rewritten and scanned like the client (B9, B45).
 		worker: { plugins: () => [boundary("client")] },
