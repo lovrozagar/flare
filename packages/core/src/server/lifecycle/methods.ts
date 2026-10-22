@@ -14,6 +14,7 @@ import { RedirectError } from "../../shared/errors/redirect.ts"
 import { redirectLocation } from "../redirect/index.ts"
 import type { RuntimeOptions } from "./options.ts"
 import { finalize, ownStage } from "./finalize.ts"
+import { applySecurity } from "../security/apply.ts"
 
 const ALLOW = "GET, HEAD, OPTIONS"
 
@@ -74,18 +75,31 @@ function namedMethods(listed: ReadonlySet<string>): string {
 // and TRACK. The answer is what Bun's pipeline gives, in its order: an unknown internal param's 400; the canonical
 // step's redirect, a step that throws answering as `failed` does (a redirect's Location, else the projected 500); on a mounted path, which the method cannot reach here,
 // 501; a server function's 404 for an unknown id, else 405 naming its method; a route's 405 with its own Allow (RFC
-// 9110, BUGS.md 280, 284, 289). Middleware does not run: it needs the request this runtime cannot make.
+// 9110, BUGS.md 280, 284, 289). Middleware does not run: it needs the request this runtime cannot make. Every answer
+// carries the security set Bun's pipeline builds before the request runs, the server's own when it is an object and the
+// defaults when it is a callback, which needs the request's context (BUGS.md 491).
 export const REFUSED: unique symbol = Symbol.for("flare.refused")
 
-export type RefusedAnswer = { status: number; location?: string; allow?: string }
+export type RefusedAnswer = { status: number; location?: string; allow?: string; headers?: Headers }
 
 type Refused = { method: string; url: string }
 
 export function refusedChannel(
-	serving: { options: Pick<RuntimeOptions, "router" | "serverFns">; mounts: readonly Mount[]; sink: ErrorSink },
+	serving: {
+		options: Pick<RuntimeOptions, "router" | "serverFns" | "security">
+		mounts: readonly Mount[]
+		sink: ErrorSink
+	},
 	step: (request: Refused) => { status: number; location?: string },
 ): { [REFUSED]: (request: Refused) => Promise<RefusedAnswer> } {
-	return { [REFUSED]: (request) => refusedAnswer(serving, { request, step }) }
+	return {
+		[REFUSED]: async (request) => {
+			const answer = await refusedAnswer(serving, { request, step })
+			const { security } = serving.options
+			const secured = applySecurity({ url: request.url, headers: new Headers(), dev: serving.sink.dev, security })
+			return { ...answer, headers: secured.headers }
+		},
+	}
 }
 
 // As the pipeline's `failed`: a thrown redirect answers its Location, any other throw, the Location's own building

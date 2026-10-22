@@ -5,7 +5,16 @@ import { createServerFn } from "../server-fn/dispatch.ts"
 import { notFound, redirect } from "../../shared/errors/index.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { finalize } from "./finalize.ts"
-import { applyMethod, REFUSED, refusedChannel, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
+import {
+	applyMethod,
+	REFUSED,
+	refusedChannel,
+	checkResponseMethods,
+	routeMethod,
+	type MethodMatch,
+	type RefusedAnswer,
+} from "./methods.ts"
+import type { RuntimeOptions } from "./options.ts"
 
 const document = () => new Response("hello", { status: 200, headers: { "x-flare": "1" } })
 
@@ -172,7 +181,10 @@ const step = (request: { url: string }) => {
 
 // A server's refused channel over three routes, a mount, and two server functions, one whose module fails to load,
 // and the error lines its sink logs.
-function refusedServer(): { at: (path: string) => Promise<unknown>; logged: string[] } {
+function refusedServer(security?: RuntimeOptions["security"]): {
+	at: (path: string) => Promise<RefusedAnswer>
+	logged: string[]
+} {
 	const router = createRouter({
 		layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
 		routeTree: [
@@ -199,6 +211,7 @@ function refusedServer(): { at: (path: string) => Promise<unknown>; logged: stri
 				echo000000000000: async () => echo,
 				fail000000000000: async () => Promise.reject(new Error("module broke")),
 			},
+			security,
 		},
 		mounts: [{ prefix: "/mounted", fetch: respond }],
 		sink,
@@ -230,7 +243,8 @@ it("refused channel", async () => {
 		"/page",
 		"/elsewhere",
 	]
-	expect(await Promise.all(paths.map(at))).toEqual([
+	const answers = await Promise.all(paths.map(at))
+	expect(answers.map((answer) => ({ ...answer, headers: undefined }))).toEqual([
 		{ status: 400 },
 		{ status: 500 },
 		{ status: 303, location: "/page" },
@@ -248,4 +262,17 @@ it("refused channel", async () => {
 	])
 	expect(logged.join(" ")).toContain("rewrite broke")
 	expect(logged.join(" ")).toContain("module broke")
+	expect(new Set(answers.map((answer) => answer.headers?.get("x-frame-options")))).toEqual(new Set(["DENY"]))
+})
+
+// The X-Frame-Options a refused answer carries under the server's security.
+async function frame(security: RuntimeOptions["security"]): Promise<string | null | undefined> {
+	return (await refusedServer(security).at("/old")).headers?.get("x-frame-options")
+}
+
+// Each answer carries the security set Bun's pipeline builds before the request runs: the server's own as an object,
+// the defaults as a callback, which needs the request's context (BUGS.md 491).
+it("refused channel security", async () => {
+	expect(await frame({ "X-Frame-Options": "SAMEORIGIN" })).toBe("SAMEORIGIN")
+	expect(await frame(() => ({ "X-Frame-Options": "SAMEORIGIN" }))).toBe("DENY")
 })
