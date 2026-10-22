@@ -999,6 +999,16 @@ packages/core/tests/e2e/prefetch-reuse.test.ts	P6	test	node	Playwright: each eng
 packages/core/tests/e2e/docs-pages.ts	P15	test	node	The docs route map's pages and their statuses, which docs-smoke loads and docs-a11y scans
 packages/core/tests/e2e/docs-a11y.test.ts	P15	test	node	Playwright: every docs page passes an axe scan against WCAG 2.1 A and AA, on node-prod chromium (B143)
 packages/core/tests/e2e/docs-chaos.test.ts	P15	test	node	Playwright: the seeded browser chaos run, random clicks, Back, Forward, and reloads with blank-screen, error, and leak checks; FLARE_CHAOS_STEPS and FLARE_CHAOS_SEED run the long form
+packages/core/tests/black-box/seeded.ts	P15	test	node	The black-box suites' seeded generator (mulberry32), each suite's seed and steps from the env (the long form's seed is the night's date), and the replay line a failure prints
+packages/core/tests/black-box/seeded.test.ts	P15	test	node	Unit cases for seeded.ts: the sequence, the env and the date, the replay line
+packages/core/tests/black-box/hostile-corpus.ts	P15	test	node	The hostile-request corpus as data: each raw request with its status and content-type class on every runtime, and the invariants every answer meets
+packages/core/tests/black-box/hostile-corpus.test.ts	P15	test	node	Unit cases for hostile-corpus.ts: each invariant broken once, the type class, the corpus's shape
+packages/core/tests/black-box/raw.ts	P15	test	node	The black-box suites' raw HTTP/1.1 client: loopback only, the answer framed by Content-Length or chunked encoding, a chunked body decoded
+packages/core/tests/black-box/raw.test.ts	P15	test	node	Unit cases for raw.ts: a whole answer, loopback only, no answer, framed answers on an open socket
+packages/core/tests/black-box/painted.ts	P15	test	node	The chaos run's visible blank-screen measure: the share of the viewport painted apart from the page's background
+packages/core/tests/black-box/painted.test.ts	P15	test	node	Unit cases for painted.ts: the painted share and its tolerance, the background color
+packages/core/tests/black-box/fuzz.ts	P15	test	node	The hostile suite's long form: seeded mutations of the corpus (method, path, Host, Content-Length, a repeated or long header)
+packages/core/tests/black-box/fuzz.test.ts	P15	test	node	Unit cases for fuzz.ts: seeded, every kind, named after what it changed
 packages/core/tests/e2e/docs-parity.test.ts	P15	test	node	Playwright: the cross-runtime parity run, one list of ordinary requests answered alike by the Node, Bun, and workerd production servers
 packages/core/tests/e2e/docs-perf.test.ts	P15	test	node	Playwright: the docs production build's byte budgets (documents, state, NDJSON, initial and navigation JS gzipped) and its longest main-thread task, and plan 21 15.6's gate checks: the heavy pages' long tasks, the streaming shell, layout shift, requests and duplicates, navigation steadiness, heap and node growth, hydration time, the prod document
 packages/core/tests/e2e/docs-session.test.ts	P15	test	node	Playwright: a sixty-step docs session's live images and elements (the open BUGS.md 246, test.fail), and pages after a server function's 500 render their data, on production

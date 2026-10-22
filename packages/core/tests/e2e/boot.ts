@@ -216,10 +216,13 @@ const out = process.argv[1];
 const client = join(out, "client");
 const TYPES = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json", ".map": "application/json", ".ico": "image/x-icon", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".woff2": "font/woff2", ".txt": "text/plain", ".xml": "application/xml", ".webmanifest": "application/manifest+json" };
 const { server } = await import(pathToFileURL(join(out, "server/server.js")).href);
-async function file(pathname) {
-	// A pathname decodeURIComponent rejects names no file: the app answers it, as the README's serve.js does.
+async function file(target) {
+	// A target URL rejects, or a pathname decodeURIComponent rejects, names no file: the app answers it, as the README's
+	// serve.js does. \`//%C0%AE%C0%AE/\` is the first: a URL whose host it cannot be (the hostile corpus).
 	let path;
+	let pathname;
 	try {
+		pathname = new URL(target, "http://host").pathname;
 		path = normalize(join(client, decodeURIComponent(pathname)));
 	} catch {
 		return undefined;
@@ -238,7 +241,7 @@ import { createServer } from "node:http";
 import { createNodeListener } from "@lovrozagar/flare/adapters/node";
 const listener = createNodeListener(server);
 const http = createServer(async (req, res) => {
-	const found = await file(new URL(req.url ?? "/", "http://host").pathname);
+	const found = await file(req.url ?? "/");
 	if (found === undefined) return listener(req, res);
 	res.writeHead(200, found.headers);
 	res.end(found.body);
@@ -258,7 +261,7 @@ const bun = Bun.serve({
 	port: 0,
 	async fetch(request, served) {
 		// A Host Bun cannot read leaves request.url relative: no file, so the adapter answers it.
-		const found = URL.canParse(request.url) ? await file(new URL(request.url).pathname) : undefined;
+		const found = await file(request.url);
 		if (found === undefined) return app.fetch(request, served);
 		return new Response(found.body, { headers: found.headers });
 	},

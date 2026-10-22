@@ -1,24 +1,28 @@
-import type { Page } from "@playwright/test"
+import { writeFileSync } from "node:fs"
+import type { Page, TestInfo } from "@playwright/test"
+import sharp from "sharp"
+import { background, paintedFraction } from "../black-box/painted.ts"
+import { generator, replayLine, runFrom } from "../black-box/seeded.ts"
 import { expect, isProd, open, test } from "./docs.fixture.ts"
 
 // The seeded browser chaos run (plan 21 17.1): a session of random steps over the docs app, a click on one of the
-// page's own links, Back, Forward, or a reload, chosen by a seeded generator, so a failing run names the seed that
-// replays it. After every step the page is hydrated and shows content, never a blank screen; at the end no step left
-// an error, and in Chromium the pages left behind were collected. The gate runs 40 steps from one seed;
-// FLARE_CHAOS_STEPS and FLARE_CHAOS_SEED run a long form, as a nightly job does.
-const STEPS = Number(process.env["FLARE_CHAOS_STEPS"] ?? 40)
-const SEED = Number(process.env["FLARE_CHAOS_SEED"] ?? 20_261_017)
+// page's own links, Back, Forward, or a reload, chosen by the black-box suites' seeded generator, so a failing run names
+// the seed and the command that replay it. After every step the page is hydrated and shows content, never a blank
+// screen; at the end no step left an error, and in Chromium the pages left behind were collected. The gate runs 40
+// steps from one seed; FLARE_CHAOS_SEED and FLARE_CHAOS_STEPS pick a run, and FLARE_BLACKBOX_LONG=1 runs the nightly's
+// long form, 400 steps from the night's date.
+const RUN = runFrom(process.env, { name: "CHAOS", seed: 20_261_017, steps: 40, longSteps: 400 })
+const LONG = process.env["FLARE_BLACKBOX_LONG"] === "1"
 
-// mulberry32: a small seeded generator, the same sequence for the same seed on every machine.
-function generator(seed: number): () => number {
-	let state = seed >>> 0
-	return () => {
-		state = (state + 0x6d2b79f5) >>> 0
-		let mixed = Math.imul(state ^ (state >>> 15), 1 | state)
-		mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed
-		return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296
-	}
-}
+// The gate's projects: Chromium on Node and workerd, Firefox and WebKit on Node. The long form, or a run that names its
+// projects, runs every production project.
+const GATE = new Set(["node-prod-chromium", "workers-prod-chromium", "node-prod-firefox", "node-prod-webkit"])
+const CHOSEN = process.env["FLARE_E2E_PROJECTS_CHOSEN"] === "1"
+
+// The share of the viewport under which a page shows nothing, whatever text its DOM holds. The sparsest docs page,
+// `/admin`'s sign-in, paints 0.0065 in Chromium; a blank one paints 0 (the long form's Back, 2026-10-22). A third of
+// the sparsest, in every engine.
+const PAINTED_FLOOR = 0.002
 
 // The docs app's links to what is not a page, each with its reason: the runner steps on pages only.
 const NOT_PAGES = [
@@ -32,8 +36,16 @@ const ON_PURPOSE = [
 	"401 /admin",
 ]
 
-// Whether a problem is the browser's log of an answer in ON_PURPOSE: Chromium logs every error answer it loads.
+// Firefox's loaded fonts are shared by every context of one browser, which the runner reuses across a worker's tests: a
+// later context resolves the docs app's fonts from that cache and never uses its own preload, and Firefox warns. Probed
+// 2026-10-22: a fresh load, a client navigation, and a reload warn nothing; a fresh context warns for both fonts. A
+// visitor's single tab never meets it.
+const SHARED_FONT_CACHE = /preloaded with link preload was not used within a few seconds/
+
+// Whether a problem is the browser's log of an answer in ON_PURPOSE (Chromium logs every error answer it loads), or
+// Firefox's shared font cache.
 function onPurpose(problem: string): boolean {
+	if (SHARED_FONT_CACHE.test(problem)) return true
 	const [, status, url] = /status of (\d+) \(.*\) at (\S+)$/.exec(problem) ?? []
 	return url !== undefined && ON_PURPOSE.includes(`${status} ${new URL(url).pathname}`)
 }
@@ -125,24 +137,79 @@ async function shows(page: Page, at: { trail: readonly string[]; open: Set<strin
 	await expect.poll(text, { message: `blank ${message()}` }).toBeGreaterThan(0)
 }
 
-async function liveElements(page: Page): Promise<number> {
+// The share of the viewport painted apart from the page's background color (painted.ts).
+async function painted(page: Page): Promise<{ share: number; shot: Buffer }> {
+	const computed = await page.evaluate(() => {
+		const body = getComputedStyle(document.body).backgroundColor
+		return /^rgba\(0, 0, 0, 0\)$|^transparent$/.test(body)
+			? getComputedStyle(document.documentElement).backgroundColor
+			: body
+	})
+	// caret "initial": the default hides the caret with an injected stylesheet, which the docs app's CSP refuses, and
+	// WebKit logs the refusal as an error.
+	const shot = await page.screenshot({ type: "png", caret: "initial" })
+	const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true })
+	return { share: paintedFraction(data, { channels: info.channels, base: background(computed) }), shot }
+}
+
+// The painted share and its screenshot. WebKit's screenshot applies a stylesheet of Playwright's own, which the docs
+// app's CSP refuses and WebKit logs; a refusal logged during the screenshot itself is that, set aside. Any other
+// moment's still fails the run.
+async function screen(page: Page, problems: string[]): Promise<{ share: number; shot: Buffer }> {
+	const before = problems.length
+	const seen = await painted(page)
+	const during = problems.splice(before)
+	problems.push(...during.filter((problem) => !/Refused to apply a stylesheet/.test(problem)))
+	return seen
+}
+
+// A blank first screenshot taken again once the page settled, two frames and a second later: under load the first can
+// come before the new page's first paint, the DOM already hydrated (each blank the long form saw, Chromium with nine
+// projects at once, none in nine replays alone). A blank page stays blank: its share then, with both frames and the
+// page's state kept as files (the line reporter keeps a body attachment in the report only). Undefined once painted.
+async function settledBlank(
+	page: Page,
+	at: { problems: string[]; info: TestInfo; first: Buffer },
+): Promise<number | undefined> {
+	await page.evaluate(
+		() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined)))),
+	)
+	await page.waitForTimeout(1000)
+	const settled = await screen(page, at.problems)
+	if (settled.share > PAINTED_FLOOR) return undefined
+	const where = await page.evaluate(() => ({
+		scrollY: window.scrollY,
+		height: document.documentElement.scrollHeight,
+		text: document.body.innerText.slice(0, 200),
+	}))
+	const files: [string, string | Buffer, string][] = [
+		["blank-first.png", at.first, "image/png"],
+		["blank-settled.png", settled.shot, "image/png"],
+		["blank-page-state.json", JSON.stringify(where, undefined, 2), "application/json"],
+	]
+	for (const [name, body, contentType] of files) {
+		const path = at.info.outputPath(name)
+		writeFileSync(path, body)
+		await at.info.attach(name, { path, contentType })
+	}
+	return settled.share
+}
+
+// Chromium's live DOM nodes and JS event listeners after a GC: a detached subtree something still holds counts every
+// node in it, and a listener never removed counts until it is (CDP Memory.getDOMCounters).
+async function domCounters(page: Page): Promise<{ nodes: number; listeners: number }> {
 	const cdp = await page.context().newCDPSession(page)
 	await cdp.send("HeapProfiler.enable")
 	await cdp.send("HeapProfiler.collectGarbage")
-	const prototype = await cdp.send("Runtime.evaluate", { expression: "HTMLElement.prototype" })
-	const found = await cdp.send("Runtime.queryObjects", { prototypeObjectId: prototype.result.objectId ?? "" })
-	const length = await cdp.send("Runtime.callFunctionOn", {
-		objectId: found.objects.objectId ?? "",
-		functionDeclaration: "function () { return this.length }",
-		returnByValue: true,
-	})
+	const counters = await cdp.send("Memory.getDOMCounters")
 	await cdp.detach()
-	return Number(length.result.value)
+	return { nodes: counters.nodes, listeners: counters.jsEventListeners }
 }
 
 test("seeded chaos", async ({ page, docs, browserName }, info) => {
 	test.skip(!isProd(info), "the production build")
-	test.setTimeout(STEPS * 5_000 + 60_000)
+	test.skip(!LONG && !CHOSEN && !GATE.has(info.project.name), "the gate's four projects; the nightly runs all")
+	test.setTimeout(RUN.steps * 5_000 + 60_000)
 	const flying = inFlight(page)
 	// Every answer of 400 or more the docs app does not give on purpose, with its URL.
 	const failed: string[] = []
@@ -151,19 +218,44 @@ test("seeded chaos", async ({ page, docs, browserName }, info) => {
 		if (response.status() >= 400 && !ON_PURPOSE.includes(answer)) failed.push(`${answer} ${response.url()}`)
 	})
 	const problems = await open(page, docs.origin, "/")
-	const draw = generator(SEED)
+	const draw = generator(RUN.seed)
 	const trail: string[] = []
 	const chromium = browserName === "chromium"
-	let early = 0
-	for (let index = 0; index < STEPS; index++) {
+	const replay = replayLine(RUN, {
+		name: "CHAOS",
+		command: `bun run test:e2e -- --project ${info.project.name} docs-chaos`,
+	})
+	let early = { nodes: 0, listeners: 0 }
+	let least = 1
+	for (let index = 0; index < RUN.steps; index++) {
 		trail.push(await step(page, draw))
-		await shows(page, { trail, open: flying })
-		if (chromium && index === 9) early = await liveElements(page)
+		await shows(page, { trail, open: flying }).catch((error: unknown) => {
+			throw new Error(`${replay}\n${String(error)}`)
+		})
+		const { share, shot } = await screen(page, problems)
+		least = Math.min(least, share)
+		const blank = share > PAINTED_FLOOR ? undefined : await settledBlank(page, { problems, info, first: shot })
+		if (blank !== undefined) {
+			throw new Error(
+				`${replay}\nvisibly blank (${blank} of the viewport painted, settled) at ${page.url()} after ${trail.join(", ")}`,
+			)
+		}
+		if (chromium && index === 9) early = await domCounters(page)
 	}
-	const seen = `seed ${SEED}: ${trail.join(", ")}`
+	if (process.env["FLARE_CHAOS_OBSERVE"] === "1") console.log(`CHAOS-PAINTED ${browserName} ${least}`)
+	const seen = `${replay}: ${trail.join(", ")}`
 	expect({ failed, problems: problems.filter((problem) => !onPurpose(problem)) }, seen).toEqual({
 		failed: [],
 		problems: [],
 	})
-	if (chromium) expect(await liveElements(page), seen).toBeLessThanOrEqual(early * 1.5 + 200)
+	// Past step 10 the page holds what any one page needs: half again its count plus some slack, a leak's growth not.
+	if (chromium) {
+		const late = await domCounters(page)
+		expect({ ...late, seen }).toEqual({
+			nodes: late.nodes <= early.nodes * 1.5 + 200 ? late.nodes : `at most ${early.nodes * 1.5 + 200}`,
+			listeners:
+				late.listeners <= early.listeners * 1.5 + 20 ? late.listeners : `at most ${early.listeners * 1.5 + 20}`,
+			seen,
+		})
+	}
 })

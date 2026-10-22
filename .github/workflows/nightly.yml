@@ -95,9 +95,93 @@ jobs:
         env:
           FLARE_PERF_LONG: "1"
 
+  # Plan 21 17.1's long forms. The hostile corpus's seeded mutations, 2000 per runtime, held to its invariants.
+  black-box-hostile:
+    name: black-box-hostile
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    outputs:
+      replay: ${{ steps.seed.outputs.replay }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      # The night's seed is its UTC date, so the night replays from its date alone.
+      - id: seed
+        run: |
+          seed=$(date -u +%Y%m%d)
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_HOSTILE_SEED=$seed bun run test:e2e -- --project node-prod-chromium --project bun-prod-chromium --project workers-prod-chromium docs-hostile -g "hostile fuzz"" >> "$GITHUB_OUTPUT"
+      - run: bun run test:e2e -- --project node-prod-chromium --project bun-prod-chromium --project workers-prod-chromium docs-hostile -g "hostile fuzz"
+        env:
+          FLARE_BLACKBOX_LONG: "1"
+          FLARE_HOSTILE_SEED: ${{ steps.seed.outputs.seed }}
+
+  # Every docs page and seeded fuzz requests, the same answer from Node, Bun, and workerd.
+  black-box-parity:
+    name: black-box-parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      replay: ${{ steps.seed.outputs.replay }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      # The night's seed is its UTC date, so the night replays from its date alone.
+      - id: seed
+        run: |
+          seed=$(date -u +%Y%m%d)
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_PARITY_SEED=$seed bun run test:e2e -- --project node-prod-chromium docs-parity -g "runtime parity long"" >> "$GITHUB_OUTPUT"
+      - run: bun run test:e2e -- --project node-prod-chromium docs-parity -g "runtime parity long"
+        env:
+          FLARE_BLACKBOX_LONG: "1"
+          FLARE_PARITY_SEED: ${{ steps.seed.outputs.seed }}
+
+  # The seeded browser chaos run, 400 steps on every production project, with the visible blank-screen and leak checks.
+  black-box-chaos:
+    name: black-box-chaos
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      replay: ${{ steps.seed.outputs.replay }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium firefox webkit
+      # The night's seed is its UTC date, so the night replays from its date alone.
+      - id: seed
+        run: |
+          seed=$(date -u +%Y%m%d)
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_CHAOS_SEED=$seed bun run test:e2e -- --project node-prod-chromium --project node-prod-firefox --project node-prod-webkit --project bun-prod-chromium --project bun-prod-firefox --project bun-prod-webkit --project workers-prod-chromium --project workers-prod-firefox --project workers-prod-webkit docs-chaos" >> "$GITHUB_OUTPUT"
+      - run: bun run test:e2e -- --project node-prod-chromium --project node-prod-firefox --project node-prod-webkit --project bun-prod-chromium --project bun-prod-firefox --project bun-prod-webkit --project workers-prod-chromium --project workers-prod-firefox --project workers-prod-webkit docs-chaos
+        env:
+          FLARE_BLACKBOX_LONG: "1"
+          FLARE_CHAOS_SEED: ${{ steps.seed.outputs.seed }}
+
   issues:
     name: issues
-    needs: [benches, baseline, perf-e2e]
+    needs: [benches, baseline, perf-e2e, black-box-hostile, black-box-parity, black-box-chaos]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -110,16 +194,19 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
         run: |
           gh label create nightly --color B60205 --description "A nightly job failed" --force
-          for job in benches baseline perf-e2e; do
+          for job in benches baseline perf-e2e black-box-hostile black-box-parity black-box-chaos; do
             result=$(printf '%s' "$RESULTS" | jq -r --arg job "$job" '.[$job].result')
+            replay=$(printf '%s' "$RESULTS" | jq -r --arg job "$job" '.[$job].outputs.replay // empty')
+            detail=""
+            if [ -n "$replay" ]; then detail=$(printf '\n\nReplay: `%s`' "$replay"); fi
             title="nightly: $job"
             open=$(gh issue list --label nightly --state open --limit 100 --json number,title \
               | jq -r --arg title "$title" '.[] | select(.title == $title) | .number' | head -n 1)
             if [ "$result" = "failure" ]; then
               if [ -n "$open" ]; then
-                gh issue comment "$open" --body "Failed again: $RUN"
+                gh issue comment "$open" --body "Failed again: $RUN$detail"
               else
-                gh issue create --label nightly --title "$title" --body "The nightly $job job failed: $RUN"
+                gh issue create --label nightly --title "$title" --body "The nightly $job job failed: $RUN$detail"
               fi
             elif [ "$result" = "success" ] && [ -n "$open" ]; then
               gh issue close "$open" --comment "Green again: $RUN"
