@@ -1,12 +1,13 @@
 import { CROSS_ORIGIN_RULE } from "../../shared/route-builder/methods.ts"
-import { isRootFolder } from "../../shared/route-tree/index.ts"
+import { idPattern, isRootFolder } from "../../shared/route-tree/index.ts"
 import { authHint } from "./auth-hint.ts"
-import type { Scan } from "./scan.ts"
+import { scanRoute, type Scan } from "./scan.ts"
 
 // A route file by its id and its path under the routes folder.
 type Named = { id: string; file: string }
 
 const ROOT_LAYOUT = ".root-layout.tsx"
+const PAGE = ".page.tsx"
 
 // Each page needs the root layout of its own root, its id up to the first root folder (`_admin_`, `[locale]/_root_`):
 // another root's layout is not in its chain, so it would render with no document (plan 21 13.3). Every page missing
@@ -65,5 +66,35 @@ export function assertIntercepts(routes: ReadonlyArray<Named & { intercept?: { f
 		const unknown = route.intercept?.from.find((id) => !ids.has(id))
 		if (unknown !== undefined)
 			throw new Error(`${route.file}: intercept from: no route has id ${JSON.stringify(unknown)}`)
+	}
+}
+
+// A folder holds one page (dx/routes.md). The error teaches the rule: it names the page to move, the one whose own id
+// string is not the folder's, else the later file; the folder to move it into, named after its file; and the URL it
+// then serves (BUGS.md 480).
+export function assertOne(pages: readonly Named[], read: (file: string) => string, dir: string): void {
+	const seen = new Map<string, Named>()
+	for (const page of pages) {
+		const prior = seen.get(page.id)
+		if (prior === undefined) {
+			seen.set(page.id, page)
+			continue
+		}
+		const moved: Named = namesItsFolder(page, read) && !namesItsFolder(prior, read) ? prior : page
+		const folder = moved.file.slice(0, moved.file.lastIndexOf("/"))
+		const stem = moved.file.slice(folder.length + 1, -PAGE.length)
+		const url = idPattern(`${moved.id.replace(/\/$/, "")}/${stem}`)
+		const target = `${dir}/${folder}/${stem}/${stem}${PAGE}`
+		throw new Error(`two pages: ${dir}/${moved.file}: a folder holds one page; move it to ${target} for ${url}`)
+	}
+}
+
+// Whether a page's own id strings are its folder's: true when the scan resolves none. A page the scan cannot read is
+// the one being written, so it is the one to move.
+function namesItsFolder(page: Named, read: (file: string) => string): boolean {
+	try {
+		return scanRoute(page.file, read(page.file)).ids.every((found) => found.id === page.id)
+	} catch {
+		return false
 	}
 }

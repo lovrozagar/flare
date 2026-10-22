@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, relative, sep } from "node:path"
+import { RELOAD_EVENT } from "../dev/tabs.ts"
 import { fixIds } from "./fix-ids.ts"
-import { generateRoutes, routeIdOf } from "./routes.ts"
+import { generateRoutes, routeIdOf, routePlaceOf } from "./routes.ts"
 import { scanRoute } from "./scan.ts"
 import { generateServerFns } from "./server-fns.ts"
 import { generateTypes } from "./types-gen.ts"
@@ -41,11 +42,15 @@ type Fix = { file: string; path: string; source: string; fixed: string; line: st
 
 // Each route file whose resolved id strings disagree with its path is rewritten to it, as TanStack Router's generator
 // does (dx/routes.md, BUGS.md 130). Every fix is read first, then written; a file whose text changed since it was read,
-// an editor's save, is left as saved for the next pass. A file the scan cannot parse is left for the routes to report.
+// an editor's save, is left as saved for the next pass. A file the scan cannot parse is left for the routes to report,
+// and so is a file whose folder already holds a route of its kind: the folder's id would make two share one, so its
+// source stays as written and the routes report the clash (BUGS.md 480).
 function fixRouteIds(root: string, files: readonly string[], log: GenerateOptions["log"]): void {
+	const byPlace = Map.groupBy(files, (file) => routePlaceOf(file))
+	const clashing = new Set([...byPlace.values()].filter((group) => group.length > 1).flat())
 	const fixes = files.flatMap((file): Fix[] => {
 		const id = routeIdOf(file)
-		if (id === undefined) return []
+		if (id === undefined || clashing.has(file)) return []
 		const path = join(root, ROUTES_DIR, file)
 		const source = readFileSync(path, "utf8")
 		const ids = parsedIds(file, source)
@@ -102,11 +107,24 @@ function filesUnder(dir: string): string[] {
 export type WatchedServer = {
 	watcher: { on(event: "all", listener: (event: string, path: string) => void): unknown }
 	config: { logger: { error(message: string): void; info(message: string): void } }
+	environments: { client: { hot: { send(payload: unknown): void } } }
 }
 
+// The last dev codegen failure, as thrown, cleared when a pass succeeds. The dev handler answers documents with it
+// (BUGS.md 480).
+export type CodegenFailure = { error?: unknown }
+
 // `vite dev` writes the files again after a short debounce when a source under src changes, each route file's id
-// string first. A failure is reported and does not end the process. The generated files themselves are not sources.
-export function watchGenerated(server: WatchedServer, root: string, delay = 50): void {
+// string first. A failure does not end the process: it is logged, opens Vite's overlay in every tab, and is kept in
+// `failure` until a pass succeeds (BUGS.md 480). That pass tells every tab to load again, which the dev error page
+// does: the fixed file may have no module in a graph for Vite to update, so no update or full reload reaches it. The
+// generated files themselves are not sources.
+export function watchGenerated(
+	server: WatchedServer,
+	root: string,
+	at: { delay?: number; failure?: CodegenFailure } = {},
+): void {
+	const { delay = 50, failure = {} } = at
 	const src = join(root, "src") + sep
 	const out = join(root, OUT_DIR) + sep
 	let timer: ReturnType<typeof setTimeout> | undefined
@@ -116,8 +134,13 @@ export function watchGenerated(server: WatchedServer, root: string, delay = 50):
 		timer = setTimeout(() => {
 			try {
 				writeGenerated(root, { fixIds: true, log: (line) => server.config.logger.info(line) })
+				if (failure.error !== undefined)
+					server.environments.client.hot.send({ type: "custom", event: RELOAD_EVENT, data: {} })
+				failure.error = undefined
 			} catch (error) {
+				failure.error = error
 				server.config.logger.error(`[flare:codegen] ${String(error)}`)
+				server.environments.client.hot.send({ type: "error", err: { message: String(error), stack: "" } })
 			}
 		}, delay)
 	})

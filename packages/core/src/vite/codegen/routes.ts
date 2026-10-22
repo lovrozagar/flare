@@ -8,7 +8,7 @@ import {
 	staticKey,
 	type Segment,
 } from "../../shared/route-tree/index.ts"
-import { assertCrossOrigin, assertIntercepts, assertOneLayout, assertRoot } from "./layout-checks.ts"
+import { assertCrossOrigin, assertIntercepts, assertOne, assertOneLayout, assertRoot } from "./layout-checks.ts"
 import { codeLiteral, escapeSource } from "./escape.ts"
 import { scanRoute, type ClientLiteral, type Scan } from "./scan.ts"
 
@@ -65,9 +65,9 @@ export function generateRoutes(
 	assertRoot(pages, layouts)
 	assertApart(routed)
 	assertOneLayout(layouts)
+	assertOne(pages, read, options.routesDir ?? "src/routes")
 	const scans = assertExports([...pages, ...layouts], read)
 	assertCrossOrigin(pages, layouts, scans)
-	assertOne(pages)
 	const routes = pages.map((page) => toRoute(page, scans.get(page.file)))
 	assertUnique(routes)
 	assertKinds(routes)
@@ -107,6 +107,13 @@ function routeItem(file: string): { page: boolean; item: Item } | undefined {
 // not a route.
 export function routeIdOf(file: string): string | undefined {
 	return routeItem(file)?.item.id
+}
+
+// The place a route file takes: a page, or the one layout, root layout, or segment, at its id. Two files with one place
+// are an error the routes report (`two pages`, `two layouts for <id>`).
+export function routePlaceOf(file: string): string | undefined {
+	const found = routeItem(file)
+	return found === undefined ? undefined : `${found.page ? "page" : "layout"}\0${found.item.id}`
 }
 
 // A root's home page shares its folder with the root layout, so its id ends in "/": `_root_/` (dx/routes.md).
@@ -204,15 +211,6 @@ function assertExports(items: readonly Item[], read: (file: string) => string): 
 		scans.set(entry.file, scan)
 	}
 	return scans
-}
-
-function assertOne(pages: readonly Item[]): void {
-	const seen = new Map<string, Item>()
-	for (const page of pages) {
-		const prior = seen.get(page.id)
-		if (prior) throw new Error(`two pages: ${prior.file}, ${page.file}`)
-		seen.set(page.id, page)
-	}
 }
 
 function assertUnique(routes: readonly RouteGen[]): void {
