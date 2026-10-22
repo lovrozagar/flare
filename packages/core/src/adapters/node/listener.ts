@@ -117,8 +117,9 @@ async function pump(job: Job): Promise<void> {
 	})
 	const method = job.req.method ?? "GET"
 	if (UNBUILT.has(method.toUpperCase())) {
-		const { status, location, allow } = await refusedAt(job.server, { method, url: adapted.url })
-		const headers = new Headers(allow === undefined ? {} : { allow })
+		const { status, location, allow, headers: secured } = await refusedAt(job.server, { method, url: adapted.url })
+		const headers = new Headers(secured)
+		if (allow !== undefined) headers.set("allow", allow)
 		return send(job, finalize({ status, body: "", url: adapted.url, location, headers }), disconnect.signal)
 	}
 	const init: RequestInit = { method, headers, signal: disconnect.signal }

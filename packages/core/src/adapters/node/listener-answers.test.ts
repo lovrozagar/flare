@@ -349,3 +349,31 @@ it("node unparseable host and throw", async () => {
 		await new Promise((resolve) => server.close(resolve))
 	}
 })
+
+// A refused method's answer carries the security set the server's channel built, the app's own, and Allow only when the
+// channel names one (BUGS.md 491).
+it("refused method security", async () => {
+	const set: Record<string, string> = {}
+	const server = {
+		fetch: () => new Response("x"),
+		[Symbol.for("flare.refused")]: async () => ({
+			status: 400,
+			headers: new Headers({ "x-frame-options": "SAMEORIGIN" }),
+		}),
+	}
+	const listener = createNodeListener(server)
+	listener(
+		{ ...req(), method: "TRACE", headers: { host: "localhost" } },
+		{
+			writeHead() {},
+			setHeader(name: string, value: string | readonly string[]) {
+				set[name.toLowerCase()] = String(value)
+			},
+			write: () => true,
+			end() {},
+			once() {},
+		},
+	)
+	await settle()
+	expect([set["x-frame-options"], set["allow"]]).toEqual(["SAMEORIGIN", undefined])
+})
