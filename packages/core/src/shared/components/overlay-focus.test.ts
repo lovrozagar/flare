@@ -93,3 +93,85 @@ it("unreachable skipped", () => {
 	expect(document.activeElement?.id).toBe("b")
 	close()
 })
+
+// macOS Safari's Tab skips links unless the user turned that on, so from a field in the middle of an overlay its own
+// Tab can land on a control in the page behind, past the overlay's links, where Tab's wrap at the edges never runs
+// (verify:safari, plan 35). Focus that lands outside the open overlay comes back: to its first element going forward,
+// to its last after Shift+Tab. Closed, the overlay leaves focus alone (BUGS.md 501).
+it("escaped focus", () => {
+	document.body.innerHTML = '<button id="behind">behind</button>'
+	const root = overlay('<input id="field"><a id="link" href="/r">result</a><button id="last">close</button>')
+	const close = trapFocus(
+		() => [root],
+		() => undefined,
+	)
+	document.getElementById("field")?.focus()
+	press("Tab")
+	document.getElementById("behind")?.focus()
+	expect(document.activeElement?.id).toBe("field")
+	document.getElementById("link")?.focus()
+	press("Tab", true)
+	document.getElementById("behind")?.focus()
+	expect(document.activeElement?.id).toBe("last")
+	close()
+	document.getElementById("behind")?.focus()
+	expect(document.activeElement?.id).toBe("behind")
+	// An overlay with nothing to focus takes the focus back itself.
+	const bare = overlay('<p id="note">nothing to focus</p>')
+	const closeBare = trapFocus(
+		() => [bare],
+		() => undefined,
+	)
+	document.getElementById("behind")?.focus()
+	expect(document.activeElement).toBe(bare)
+	closeBare()
+})
+
+// Closing takes the guard down before focus goes back to the opener, so the return is not pulled into the overlay
+// that is closing (BUGS.md 501).
+it("close returns past the guard", () => {
+	document.body.innerHTML = '<a id="opener" href="/x">open</a>'
+	document.getElementById("opener")?.focus()
+	const root = overlay('<button id="one">1</button>')
+	const close = trapFocus(
+		() => [root],
+		() => undefined,
+	)
+	expect(document.activeElement?.id).toBe("one")
+	close()
+	expect(document.activeElement?.id).toBe("opener")
+})
+
+// Focus the app moves out with no key, a toast's button say, comes back to the overlay's first element while it is
+// open; once closed, nothing pulls it back (BUGS.md 501).
+it("focus moved by the app", () => {
+	document.body.innerHTML = '<button id="toast">toast</button>'
+	const root = overlay('<button id="one">1</button><button id="two">2</button>')
+	const close = trapFocus(
+		() => [root],
+		() => undefined,
+	)
+	document.getElementById("two")?.focus()
+	document.getElementById("toast")?.focus()
+	expect(document.activeElement?.id).toBe("one")
+	close()
+	document.getElementById("toast")?.focus()
+	expect(document.activeElement?.id).toBe("toast")
+})
+
+// A Shift+Tab sets the direction for the focus change that follows it only: a later move out with no key goes to the
+// first element, not the last (BUGS.md 501).
+it("direction resets", () => {
+	document.body.innerHTML = '<button id="behind">behind</button>'
+	const root = overlay('<button id="one">1</button><button id="two">2</button>')
+	const close = trapFocus(
+		() => [root],
+		() => undefined,
+	)
+	document.getElementById("two")?.focus()
+	press("Tab", true)
+	document.getElementById("one")?.focus()
+	document.getElementById("behind")?.focus()
+	expect(document.activeElement?.id).toBe("one")
+	close()
+})
