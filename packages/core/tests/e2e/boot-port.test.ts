@@ -56,9 +56,15 @@ it(
 		const picks = held.map((server) => server.port)
 		const tried = bootApp({ appDir: MINIMAL, runtime: "node", mode: "dev", ports: async () => picks.shift() ?? 0 })
 		try {
-			await expect(tried).rejects.toThrow(
-				`no free port after 3 tries (${held.map((server) => server.port).join(", ")})`,
+			// A boot that comes up anyway, the regression this case catches, is closed, so a red run leaves no dev server.
+			const outcome = await tried.then(
+				async (session) => {
+					await session.close()
+					return "booted"
+				},
+				(error: unknown) => String(error),
 			)
+			expect(outcome).toContain(`no free port after 3 tries (${held.map((server) => server.port).join(", ")})`)
 		} finally {
 			await Promise.all(held.map((server) => server.close()))
 		}
