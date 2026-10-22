@@ -6,6 +6,7 @@ import { chromium } from "@playwright/test"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { browserEndpoint, IMAGE_DIGEST, type BrowserEndpoints } from "../../../../scripts/browser-server.ts"
 import { runPinned } from "../../../../scripts/docker-run.ts"
+import { alive, CHURN_SECONDS, ownedLabels, removeOrphans, removeOwned } from "./churn-containers.ts"
 
 // Another process adding or removing a network interface, a Docker network, a container's veth, a VPN, fails every
 // load Chromium has in flight with ERR_NETWORK_CHANGED when it shares that network namespace (BUGS.md 484). The
@@ -17,13 +18,14 @@ import { runPinned } from "../../../../scripts/docker-run.ts"
 // runs in any other namespace.
 
 const IMAGE = `mcr.microsoft.com/playwright:v1.64.1-noble@sha256:${IMAGE_DIGEST}`
-// busybox's `ip`, pinned, makes and drops addresses and dummy links every 50 ms.
+// busybox's `ip`, pinned, makes and drops addresses and dummy links every 50 ms, until its deadline: the loop checks
+// the clock itself, since `sh` runs as PID 1, which a signal's default action never ends (`timeout` did not).
 const BUSYBOX = "busybox@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e"
 const CHURN =
-	"i=0; while true; do i=$((i+1)); ip addr add 10.77.$((i%200)).1/32 dev lo; " +
+	`end=$(($(date +%s) + ${CHURN_SECONDS})); i=0; while [ "$(date +%s)" -lt "$end" ]; do i=$((i+1)); ` +
+	"ip addr add 10.77.$((i%200)).1/32 dev lo; " +
 	"ip link add d$((i%50)) type dummy 2>/dev/null && ip link set d$((i%50)) up; sleep 0.05; " +
 	"ip addr del 10.77.$((i%200)).1/32 dev lo; ip link del d$((i%50)) 2>/dev/null; sleep 0.05; done"
-const LABEL = "flare.churn=1"
 
 const dockerRun = (args: readonly string[]) => {
 	const done = spawnSync(process.env["FLARE_DOCKER"] ?? "docker", args, { encoding: "utf8" })
@@ -48,6 +50,7 @@ const isolated = (): boolean =>
 	endpoints !== undefined && process.env["FLARE_BROWSER_WS"] === undefined && docker("version").status === 0
 
 beforeAll(async () => {
+	if (docker("version").status === 0) removeOrphans(docker, alive)
 	endpoints = await browserEndpoint()
 	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
 	const address = server.address()
@@ -56,8 +59,7 @@ beforeAll(async () => {
 
 afterAll(() => {
 	server.close()
-	const left = docker("ps", "-aq", "--filter", `label=${LABEL}`).stdout.split("\n").filter(Boolean)
-	if (left.length > 0) docker("rm", "-f", ...left)
+	if (docker("version").status === 0) removeOwned(docker, process.pid)
 })
 
 // A churn sidecar in `network` (another container's namespace, or a fresh one of its own), for the length of `run`.
@@ -66,8 +68,7 @@ async function churning<T>(network: string, run: () => Promise<T>): Promise<T> {
 		"run",
 		"-d",
 		"--rm",
-		"--label",
-		LABEL,
+		...ownedLabels(process.pid),
 		"--network",
 		network,
 		"--cap-add",
@@ -124,8 +125,7 @@ it("churn in its own namespace fails chromium only", async (context) => {
 		"-d",
 		"--rm",
 		"--init",
-		"--label",
-		LABEL,
+		...ownedLabels(process.pid),
 		"--name",
 		name,
 		"--network",
