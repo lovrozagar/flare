@@ -34,3 +34,15 @@ it("namespace record", async () => {
 		vi.unstubAllEnvs()
 	}
 })
+
+// Dev's wait is capped: a namespace filled well inside the cap resolves, and one that never fills fails only once
+// about 600 ms have passed (dx/routes.md Lazy route modules). The bounds are loose, so a slow runner never fails it.
+it("fill cap", async () => {
+	const page = { loader: () => ({ id: "page" }) }
+	const soon = namespace()
+	setTimeout(() => Object.assign(soon, { route: page }), 50)
+	expect((await loadChain(lazyAt(async () => soon))).map((entry) => entry.module)).toEqual([{}, page])
+	const started = performance.now()
+	await expect(loadChain(lazyAt(async () => namespace()))).rejects.toThrow("_root_/a has no route record")
+	expect(performance.now() - started).toBeGreaterThanOrEqual(550)
+})
