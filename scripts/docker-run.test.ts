@@ -13,6 +13,12 @@ const snapshot: DockerResult = {
 	stdout: "",
 	stderr: "docker: Error response from daemon: NotFound: parent snapshot sha256:6cd03 does not exist: not found.",
 }
+const lease: DockerResult = {
+	status: 125,
+	stdout: "",
+	stderr:
+		"Unable to find image 'busybox@sha256:fd7dc' locally\ndocker: Error response from daemon: lease does not exist: not found",
+}
 const other: DockerResult = { status: 125, stdout: "", stderr: "permission denied while trying to connect" }
 
 // A runner that answers `run` from `runs` in turn and records every call.
@@ -26,10 +32,10 @@ function runner(runs: DockerResult[]) {
 	return { run, calls }
 }
 
-// The machine's pruner removes an unused image, and can take its layers while a run unpacks them: the image is pulled
-// again by its digest and the run retried.
+// The machine's pruner removes an unused image, and can take its layers while a run unpacks them, or the lease of a pull
+// in flight: the image is pulled again by its digest and the run retried.
 it("pruned image pulled again", () => {
-	for (const lost of [missing, snapshot]) {
+	for (const lost of [missing, snapshot, lease]) {
 		const { run, calls } = runner([lost, ok])
 		expect(runPinned(run, IMAGE, ["run", "-d", IMAGE, "true"])).toEqual(ok)
 		expect(calls).toEqual([

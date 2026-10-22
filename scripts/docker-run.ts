@@ -2,10 +2,10 @@
 export type DockerResult = { status: number | null; stdout: string; stderr: string }
 
 // A pinned image's container start that survives the machine's pruner (BUGS.md 484): `docker-auto-prune` removes an
-// image nothing uses, and can take its layers while a run is unpacking them ("parent snapshot … does not exist"). On
-// that, or an image Docker no longer has, the image is pulled again by its digest and the run retried, three runs at
-// most; any other failure is returned for the caller to judge.
-const PRUNED = /No such image|parent snapshot [^\n]* does not exist/
+// image nothing uses, and can take its layers while a run is unpacking them ("parent snapshot … does not exist") or the
+// lease of a pull in flight ("lease does not exist"). On that, or an image Docker no longer has, the image is pulled
+// again by its digest and the run retried, three runs at most; any other failure is returned for the caller to judge.
+const PRUNED = /No such image|parent snapshot [^\n]* does not exist|lease does not exist/
 
 export function runPinned(
 	run: (args: readonly string[]) => DockerResult,
