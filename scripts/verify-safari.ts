@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net"
 import { hostname } from "node:os"
 import { boot } from "../packages/core/tests/e2e/boot.ts"
+import { exitOf } from "../packages/core/tests/e2e/child.ts"
 import { envelopeOf, fnId, wire } from "../packages/core/tests/e2e/docs.fixture.ts"
 import { onFreePort } from "./free-port.ts"
 import { ENTER, ESCAPE, SafariSession, TAB, type Fetcher } from "./safari-driver.ts"
@@ -449,16 +450,19 @@ async function tunnelOn(
 	ssh.stderr?.on("data", (chunk: Buffer) => (stderr += chunk.toString()))
 	const base = `http://127.0.0.1:${port}`
 	const close = (): void => void ssh.kill()
-	for (let attempt = 0; attempt < 60 && ssh.exitCode === null; attempt += 1) {
+	// An ssh a signal ended has no exit code, only a signal code; either way the tunnel is gone (BUGS.md 500.13).
+	const ended = (): boolean => ssh.exitCode !== null || ssh.signalCode !== null
+	for (let attempt = 0; attempt < 60 && !ended(); attempt += 1) {
 		const ready = await fetch(`${base}/status`, { method: "GET" })
 			.then(async (response) => Reflect.get(Object(Reflect.get(Object(await response.json()), "value")), "ready"))
 			.catch(() => false)
 		if (ready === true) return { base, close }
 		await new Promise((resolve) => setTimeout(resolve, 250))
 	}
+	const how = ended() ? `ssh ${exitOf(ssh.exitCode, ssh.signalCode)}` : "ssh still running"
 	close()
 	throw new Error(
-		`The Mac's safaridriver is not reachable through \`ssh ${config.ssh}\` on port ${config.driverPort}${stderr === "" ? "" : ` (${stderr.trim()})`}. Run \`safaridriver -p ${config.driverPort}\` in a Terminal on the Mac.`,
+		`The Mac's safaridriver is not reachable through \`ssh ${config.ssh}\` on port ${config.driverPort} (${how}${stderr === "" ? "" : `: ${stderr.trim()}`}). Run \`safaridriver -p ${config.driverPort}\` in a Terminal on the Mac.`,
 	)
 }
 

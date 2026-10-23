@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdtempSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, it } from "vitest"
@@ -24,6 +24,22 @@ it("unreachable fails", async () => {
 	const config = { ssh: "flare-no-such-mac.invalid", driverPort: 4799, host: "10.0.0.2" }
 	await expect(tunnel(config, fetch)).rejects.toThrow("Run `safaridriver -p 4799` in a Terminal on the Mac")
 }, 30_000)
+
+// An ssh the host kills ends the wait at once, and the failure names the signal rather than polling the dead tunnel
+// for 15 s. The ssh on PATH here SIGKILLs itself, so no real ssh runs (BUGS.md 500.13).
+it("killed tunnel named", async () => {
+	const bin = mkdtempSync(join(tmpdir(), "flare-ssh-"))
+	writeFileSync(join(bin, "ssh"), "#!/bin/sh\nkill -KILL $$\n", { mode: 0o755 })
+	const path = process.env["PATH"]
+	process.env["PATH"] = `${bin}:${path ?? ""}`
+	try {
+		const config = { ssh: "flare-no-such-mac.invalid", driverPort: 4799, host: "10.0.0.2" }
+		await expect(tunnel(config, fetch)).rejects.toThrow("on port 4799 (ssh signal SIGKILL)")
+	} finally {
+		process.env["PATH"] = path
+		rmSync(bin, { recursive: true })
+	}
+})
 
 // A WebDriver that opens a session and answers every command with null.
 const driver: Fetcher = async (url) => ({
