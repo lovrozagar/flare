@@ -930,8 +930,8 @@ packages/core/tests/e2e/shared-cache.ts	P16	test	node	A shared HTTP cache for e2
 packages/core/tests/e2e/shared-cache.test.ts	P16	test	node	Unit tests for shared-cache.ts, one case per rule it implements
 packages/core/tests/e2e/e2e-env.ts	P1	test	node	The env every e2e boot's server sees: FLARE_E2E and the dashboard's webhook secrets, which its routes read from env (BUGS.md 372); and a dev boot's trace module under FLARE_E2E_TRACE=1 (BUGS.md 453)
 packages/core/tests/e2e/server-log.ts	P1	script	node	A boot's captured output, and the boots alive in the process, so a failed case carries what their servers logged during it (BUGS.md 453); split from boot.ts at the 300-line limit
-packages/core/tests/e2e/trace.ts	P1	script	node	The e2e dev boot's request trace under FLARE_E2E_TRACE=1: a first-in-stack Vite middleware logs each request's arrival, a document's head and first bytes, its finish, and its close (BUGS.md 453)
-packages/core/tests/e2e/trace.test.ts	P1	test	node	Unit cases for trace.ts: off without the env, a document's and a module's lifecycle on Node and Bun
+packages/core/tests/e2e/trace.ts	P1	script	node	The e2e dev boot's request trace under FLARE_E2E_TRACE=1: a first-in-stack Vite middleware logs each request's arrival, an app answer's head, first bytes, and quiet spells, its finish, and its close; each server module fetch; and a stalled event loop (BUGS.md 453, 504.8)
+packages/core/tests/e2e/trace.test.ts	P1	test	node	Unit cases for trace.ts: off without the env, a document's and a module's lifecycle on Node and Bun, a data answer and its page's module fetch on Node and Workers, a quiet stream, module fetches, and a stalled loop
 packages/core/tests/e2e/server-log.test.ts	P1	test	node	Unit cases for server-log.ts: a failed case's server log, and the output capture
 packages/core/tests/e2e/child.test.ts	P1	test	node	Unit cases for child.ts
 packages/core/tests/e2e/copy-boot.ts	P15	test	node	A dev boot over a private temp copy of an app, for a case that writes into it, such as an HMR edit (B70, BUGS.md 111)
