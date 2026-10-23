@@ -72,33 +72,60 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/repro.json
         run: |
           args=()
-          for project in $PROJECTS; do args+=(--project "$project"); done
+          # `--project=name`: a bare `--project` takes every value after it, the spec included.
+          for project in $PROJECTS; do args+=("--project=$project"); done
           if [ -n "$TIMEOUT" ]; then args+=(--timeout "$TIMEOUT"); fi
           bunx playwright test -c packages/core/tests/e2e/playwright.config.ts "${args[@]}" "$SPEC" -g "$GREP" \
             --repeat-each "$REPEAT" --retries 0 --reporter=line,json
-      - name: Count by project
+      # Each project's passed, failed, flaky, and skipped runs, and the failed and flaky ones by case, project, repeat,
+      # and first error line, from Playwright's JSON report; a run that stopped before any case says so.
+      - name: Summarize
         if: always()
         run: |
           node -e '
-            const report = JSON.parse(require("node:fs").readFileSync("repro.json", "utf8"))
+            const fs = require("node:fs")
+            const out = (lines) => fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, ["### repro", "", ...lines, ""].join("\n"))
+            if (!fs.existsSync("repro.json")) {
+              out(["no report: Playwright stopped before running a case; the log says why"])
+              process.exit(0)
+            }
+            const report = JSON.parse(fs.readFileSync("repro.json", "utf8"))
+            const plain = (text) => String(text).replace(/\u001b\[[0-9;]*m/g, "")
+            const cell = (text) => plain(text).split("\n")[0].replaceAll("|", "\\|").slice(0, 160)
             const counts = {}
-            const walk = (suite) => {
+            const failed = []
+            const seen = {}
+            const walk = (suite, titles) => {
               for (const spec of suite.specs ?? [])
                 for (const test of spec.tests) {
+                  const key = [spec.file, spec.line, test.projectName].join(" ")
+                  const repeat = (seen[key] = (seen[key] ?? -1) + 1)
                   const row = (counts[test.projectName] ??= { passed: 0, failed: 0, flaky: 0, skipped: 0 })
                   const status = test.status === "expected" ? "passed" : test.status === "unexpected" ? "failed" : test.status
                   row[status] = (row[status] ?? 0) + 1
+                  if (status !== "failed" && status !== "flaky") continue
+                  const error = test.results.flatMap((result) => result.errors ?? []).map((found) => found.message ?? "")[0] ?? ""
+                  failed.push(`| ${cell([...titles, spec.title].join(" › "))} | ${test.projectName} | ${repeat} | ${status} | ${cell(error)} |`)
                 }
-              for (const child of suite.suites ?? []) walk(child)
+              for (const child of suite.suites ?? []) walk(child, child.title === "" ? titles : [...titles, child.title])
             }
-            for (const suite of report.suites) walk(suite)
+            for (const suite of report.suites) walk(suite, [suite.title])
             const lines = ["| project | passed | failed | flaky | skipped |", "| --- | --- | --- | --- | --- |"]
             for (const [name, row] of Object.entries(counts)) lines.push(`| ${name} | ${row.passed} | ${row.failed} | ${row.flaky} | ${row.skipped} |`)
-            require("node:fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, ["### repro", "", ...lines, ""].join("\n"))
+            if (failed.length > 0) {
+              lines.push("", "| case | project | repeat | status | first error line |", "| --- | --- | --- | --- | --- |")
+              lines.push(...failed.slice(0, 20))
+              if (failed.length > 20) lines.push(`and ${failed.length - 20} more in repro.json`)
+            }
+            out(lines)
           '
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: repro-${{ github.run_id }}
-          path: packages/core/test-results
+          # The cases' own output (error-context, server and navigation logs, traces), and the JSON report with every
+          # repeat's status and duration. A case whose hooks failed first writes no output of its own (BUGS.md 453).
+          path: |
+            packages/core/test-results
+            repro.json
           retention-days: 14

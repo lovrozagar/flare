@@ -1,5 +1,6 @@
-import { execFileSync } from "node:child_process"
-import { readdirSync, readFileSync } from "node:fs"
+import { execFileSync, spawnSync } from "node:child_process"
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { load } from "js-yaml"
@@ -126,13 +127,128 @@ it("repro", () => {
 	const steps: Array<{ run?: string }> = Object(load(text)).jobs.repro.steps
 	expect(steps.filter((step) => step.run?.includes("${{") === true).map((step) => step.run)).toEqual([])
 	expect(text).toContain("TIMEOUT: ${{ inputs.timeout }}")
-	expect(text).toContain('if [ -n "$TIMEOUT" ]; then args+=(--timeout "$TIMEOUT"); fi')
 	expect(text).toContain("options: [macos-latest, ubuntu-latest]")
 	expect(text).toContain("runs-on: ${{ inputs.runner }}")
 	expect(text).toMatch(/uses: actions\/checkout@[\da-f]{40} # [^\n]+\n\s+with:\n\s+ref: \$\{\{ inputs\.ref \}\}/)
 	expect(text).toContain('FLARE_E2E_TRACE: "1"')
-	expect(text).toContain('--repeat-each "$REPEAT" --retries 0')
-	expect(text).toContain("GITHUB_STEP_SUMMARY")
-	expect(text).toMatch(/- if: always\(\)\n\s+uses: actions\/upload-artifact@/)
+	expect(text).toMatch(
+		/- if: always\(\)\n\s+uses: actions\/upload-artifact@[\s\S]*path: \|\n\s+packages\/core\/test-results\n\s+repro\.json\n/,
+	)
 	expect(text).toMatch(/^permissions:\n {2}contents: read$/m)
+})
+
+// The repro job's steps as GitHub runs them, read from the parsed workflow.
+function reproStep(name: string): { run: string; env: Record<string, string> } {
+	const text = workflows.find((file) => file.name === "repro.yml")?.text ?? ""
+	const steps: Array<{ name?: string; run?: string; env?: Record<string, string> }> = Object(load(text)).jobs.repro
+		.steps
+	const step = steps.find((found) => found.name === name)
+	return { run: step?.run ?? "", env: step?.env ?? {} }
+}
+
+// "Repeat the cases" run by bash with a stand-in `bunx` that prints its arguments: each project is its own
+// `--project=name`, so none swallows the spec, the grep stays one argument with its spaces, and the timeout passes
+// only when set. The bare `--project name` form took the spec for a project whenever no `--timeout` came between
+// them (dispatch 40030568800, BUGS.md 453).
+it("repro arguments", () => {
+	const bin = mkdtempSync(join(tmpdir(), "flare-repro-"))
+	try {
+		writeFileSync(join(bin, "bunx"), "#!/usr/bin/env node\nconsole.log(JSON.stringify(process.argv.slice(2)))\n")
+		chmodSync(join(bin, "bunx"), 0o755)
+		const { run } = reproStep("Repeat the cases")
+		const argv = (timeout: string): unknown => {
+			const env = {
+				PATH: `${bin}:${process.env["PATH"] ?? ""}`,
+				SPEC: "minimal.test.ts",
+				GREP: "cdn page fresh",
+				PROJECTS: "node-dev-webkit bun-dev-webkit",
+				REPEAT: "50",
+				TIMEOUT: timeout,
+			}
+			return JSON.parse(execFileSync("bash", ["-e", "-c", run], { env, encoding: "utf8" }))
+		}
+		const head = ["playwright", "test", "-c", "packages/core/tests/e2e/playwright.config.ts"]
+		const projects = ["--project=node-dev-webkit", "--project=bun-dev-webkit"]
+		const tail = [
+			"minimal.test.ts",
+			"-g",
+			"cdn page fresh",
+			"--repeat-each",
+			"50",
+			"--retries",
+			"0",
+			"--reporter=line,json",
+		]
+		expect(argv("")).toEqual([...head, ...projects, ...tail])
+		expect(argv("1")).toEqual([...head, ...projects, "--timeout", "1", ...tail])
+	} finally {
+		rmSync(bin, { recursive: true })
+	}
+})
+
+// One Playwright JSON report test entry: its project, status, and first error.
+function reportTest(projectName: string, status: string, message?: string) {
+	return { projectName, status, results: [{ errors: message === undefined ? [] : [{ message }] }] }
+}
+
+// A report with a pass, a failure in colour, and a flaky case, as Playwright's JSON reporter writes them.
+const SPEC = { file: "minimal.test.ts", line: 69, title: "cdn page fresh" }
+const REPORT = {
+	suites: [
+		{
+			title: "minimal.test.ts",
+			suites: [
+				{
+					title: "basepath",
+					specs: [
+						{
+							...SPEC,
+							tests: [
+								reportTest("node-dev-webkit", "expected"),
+								reportTest("node-dev-webkit", "unexpected", "\u001b[31mError: expected\u001b[39m 2 | to be 1\nat line"),
+								reportTest("bun-dev-webkit", "flaky", "Timeout 30000ms"),
+							],
+						},
+					],
+				},
+			],
+		},
+	],
+}
+
+// "Summarize" run by node against a JSON report: each project's counts, and the failed and flaky cases by title,
+// project, repeat, and first error line, its colour codes gone; with no report, a line that says so.
+it("repro summary", () => {
+	const dir = mkdtempSync(join(tmpdir(), "flare-repro-"))
+	try {
+		const { run } = reproStep("Summarize")
+		const script = /node -e '([\s\S]*)'\s*$/.exec(run)?.[1] ?? ""
+		const summary = join(dir, "summary.md")
+		const summarize = (): string => {
+			rmSync(summary, { force: true })
+			const ran = spawnSync("node", ["-e", script], { cwd: dir, env: { ...process.env, GITHUB_STEP_SUMMARY: summary } })
+			expect([ran.status, String(ran.stderr)]).toEqual([0, ""])
+			return existsSync(summary) ? readFileSync(summary, "utf8") : ""
+		}
+		expect(summarize()).toBe("### repro\n\nno report: Playwright stopped before running a case; the log says why\n")
+		writeFileSync(join(dir, "repro.json"), JSON.stringify(REPORT))
+		expect(summarize()).toBe(
+			[
+				"### repro",
+				"",
+				"| project | passed | failed | flaky | skipped |",
+				"| --- | --- | --- | --- | --- |",
+				"| node-dev-webkit | 1 | 1 | 0 | 0 |",
+				"| bun-dev-webkit | 0 | 0 | 1 | 0 |",
+				"",
+				"| case | project | repeat | status | first error line |",
+				"| --- | --- | --- | --- | --- |",
+				"| minimal.test.ts › basepath › cdn page fresh | node-dev-webkit | 1 | failed | Error: expected 2 \\| to be 1 |",
+				"| minimal.test.ts › basepath › cdn page fresh | bun-dev-webkit | 0 | flaky | Timeout 30000ms |",
+				"",
+			].join("\n"),
+		)
+	} finally {
+		rmSync(dir, { recursive: true })
+	}
 })
