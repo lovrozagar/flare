@@ -1,3 +1,4 @@
+import { exitOf } from "../e2e/child.ts"
 import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -55,7 +56,7 @@ function versions(dir: string, field: "installed" | "tested"): Record<string, st
 
 async function buildsAndServes(dir: string, sentinel: string): Promise<void> {
 	const built = buildApp(current(), dir)
-	expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(built.status, built.signal), built.output]).toEqual(["code 0", expect.any(String)])
 	const served = await serve(current(), { dir, args: () => ["serve.js"], timeout: 30_000 })
 	try {
 		const response = await fetch(`${served.origin}/`, { headers: { "x-sentinel": sentinel } })
@@ -72,7 +73,11 @@ it("readme install, bun", async () => {
 	copyMinimal(app.dir)
 	const added = spawnSync("bun", ["add", ...readmePackages()], { cwd: app.dir, encoding: "utf8", env: shellEnv() })
 	const output = `${added.stdout}${added.stderr}`
-	expect([added.status, output.includes("ERESOLVE"), output]).toEqual([0, false, expect.any(String)])
+	expect([exitOf(added.status, added.signal), output.includes("ERESOLVE"), output]).toEqual([
+		"code 0",
+		false,
+		expect.any(String),
+	])
 	expect(versions(app.dir, "installed")).toEqual(versions(app.dir, "tested"))
 	await buildsAndServes(app.dir, "readme-bun")
 })
@@ -83,7 +88,11 @@ it("readme install, npm", async () => {
 	copyMinimal(app.dir)
 	const [tgz = "", ...peers] = readmePackages()
 	const added = install(current(), { dir: app.dir, packed: tgz, specs: peers, legacy: false })
-	expect([added.status, added.output.includes("ERESOLVE"), added.output]).toEqual([0, false, expect.any(String)])
+	expect([exitOf(added.status, added.signal), added.output.includes("ERESOLVE"), added.output]).toEqual([
+		"code 0",
+		false,
+		expect.any(String),
+	])
 	expect(versions(app.dir, "installed")).toEqual(versions(app.dir, "tested"))
 	await buildsAndServes(app.dir, "readme-npm")
 })

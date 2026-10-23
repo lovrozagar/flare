@@ -1,5 +1,6 @@
+import { tmpdir } from "node:os"
 import { expect, it } from "vitest"
-import { newestReport, peerSpecs } from "./stage.ts"
+import { newestReport, peerSpecs, run } from "./stage.ts"
 
 // A manifest shaped as packages/core/package.json: each peer's range is `>=` its exact devDependency (B79).
 const MANIFEST = {
@@ -56,4 +57,15 @@ it("newest report agrees", () => {
 it("newest report, nothing admitted", () => {
 	const report = newestReport({ isbot: "5.2.2" }, { isbot: ["4.0.0"] }, { isbot: ">=5.2.0" })
 	expect(report).toEqual([{ name: "isbot", installed: "5.2.2", newest: "none", same: false }])
+})
+
+// A consumer step a signal ended reports the signal beside its null status, so a cell's assert names a kill rather
+// than an empty failure. The child is real: the runtime running this file stands in for the pinned Node and SIGKILLs
+// itself (BUGS.md 500.7).
+it("killed step named", () => {
+	const node = { node: process.execPath, npm: "" }
+	const killed = run(node, { cwd: tmpdir(), args: ["-e", 'process.kill(process.pid, "SIGKILL")'] })
+	expect(killed).toEqual({ status: null, signal: "SIGKILL", output: "" })
+	const failed = run(node, { cwd: tmpdir(), args: ["-e", 'console.error("broke"); process.exit(3)'] })
+	expect(failed).toEqual({ status: 3, signal: null, output: "broke\n" })
 })

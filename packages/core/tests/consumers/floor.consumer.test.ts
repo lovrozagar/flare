@@ -1,3 +1,4 @@
+import { exitOf } from "../e2e/child.ts"
 import { cpSync, existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { convertV4MiniflareOptions, Miniflare } from "miniflare"
@@ -59,7 +60,7 @@ function staged(name: string, node: PinnedNode, app: { specs: readonly string[];
 	projects.push(made)
 	copyMinimal(made.dir, { workers: app.workers === true })
 	const added = install(node, { dir: made.dir, packed: run.packed ?? "", specs: app.specs, legacy: true })
-	expect([added.status, added.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(added.status, added.signal), added.output]).toEqual(["code 0", expect.any(String)])
 	return made.dir
 }
 
@@ -78,7 +79,7 @@ it("node floor", async () => {
 	const dir = staged("node-floor", node, { specs: peerSpecs(MANIFEST, MODE) })
 	run.staged = dir
 	const built = buildApp(node, dir)
-	expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(built.status, built.signal), built.output]).toEqual(["code 0", expect.any(String)])
 	const served = await serve(node, { dir, args: () => ["serve.js"], timeout: 30_000 })
 	try {
 		await answers(served.origin, "floor-serve")
@@ -119,10 +120,10 @@ it("ts 5 nodenext", () => {
 	cpSync(join(CORE, "tests/structure/consumer/src"), join(dir, "consumer"), { recursive: true })
 	const flare = join(dir, "node_modules/@lovrozagar/flare/dist/vite/bin/flare.js")
 	const codegen = runWith(node, { cwd: dir, args: [flare, "codegen"] })
-	expect([codegen.status, codegen.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(codegen.status, codegen.signal), codegen.output]).toEqual(["code 0", expect.any(String)])
 	const version = runWith(node, { cwd: dir, args: [join(dir, "node_modules/typescript/bin/tsc"), "--version"] })
 	const tsc = runWith(node, { cwd: dir, args: [join(dir, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.json"] })
-	expect([version.output.trim(), tsc.status, tsc.output]).toEqual(["Version 5.9.3", 0, ""])
+	expect([version.output.trim(), exitOf(tsc.status, tsc.signal), tsc.output]).toEqual(["Version 5.9.3", "code 0", ""])
 })
 
 // An app that uses none of i18n, image, or query installs none of their five peers, and builds and serves.
@@ -132,7 +133,7 @@ it("no optional peers", async () => {
 	const present = OPTIONAL.filter((name) => existsSync(join(dir, "node_modules", name, "package.json")))
 	expect([OPTIONAL.length, present]).toEqual([5, []])
 	const built = buildApp(node, dir)
-	expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(built.status, built.signal), built.output]).toEqual(["code 0", expect.any(String)])
 	const served = await serve(node, { dir, args: () => ["serve.js"], timeout: 30_000 })
 	try {
 		await answers(served.origin, "no-optional")
@@ -147,7 +148,7 @@ it("build under NODE_ENV=test", async () => {
 	const node = pinned("current")
 	const dir = staged("node-env-test", node, { specs: peerSpecs(MANIFEST, MODE) })
 	const built = buildApp(node, dir, { NODE_ENV: "test" })
-	expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(built.status, built.signal), built.output]).toEqual(["code 0", expect.any(String)])
 	const served = await serve(node, { dir, args: () => ["serve.js"], timeout: 30_000 })
 	try {
 		await answers(served.origin, "node-env-test")
@@ -172,7 +173,7 @@ it("workers bundle", async () => {
 	const node = pinned("current")
 	const dir = staged("workers", node, { specs: [...peerSpecs(MANIFEST, MODE), ...workersTools()], workers: true })
 	const built = buildApp(node, dir)
-	expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(built.status, built.signal), built.output]).toEqual(["code 0", expect.any(String)])
 	const server = join(dir, "dist/server")
 	const deploy = unstable_getMiniflareWorkerOptions(join(server, "wrangler.json"))
 	const modules = modulesOf(server, resolve(server, deploy.main ?? "index.js"))

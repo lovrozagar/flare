@@ -67,7 +67,9 @@ export function newestReport(
 		})
 }
 
-export type Run = { status: number | null; output: string }
+// `signal` is what ended a step a signal ended, its status then null, so a cell's assert names a kill rather than an
+// empty failure (BUGS.md 500.7).
+export type Run = { status: number | null; signal: NodeJS.Signals | null; output: string }
 
 export type Command = { cwd: string; args: readonly string[]; env?: Record<string, string> }
 
@@ -94,7 +96,7 @@ export function run(node: PinnedNode, command: Command): Run {
 		env: envOf(node, command.env),
 		maxBuffer: 64 * 1024 * 1024,
 	})
-	return { status: result.status, output: `${result.stdout ?? ""}${result.stderr ?? ""}` }
+	return { status: result.status, signal: result.signal, output: `${result.stdout ?? ""}${result.stderr ?? ""}` }
 }
 
 // The pinned Node's npm, in `cwd`.
