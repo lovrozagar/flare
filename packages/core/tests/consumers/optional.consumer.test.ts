@@ -1,3 +1,4 @@
+import { exitOf } from "../e2e/child.ts"
 import { readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterAll, beforeAll, expect, it } from "vitest"
@@ -59,7 +60,7 @@ function staged(name: string, specs: readonly string[] = []): string {
 	copyMinimal(app.dir)
 	const peers = [...peerSpecs(MANIFEST, "floor", { without: OPTIONAL }), ...specs]
 	const added = install(current(), { dir: app.dir, packed: run.packed ?? "", specs: peers, legacy: true })
-	expect([added.status, added.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(added.status, added.signal), added.output]).toEqual(["code 0", expect.any(String)])
 	return app.dir
 }
 
@@ -87,11 +88,11 @@ it("i18n without peers", () => {
 	const dir = staged("i18n")
 	useI18n(dir)
 	const built = buildApp(current(), dir)
-	expect([built.status, message("i18n").filter((line) => !built.output.includes(line)), built.output]).toEqual([
-		1,
-		[],
-		expect.any(String),
-	])
+	expect([
+		exitOf(built.status, built.signal),
+		message("i18n").filter((line) => !built.output.includes(line)),
+		built.output,
+	]).toEqual(["code 1", [], expect.any(String)])
 })
 
 // A deploy that drops the peers after a build that had them: the built server holds them, so it still answers.
@@ -102,7 +103,7 @@ it("i18n peers removed after build", async () => {
 	)
 	useI18n(dir)
 	const built = buildApp(current(), dir)
-	expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	expect([exitOf(built.status, built.signal), built.output]).toEqual(["code 0", expect.any(String)])
 	for (const peer of FEATURES.i18n) rmSync(join(dir, "node_modules", peer), { recursive: true, force: true })
 	const served = await serve(current(), { dir, args: () => ["serve.js"], timeout: 30_000 })
 	try {
@@ -160,11 +161,11 @@ it("image without sharp", () => {
 	const dir = staged("image")
 	edit(join(dir, "vite.config.ts"), "flare({ prerender: true })", "flare({ prerender: true, image: {} })")
 	const built = buildApp(current(), dir)
-	expect([built.status, message("image").filter((line) => !built.output.includes(line)), built.output]).toEqual([
-		1,
-		[],
-		expect.any(String),
-	])
+	expect([
+		exitOf(built.status, built.signal),
+		message("image").filter((line) => !built.output.includes(line)),
+		built.output,
+	]).toEqual(["code 1", [], expect.any(String)])
 })
 
 // The minimal app's home page as a query page.
@@ -180,9 +181,9 @@ it("query without solid-query", () => {
 	const dir = staged("query")
 	useQuery(dir)
 	const built = buildApp(current(), dir)
-	expect([built.status, message("query").filter((line) => !built.output.includes(line)), built.output]).toEqual([
-		1,
-		[],
-		expect.any(String),
-	])
+	expect([
+		exitOf(built.status, built.signal),
+		message("query").filter((line) => !built.output.includes(line)),
+		built.output,
+	]).toEqual(["code 1", [], expect.any(String)])
 })
