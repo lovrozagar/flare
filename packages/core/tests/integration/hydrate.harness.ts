@@ -19,6 +19,7 @@ import {
 	primeApp,
 } from "./hydrate.app.ts"
 import { MODULES, type Api, type Side, type Tree } from "./hydrate.api.ts"
+import { serverTimeline, type ServerTimeline } from "./hydrate.timeline.ts"
 
 export type { Api, Side, Tree }
 
@@ -72,7 +73,8 @@ export async function startHarness(core: string): Promise<Harness> {
 		ssr: { noExternal: true },
 	})
 	answerStyles(vite)
-	const origin = `http://127.0.0.1:${portOf(await listen(http, vite, { cases, apps }))}`
+	const served = serverTimeline()
+	const origin = `http://127.0.0.1:${portOf(await listen(http, vite, { cases, apps, served }))}`
 	const endpoints = await browserEndpoint()
 	const browsers = new Map<Engine, Browser>()
 	const browser = async (engine: Engine): Promise<Browser> => {
@@ -95,7 +97,7 @@ export async function startHarness(core: string): Promise<Harness> {
 			await primeApp(vite, { id, origin, prime: input.prime })
 			const context = await (await browser(engine)).newContext()
 			try {
-				return await appIn({ origin, tab: await context.newPage() }, input)
+				return await appIn({ origin, tab: await context.newPage(), server: served }, input)
 			} finally {
 				await context.close()
 				apps.active = undefined
@@ -182,17 +184,19 @@ async function requestInit(req: IncomingMessage): Promise<RequestInit> {
 async function listen(
 	http: Server,
 	vite: ViteDevServer,
-	{ cases, apps }: { cases: Map<string, string>; apps: Apps },
+	{ cases, apps, served }: { cases: Map<string, string>; apps: Apps; served: ServerTimeline },
 ): Promise<Server> {
 	http.on("request", (req, res) => {
 		const url = req.url ?? "/"
 		const active = apps.active
 		if (active !== undefined && isAppRequest(url)) {
 			const origin = `http://127.0.0.1:${portOf(http)}`
+			const request = served.request(url)
 			void requestInit(req)
-				.then((init) => appDocument(vite, { id: active, url, origin, init }))
+				.then((init) => appDocument(vite, { id: active, url, origin, init, served: request }))
 				.then(
 					(answer) => {
+						request.sent(res)
 						res.writeHead(answer.status, Object.fromEntries(answer.headers))
 						res.end(answer.body)
 					},
