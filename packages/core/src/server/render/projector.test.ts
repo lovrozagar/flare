@@ -145,15 +145,20 @@ it("render has no auth", async () => {
 	expect("auth" in seen[0]).toBe(false)
 })
 
-// A loader value the wire cannot hold, a function, fails before the shell (B145: a BigInt is a wire value).
+// A loader value the wire cannot hold, a function, is that loader's failure, answered as its throw is: the walked
+// errorRender at 500 with the error's digest, not a page the encode failed before the shell (B145: a BigInt is a wire
+// value; BUGS.md 508).
 it("no wire value", async () => {
 	const prod = probe(false)
 	const page = createPage("_root_/")
 		.loader(() => ({ count: () => 1 }))
 		.render(() => "page")
 	const answer = await get(page, prod.sink)
-	expect(answer.status).toBe(500)
-	expect(answer.body).toMatch(/<h1>Something went wrong<\/h1><p>Reference <code>[\da-f]{12}<\/code><\/p>/)
+	const thrown = await get(throwing(new Error("secret")), probe(false).sink)
+	expect(answer.status).toBe(thrown.status)
+	expect(answer.body).toContain("Something went wrong")
+	expect(answer.body).toMatch(/"digest":"[0-9a-f]{12}"/)
+	expect(answer.body).not.toMatch(/<h1>Something went wrong<\/h1>/)
 })
 
 it("null title", async () => {

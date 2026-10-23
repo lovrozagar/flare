@@ -4,6 +4,7 @@ import { withServerContext } from "../../../server/context/ctx.ts"
 import { QUERY_GETTER, registeredQuery } from "../../../shared/protocol/query.ts"
 import { fromWire } from "../../../shared/protocol/value.ts"
 import { createQueryClientGetter } from "./getter.ts"
+import { toWire } from "../../../shared/protocol/value.ts"
 
 // The getter on Solid's server build. The client rows are getter.test.ts.
 afterEach(() => {
@@ -36,11 +37,11 @@ it("dehydrate", async () => {
 	const getQueryClient = createQueryClientGetter()
 	const state = await inRequest(() => {
 		getQueryClient().setQueryData(["n"], 42)
-		return registeredQuery()?.dehydrate()
+		return registeredQuery()?.dehydrate(toWire)
 	})
 	expect(JSON.stringify(state)).toContain("42")
-	expect(await inRequest(() => registeredQuery()?.dehydrate())).toBeUndefined()
-	expect(registeredQuery()?.dehydrate()).toBeUndefined()
+	expect(await inRequest(() => registeredQuery()?.dehydrate(toWire))).toBeUndefined()
+	expect(registeredQuery()?.dehydrate(toWire)).toBeUndefined()
 })
 
 // solid-query's QueryClientProvider clears the request's client in its server cleanup, which on Workers runs before
@@ -52,7 +53,7 @@ it("cleared before dehydrate", async () => {
 		await client.prefetchQuery({ queryKey: ["search", "route"], queryFn: () => "hits" })
 		await client.prefetchQuery({ queryKey: ["failed"], queryFn: () => Promise.reject(new Error("no")) })
 		client.clear()
-		return registeredQuery()?.dehydrate()
+		return registeredQuery()?.dehydrate(toWire)
 	})
 	const hashes = Reflect.get(Object(state), "queries").map((query: { queryHash: string }) => query.queryHash)
 	expect(hashes).toEqual(['["search","route"]'])
@@ -66,7 +67,7 @@ it("dehydrate wire values", async () => {
 	const when = new Date("2026-10-01T00:00:00.000Z")
 	const state = await inRequest(() => {
 		getQueryClient().setQueryData(["when"], { when, tags: new Set(["a"]) })
-		return registeredQuery()?.dehydrate()
+		return registeredQuery()?.dehydrate(toWire)
 	})
 	const [query] = Reflect.get(Object(JSON.parse(JSON.stringify(state))), "queries") as { state: { data: unknown } }[]
 	expect(fromWire(query?.state.data)).toEqual({ when, tags: new Set(["a"]) })

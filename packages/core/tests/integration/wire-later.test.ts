@@ -49,12 +49,14 @@ function server(
 ) {
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] })
 	const bugs: string[] = []
+	const logged: string[] = []
+	const log: Logger = { ...quiet, error: (_tag: string, message: string) => void logged.push(message) }
 	const app = serveWith({ router, site: SITE, ...extra } as Parameters<typeof serveWith>[0], {
 		dev: true,
-		log: quiet,
+		log,
 		send: (payload) => void bugs.push(payload.err.message),
 	})
-	return { app, bugs }
+	return { app, bugs, logged }
 }
 
 let unhandled: unknown[] = []
@@ -70,17 +72,21 @@ afterEach(async () => {
 	if (unhandled.length > 0) throw new Error(`unhandled rejection: ${String(unhandled[0])}`)
 })
 
-// A data answer whose loader value the wire refuses fails as one with a function does: a 500 that reports the bug.
+// A loader value the wire refuses is that loader's failure, as a throw is: a data answer stays 200 with the match's
+// `e` frame and no `l` frame for it, the dev error its message (dx/builder.md, BUGS.md 508).
 it("loader frame refused", async () => {
-	const { app, bugs } = server(
+	const { app } = server(
 		createPage("_root_/p")
 			.loader(() => ({ a: late() }))
 			.render(() => "p"),
 	)
 	const response = await app.fetch(new Request(`${SITE}/p?_flare=data`))
-	expect(response.status).toBe(500)
-	await response.text()
-	expect(bugs).toEqual([REFUSED])
+	expect(response.status).toBe(200)
+	const frames = framesIn(await response.text())
+	expect(frames).toContainEqual(
+		expect.objectContaining({ t: "e", m: "_root_/p", e: expect.objectContaining({ message: REFUSED }) }),
+	)
+	expect(frames.filter((frame) => frame.t === "l" && frame.m === "_root_/p")).toEqual([])
 })
 
 it("deferred frame refused", async () => {
@@ -96,13 +102,13 @@ it("deferred frame refused", async () => {
 })
 
 it("document state refused", async () => {
-	const response = await server(
-		createPage("_root_/p")
-			.loader(() => ({ a: late() }))
-			.render(() => "p"),
-	).app.fetch(new Request(`${SITE}/p`))
+	const page = createPage("_root_/p")
+		.loader(() => ({ a: late() }))
+		.render(() => "p")
+		.errorRender(() => "refused boundary")
+	const response = await server(page).app.fetch(new Request(`${SITE}/p`))
 	expect(response.status).toBe(500)
-	expect(await response.text()).toContain(REFUSED)
+	expect(await response.text()).toContain("refused boundary")
 })
 
 it("server function refused", async () => {
@@ -142,7 +148,8 @@ it("server stream refused", async () => {
 	expect(lines[1]).toEqual(expect.objectContaining({ name: "laterStream", status: 500, message: REFUSED }))
 })
 
-// A query cache the wire refuses fails the data answer as one holding a function does: a 500 that reports the bug.
+// A query cache the wire refuses is `null` with a logged bug naming the query, and the answer completes (B83, B134,
+// BUGS.md 508).
 it("query frame refused", async () => {
 	const getQueryClient = createQueryClientGetter()
 	const page = createPage("_root_/p")
@@ -151,11 +158,31 @@ it("query frame refused", async () => {
 			return null
 		})
 		.render(() => "p")
-	const { app, bugs } = server(page)
+	const { app, logged } = server(page)
 	const response = await app.fetch(new Request(`${SITE}/p?_flare=data`))
-	expect(response.status).toBe(500)
-	await response.text()
-	expect(bugs).toEqual([REFUSED])
+	expect(response.status).toBe(200)
+	const frames = framesIn(await response.text())
+	expect(frames).toContainEqual({ t: "q", d: null })
+	expect(frames.at(-1)).toEqual({ t: "d" })
+	expect(logged).toContain('the query ["later"] does not serialize into the answer')
+})
+
+// A function in a query's data takes the same path: `null`, the logged bug naming the query, and an answer that
+// completes (B134, BUGS.md 508).
+it("query function refused", async () => {
+	const getQueryClient = createQueryClientGetter()
+	const page = createPage("_root_/p")
+		.loader(async () => {
+			await getQueryClient().fetchQuery({ queryKey: ["fn"], queryFn: async () => ({ f: () => 1 }) })
+			return null
+		})
+		.render(() => "p")
+	const { app, logged } = server(page)
+	const response = await app.fetch(new Request(`${SITE}/p?_flare=data`))
+	expect(response.status).toBe(200)
+	const frames = framesIn(await response.text())
+	expect(frames).toContainEqual({ t: "q", d: null })
+	expect(logged).toContain('the query ["fn"] does not serialize into the answer')
 })
 
 it("stored answer refused", async () => {
@@ -169,6 +196,26 @@ it("stored answer refused", async () => {
 	expect(response.status).toBe(500)
 	await new Promise((done) => setTimeout(done, 50))
 	expect(set).not.toHaveBeenCalled()
+})
+
+// The check that refuses a loader's value is the encode that writes it: the value is encoded once per request, as
+// its loader settles, and the data answer's `l` frame and the document's state reuse that wire form. A getter on the
+// value counts the encodes, since each reads it once (BUGS.md 508).
+it("one encode per loader value", async () => {
+	for (const path of ["/p?_flare=data", "/p"]) {
+		let reads = 0
+		const page = createPage("_root_/p")
+			.loader(() => ({
+				get counted() {
+					reads += 1
+					return 1
+				},
+			}))
+			.render(() => "p")
+		const response = await server(page).app.fetch(new Request(`${SITE}${path}`))
+		expect(await response.text()).toContain("counted")
+		expect([path, reads]).toEqual([path, 1])
+	}
 })
 
 // The refusal is flare's codec's alone: Solid's own serializer still streams an async memo's promise in a document.

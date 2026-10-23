@@ -73,6 +73,38 @@ function refusal(): Refusal {
 // BigInt, a Map, a Set, a URL, an undefined key, NaN (decision B145). A function or a class instance throws, and so does
 // a Promise or a ReadableStream at any depth: a value that arrives later is defer()'s (BUGS.md 507). The envelope
 // around it stays JSON.
+// Data the wire refused, in place of its wire form where a writer encodes a whole set before it can name the failing
+// member, as TanStack's dehydrate does a query cache: the writer recognizes it and takes its own failure path (B134,
+// BUGS.md 508).
+export const REFUSED: unique symbol = Symbol.for("flare.refusedWire")
+
+export type Refused = { readonly [REFUSED]: unknown }
+
+// `value` on the wire, or its refusal as a Refused.
+export function toWireOrRefused(value: unknown): SerovalJSON | Refused {
+	try {
+		return toWire(value)
+	} catch (error) {
+		return { [REFUSED]: error }
+	}
+}
+
+// The error a Refused carries, or undefined for any other value.
+export function refusalOf(value: unknown): { error: unknown } | undefined {
+	return typeof value === "object" && value !== null && REFUSED in value
+		? { error: Reflect.get(value, REFUSED) }
+		: undefined
+}
+
+// A value the server already encoded, once, as its loader settled: the frame or state script that writes it takes
+// this wire form instead of encoding the value again (BUGS.md 508).
+export class Encoded {
+	readonly wire: SerovalJSON
+	constructor(wire: SerovalJSON) {
+		this.wire = wire
+	}
+}
+
 export function toWire(value: unknown): SerovalJSON {
 	const later = refusal()
 	const wire = toJSON(value, { plugins: [later.plugin, ...wirePlugins] })
@@ -96,7 +128,14 @@ const MATCH_VALUES = ["data", "preloader", "params", "search"] as const
 
 // A state match as the state script holds it.
 export function matchToWire<T extends object>(match: T): T {
-	return codedMatch(match, toWire)
+	return codedMatch(match, wireOf)
+}
+
+// The server's writers' encode, the frame's and the state script's: a value its loader's settle already encoded is that
+// wire form, else the value encoded now. toWire itself never checks, so the client's input codec carries no Encoded
+// (BUGS.md 508).
+export function wireOf(value: unknown): SerovalJSON {
+	return value instanceof Encoded ? value.wire : toWire(value)
 }
 
 // A state match as the server held it.

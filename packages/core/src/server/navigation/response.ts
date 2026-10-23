@@ -1,4 +1,5 @@
 import { encodeFrame, type Frame, type FrameError } from "../../shared/protocol/index.ts"
+import { Encoded } from "../../shared/protocol/value.ts"
 import type { LoaderFrame } from "../loaders/cascade.ts"
 import type { DeferredFrame } from "../loaders/run.ts"
 
@@ -26,9 +27,15 @@ export function dataBody(body: DataBody): ReadableStream<Uint8Array> {
 			const write = (frame: Frame): void => {
 				if (!state.closed) controller.enqueue(encoder.encode(encodeFrame(frame)))
 			}
-			// JSON has no undefined: a match with no loader carries `d: null`, as the state script does.
-			for (const frame of body.loaded)
-				write(frame.t === "e" ? { t: "e", m: frame.m, e: body.project(frame.e) } : { ...frame, d: frame.d ?? null })
+			// JSON has no undefined: a match with no loader carries `d: null`, as the state script does. A value its loader's
+			// settle already encoded travels as that wire form (BUGS.md 508).
+			for (const frame of body.loaded) {
+				if (frame.t === "e") write({ t: "e", m: frame.m, e: body.project(frame.e) })
+				else {
+					const { wire, ...rest } = frame
+					write({ ...rest, d: wire === undefined ? (frame.d ?? null) : new Encoded(wire) })
+				}
+			}
 			body.heads.forEach(write)
 			if (body.queries !== undefined) write({ t: "q", d: body.queries })
 			write({ t: "r" })

@@ -11,7 +11,7 @@ import type {
 	StepContext,
 } from "../../shared/route-builder/chain.ts"
 import { statusOf } from "../../shared/errors/status.ts"
-import { headTags, replacing } from "../../shared/head/index.ts"
+import { toWire } from "../../shared/protocol/value.ts"
 import type { HeadOptions } from "../../shared/route-builder/chain.ts"
 import type { HeadConfig, SecurityConfig } from "../../shared/route-builder/types.ts"
 import { runValidator, type Validated, type Validator } from "../../shared/validation/index.ts"
@@ -19,9 +19,17 @@ import { gate } from "../auth/gate.ts"
 import type { Lookup } from "../cache/epoch.ts"
 import type { PolicyClass } from "../auth/identity.ts"
 import { finalize } from "../lifecycle/finalize.ts"
-import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind, type Settled } from "./cascade.ts"
-import { createDefer, type DeferMode, type Started } from "./defer.ts"
-import { routeSteps } from "./route-steps.ts"
+import {
+	cascade,
+	type DataFrame,
+	type Failed,
+	type LoaderFrame,
+	type Outcome,
+	type RequestKind,
+	type Settled,
+} from "./cascade.ts"
+import { createDefer, deferMode, type Started } from "./defer.ts"
+import { routeHead, routeSteps } from "./route-steps.ts"
 import { inLoaderScope, withQueryClient, type ScopeSource } from "./scope.ts"
 
 export type LoaderRoute = {
@@ -83,6 +91,9 @@ type Loading = {
 export type LoaderRun = {
 	response: Response
 	frames: readonly LoaderFrame[]
+	// The kept matches' loader frames, root down, each with its data and its one encode; a document's state reads them by
+	// match id (BUGS.md 508).
+	kept: readonly DataFrame[]
 	data: readonly unknown[]
 	heads: readonly (HeadConfig | undefined)[]
 	contexts: readonly PreloaderContext[]
@@ -148,6 +159,7 @@ function bare(response: Response): LoaderRun {
 	return {
 		response,
 		frames: [],
+		kept: [],
 		data: [],
 		heads: [],
 		contexts: [],
@@ -168,7 +180,7 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 		const route = defined(input.routes[index], "the kept match")
 		return input.skip?.has(route.id) === true
 			? undefined
-			: finish(route, { frame, kept: defined(kept[index], "the kept context"), bugs })
+			: routeHead(route, { frame, kept: defined(kept[index], "the kept context"), bugs })
 	})
 	// Only a bug opens the dev overlay. A named status and an input failure do not (B76).
 	if (result.failed?.status === 500) input.overlay?.(result.failed.error)
@@ -181,6 +193,7 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 	return {
 		response: finalize({ status: result.status, body: "" }),
 		frames: result.frames,
+		kept: result.kept,
 		data: result.kept.map((frame) => frame.d),
 		heads,
 		contexts: kept,
@@ -246,45 +259,24 @@ function load(input: ValidRun, loading: Loading): Promise<Loaded[]> {
 			const settled =
 				input.skip?.has(route.id) === true
 					? { ok: true as const, data: undefined }
-					: await inLoaderScope("loader", input, () => settle(route, ctx, input.dev ?? false))
+					: await inLoaderScope("loader", input, () => settle(route, ctx, input))
 			return { id: route.id, settled, started: scope.started, holes: scope.holes }
 		}),
 	)
 }
 
-// The route's stored defer mode, from `cache.ssr.defer`, `cache.isr.defer`, or `cache.ssg.defer`.
-function deferMode(cache: CacheConfig | undefined): DeferMode | undefined {
-	const mode = cache?.ssr ?? cache?.isr ?? cache?.ssg
-	return typeof mode === "object" ? mode.defer : undefined
-}
-
-async function settle(route: LoaderRoute, ctx: LoaderContext, dev: boolean): Promise<Settled> {
+async function settle(route: LoaderRoute, ctx: LoaderContext, input: ValidRun): Promise<Settled> {
 	try {
 		const data: unknown = await route.loader?.(ctx)
 		// `null` is an object here. A primitive cannot stay live through the hooks (dx/builder.md).
-		if (dev && data !== undefined && typeof data !== "object") {
+		if (input.dev === true && data !== undefined && typeof data !== "object") {
 			throw new Error(`${route.id}: a loader returns an object or nothing, not a ${typeof data}`)
 		}
-		return { ok: true, data }
+		// One encode; a refusal fails the loader as a throw does. A stored run inlines values later (BUGS.md 508).
+		const wire = toWire(data ?? null)
+		return input.stored === true ? { ok: true, data } : { ok: true, data, wire }
 	} catch (error) {
 		return { ok: false, error }
-	}
-}
-
-type Finish = { frame: { d: unknown }; kept: PreloaderContext; bugs: unknown[] }
-
-// A replacing route's head is marked, so the document merge, the `h` frame, and the state all read it (dx/head.md).
-function finish(route: ValidRoute, at: Finish): HeadConfig | undefined {
-	try {
-		const values = { params: route.params, search: route.search }
-		const head = route.head?.({ ...values, loaderData: at.frame.d, preloaderContext: at.kept })
-		// A value the head cannot write, such as a relative canonical, fails here as a throw from .head() does: this
-		// match's head is omitted and the status stays the loader's (B82).
-		if (head !== undefined) headTags(head)
-		return head !== undefined && route.headOptions?.replace === true ? replacing(head) : head
-	} catch (error) {
-		at.bugs.push(error)
-		return undefined
 	}
 }
 

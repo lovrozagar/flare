@@ -1,10 +1,13 @@
 import { defined } from "../../shared/errors/index.ts"
 import { boundaryKind, type BoundaryKind } from "../../shared/components/index.ts"
 import { rankStatus, statusOf } from "../../shared/errors/status.ts"
+import type { SerovalJSON } from "seroval"
 
 export type RequestKind = "document" | "data" | "prefetch" | "fill"
 
-export type Settled = { ok: true; data: unknown } | { ok: false; error: unknown }
+// `wire` is the data's one encode, which a live answer's frame and state reuse; a stored run's has none, since its
+// deferred values inline after it settles (BUGS.md 508).
+export type Settled = { ok: true; data: unknown; wire?: SerovalJSON } | { ok: false; error: unknown }
 
 export type Outcome = { id: string; settled: Settled }
 
@@ -14,6 +17,7 @@ export type DataFrame = {
 	d: unknown
 	p?: Record<string, unknown>
 	v?: { params: unknown; search: unknown }
+	wire?: SerovalJSON
 }
 
 export type LoaderFrame = DataFrame | { t: "e"; m: string; e: unknown }
@@ -41,7 +45,8 @@ export function cascade(kind: RequestKind, outcomes: readonly Outcome[]): Cascad
 	const kept: DataFrame[] = []
 	for (const outcome of outcomes) {
 		if (!outcome.settled.ok) break
-		kept.push({ t: "l", m: outcome.id, d: outcome.settled.data })
+		const { data, wire } = outcome.settled
+		kept.push(wire === undefined ? { t: "l", m: outcome.id, d: data } : { t: "l", m: outcome.id, d: data, wire })
 	}
 	if (failures.length === 0) return { status: 200, frames: kept, kept }
 	return failAt(kind, kept, failures)

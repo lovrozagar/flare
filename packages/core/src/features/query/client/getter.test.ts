@@ -45,7 +45,7 @@ it("client seed", () => {
 	;(globalThis as FlareScope).flare = {}
 	expect(createQueryClientGetter()().getQueryData(["n"])).toBeUndefined()
 	// The client has no dehydrate to give: the server writes the document state.
-	expect(registeredQuery()?.dehydrate()).toBeUndefined()
+	expect(registeredQuery()?.dehydrate(toWire)).toBeUndefined()
 })
 
 // A document whose `queries` hold ["tally", "a"], and a counted query function for that key.

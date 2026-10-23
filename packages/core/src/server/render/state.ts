@@ -1,6 +1,6 @@
 import type { Located } from "../../shared/route-builder/index.ts"
 import { registeredQuery } from "../../shared/protocol/index.ts"
-import { matchToWire } from "../../shared/protocol/value.ts"
+import { matchToWire, refusalOf, toWireOrRefused } from "../../shared/protocol/value.ts"
 import { escapeAttr, escapeInlineScript } from "./escape.ts"
 
 export type StateMatch = {
@@ -49,23 +49,41 @@ function queriesJson(queries: unknown, onBug: (bug: Error) => void): string {
 }
 
 // The query cache as it can be written, the document state's or a data answer's `q` frame (B83, B134): the cache when
-// JSON holds it, else null and a bug that names the failing query. Undefined, no client, stays undefined.
+// it is wire-ready, else null and a bug that names the failing query. A query whose data the wire refused dehydrated
+// as a Refused (getter.ts); one JSON cannot hold fails the stringify. Undefined, no client, stays undefined.
 export function writableQueries(queries: unknown, onBug: (bug: Error) => void): unknown {
+	const failure = queryFailure(queries)
+	if (failure === undefined) return queries
+	const what = failure.hash === undefined ? "the query cache" : `the query ${failure.hash}`
+	onBug(new Error(`${what} does not serialize into the answer`, { cause: failure.cause }))
+	return null
+}
+
+function queryFailure(queries: unknown): { hash: string | undefined; cause: unknown } | undefined {
+	for (const query of queryList(queries)) {
+		const refused = refusalOf(Reflect.get(Object(Reflect.get(Object(query), "state")), "data"))
+		if (refused !== undefined) return { hash: hashOf(query), cause: refused.error }
+	}
 	try {
 		JSON.stringify(queries)
-		return queries
+		return undefined
 	} catch (cause) {
-		const hash = failingQuery(queries)
-		const what = hash === undefined ? "the query cache" : `the query ${hash}`
-		onBug(new Error(`${what} does not serialize into the answer`, { cause }))
-		return null
+		return { hash: failingQuery(queries), cause }
 	}
+}
+
+function queryList(queries: unknown): unknown[] {
+	const list: unknown = Reflect.get(Object(queries), "queries")
+	return Array.isArray(list) ? list : []
+}
+
+function hashOf(query: unknown): string {
+	return String(Reflect.get(Object(query), "queryHash"))
 }
 
 // The first dehydrated query JSON cannot hold, by its hash. A cache with no such list names none.
 function failingQuery(queries: unknown): string | undefined {
-	const list: unknown = Reflect.get(Object(queries), "queries")
-	const found = (Array.isArray(list) ? list : []).find((query: unknown) => {
+	const found = queryList(queries).find((query: unknown) => {
 		try {
 			JSON.stringify(query)
 			return false
@@ -73,7 +91,7 @@ function failingQuery(queries: unknown): string | undefined {
 			return true
 		}
 	})
-	return found === undefined ? undefined : String(Reflect.get(Object(found), "queryHash"))
+	return found === undefined ? undefined : hashOf(found)
 }
 
 // The state script's id (BUGS.md 167).
@@ -111,5 +129,5 @@ export function insertState(shell: string, script: string): string {
 // The request's query cache for a data answer's `q` frame, once its loaders ran; undefined when the request made no
 // client (B134).
 export function answerQueries(sink: { log: { error: (tag: string, message: string) => void } }): unknown {
-	return writableQueries(registeredQuery()?.dehydrate(), (bug) => sink.log.error("queries", bug.message))
+	return writableQueries(registeredQuery()?.dehydrate(toWireOrRefused), (bug) => sink.log.error("queries", bug.message))
 }

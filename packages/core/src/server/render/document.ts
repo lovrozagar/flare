@@ -18,6 +18,7 @@ import { streamOptions, type StreamOptions } from "./stream-options.ts"
 import type { PreloadTable } from "../lifecycle/build-info.ts"
 import { preloadLinks } from "./preload.ts"
 import { bodyStream, chunkText, type Chunk } from "./body-stream.ts"
+import { toWireOrRefused } from "../../shared/protocol/value.ts"
 
 type Stream = (
 	fn: () => unknown,
@@ -96,7 +97,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	const critical = { css: input.sheet ?? "", nonce, ctx: criticalContext(input.router), stylesheet: stylesheet.href }
 	const page = withDoctype(withCritical(headed, critical))
 	// The client keeps every `<head>` node outside this sequence out of hydration (B120).
-	const writeState = state(registeredQuery()?.dehydrate(), input.onBug ?? ignore, headSequence(page))
+	const writeState = state(registeredQuery()?.dehydrate(toWireOrRefused), input.onBug ?? ignore, headSequence(page))
 	const shell = insertState(page, writeState + clientScript(input.client, nonce))
 	return raceAbort(bodyStream(shell, reader), input.request.signal, stop)
 }

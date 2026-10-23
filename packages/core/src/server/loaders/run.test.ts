@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest"
 import type { Issue } from "../../shared/validation/issues.ts"
 import { isReplacing } from "../../shared/head/index.ts"
+import { toWire } from "../../shared/protocol/value.ts"
 import { runLoaders, type LoaderRoute, type RunInput } from "./run.ts"
 
 const session = { id: "ada" }
@@ -177,7 +178,7 @@ it("authorize is sequential", async () => {
 	)
 	expect(denied.response.status).toBe(403)
 	expect(seen).toEqual(["layout pre", "layout authz", "root loader"])
-	expect(denied.frames).toEqual([{ t: "l", m: "root", d: "root data" }])
+	expect(denied.frames).toEqual([{ t: "l", m: "root", d: "root data", wire: toWire("root data") }])
 })
 
 it("loaders are parallel", async () => {
@@ -458,4 +459,15 @@ it("head value bug", async () => {
 	const run = await runLoaders(request([route]))
 	expect(run.heads).toEqual([undefined])
 	expect(run.bugs).toEqual([new Error("canonical")])
+})
+
+// A live run keeps each kept loader's one encode on its frame, which the answer reuses; a stored run keeps none, since
+// its deferred values inline after the loader settles, so its store write encodes the data as it then stands (BUGS.md
+// 508).
+it("stored run keeps no wire", async () => {
+	const routes: LoaderRoute[] = [{ id: "root", loader: () => ({ n: 1 }) }]
+	const live = await runLoaders(request(routes, { kind: "document" }))
+	const stored = await runLoaders(request(routes, { kind: "document", stored: true }))
+	expect(live.frames).toEqual([{ t: "l", m: "root", d: { n: 1 }, wire: toWire({ n: 1 }) }])
+	expect(stored.frames).toEqual([{ t: "l", m: "root", d: { n: 1 } }])
 })
