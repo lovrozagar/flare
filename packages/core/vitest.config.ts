@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os"
 import solid from "@solidjs/vite-plugin"
 import { defineConfig } from "vitest/config"
 
@@ -12,11 +13,18 @@ const nodeInclude = ["src/**/*.test.ts", "tests/**/*.test.ts", "../../scripts/**
 // host and 6.1 s in a full gate.
 const INTEGRATION_TIMEOUT = 60_000
 
+// At most 8 workers, else vitest's own run-mode default, one less than the cores (vitest 4.1.10). The full gate on a
+// 16-core host, 2026-10-23, three runs each: vitest's 15 workers peaked at 7.6-8.1 GB in all and 118-154 s, with 4
+// kills across the runs; 8 workers peaked at 4.7-5.0 GB and 116-119 s, with 1. A runner with 9 cores or fewer keeps
+// vitest's default. It lowers the gate's footprint; it does not route around the host's reaper (BUGS.md 485.6).
+const MAX_WORKERS = Math.min(8, Math.max(availableParallelism() - 1, 1))
+
 export default defineConfig({
 	root: import.meta.dirname,
 	// App fixtures are written in JSX, as an app is. Framework sources do not use JSX.
 	plugins: [solid({ ssr: true, include: ["tests/e2e/apps/**/*.tsx"] })],
 	test: {
+		maxWorkers: MAX_WORKERS,
 		coverage: {
 			provider: "v8",
 			include: ["src/**", "lint/**"],
