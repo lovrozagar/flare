@@ -4,6 +4,7 @@ import { vi } from "vitest"
 import { STYLES_EVENT, stylesRequest } from "../../src/shared/protocol/index.ts"
 import type { Api, Side } from "./hydrate.harness.ts"
 import type { createClient } from "../../src/client/boot/create-client.ts"
+import { pageTimeline, type ServedRequest, type ServerTimeline } from "./hydrate.timeline.ts"
 
 // The harness's app mode (B96): a real document `createServer(...).fetch` serves from Solid's server build in Vite's SSR
 // runner, hydrated in a real engine by the real `createClient` with Solid's browser build. A case is its app (the
@@ -26,6 +27,8 @@ export type AppCase = {
 	// Paths the server answers until it serves them from its store, before the page loads. `at` is the clock the
 	// server renders and stores them on: only `Date` is faked, and only while priming.
 	prime?: readonly { path: string; at?: number }[]
+	// Milliseconds the page's document has to load. Playwright's 30 s when omitted.
+	loadTimeout?: number
 }
 
 // `requests` are the data, fill, and prefetch URLs the page asked for, from its first load on.
@@ -76,12 +79,13 @@ export function isAppRequest(url: string): boolean {
 // method, headers, and body, so a POST server function and a cookie reach the server as sent.
 export async function appDocument(
 	vite: ViteDevServer,
-	input: { id: string; url: string; origin: string; init?: RequestInit },
+	input: { id: string; url: string; origin: string; init?: RequestInit; served: ServedRequest },
 ): Promise<{ status: number; headers: Headers; body: string }> {
 	const ssr = vite.environments.ssr
 	if (!isRunnableDevEnvironment(ssr)) throw new Error("the SSR environment cannot run modules")
 	const response = await (await serverOf(vite, input)).fetch(new Request(`${input.origin}${input.url}`, input.init))
-	const text = await response.text()
+	input.served.answered(response.status)
+	const text = await bodyOf(response, input.served)
 	if (!(response.headers.get("content-type") ?? "").startsWith("text/html")) {
 		return { status: response.status, headers: response.headers, body: text }
 	}
@@ -89,6 +93,22 @@ export async function appDocument(
 	// A root that renders no `<body>` leaves the document without one: the entry then goes last.
 	const body = text.includes("</body>") ? text.replace("</body>", `${entry}</body>`) : `${text}${entry}`
 	return { status: response.status, headers: response.headers, body }
+}
+
+// The answer's body as text, each chunk on the server timeline as it arrives, then its end or its failure.
+async function bodyOf(response: Response, served: ServedRequest): Promise<string> {
+	const parts: Uint8Array[] = []
+	try {
+		for await (const chunk of response.body ?? []) {
+			served.chunk(chunk)
+			parts.push(chunk)
+		}
+	} catch (error) {
+		served.failed(error)
+		throw error
+	}
+	served.ended()
+	return Buffer.concat(parts).toString("utf8")
 }
 
 type AppServer = { fetch: (request: Request) => Promise<Response> }
@@ -135,7 +155,11 @@ export async function primeApp(vite: ViteDevServer, input: { id: string; origin:
 
 // Loads the app's page in a fresh context, waits for `createClient` to mark the document hydrated, runs the case's
 // steps, and reads back the record and everything the page reported.
-export async function appIn(at: { origin: string; tab: Page }, input: AppCase): Promise<AppResult> {
+export async function appIn(
+	at: { origin: string; tab: Page; server: ServerTimeline },
+	input: AppCase,
+): Promise<AppResult> {
+	const mark = at.server.mark()
 	const problems: string[] = []
 	const seen: string[] = []
 	const requests: string[] = []
@@ -157,44 +181,27 @@ export async function appIn(at: { origin: string; tab: Page }, input: AppCase): 
 		if (answer.status() >= 400) seen.push(`${answer.status()}: ${answer.url()}`)
 	})
 	await input.init?.(at.tab)
-	const loads = timeline(at.tab, at.origin)
-	// A document whose load never fires says which of its loads were still in flight (CI's WebKit, 2026-10-21).
-	const response = await at.tab.goto(`${at.origin}${input.path ?? "/"}`).catch((error: unknown) => {
-		throw new Error(`the document did not load: ${String(error)}\n${[...seen, ...loads.lines()].join("\n")}`)
-	})
+	const loads = pageTimeline(at.tab, at.origin)
+	// A document whose load never fires says which of its loads were still in flight, and what the server sent of each
+	// (CI's WebKit, 2026-10-21; BUGS.md 504).
+	const response = await at.tab
+		.goto(`${at.origin}${input.path ?? "/"}`, { timeout: input.loadTimeout ?? 30_000 })
+		.catch((error: unknown) => {
+			const lines = [...seen, ...loads.lines(), ...at.server.lines(mark)]
+			throw new Error(`the document did not load: ${String(error)}\n${lines.join("\n")}`)
+		})
 	const html = (await response?.text()) ?? ""
 	await at.tab
 		// Ten times the slowest hydration measured in the full gate (1.15 s over 128 cases, BUGS.md 140): past it, the
 		// timeline says whether the loads were progressing or stalled.
 		.waitForSelector("html[data-flare-hydrated]", { state: "attached", timeout: 10_000 })
 		.catch((error: unknown) => {
-			const lines = [...seen, ...loads.lines()]
+			const lines = [...seen, ...loads.lines(), ...at.server.lines(mark)]
 			throw new Error(`the client did not hydrate: ${String(error)}\n${lines.join("\n")}\n${html.slice(-600)}`)
 		})
 	await input.steps?.(at.tab)
 	const record: unknown[] = await at.tab.evaluate(() => Reflect.get(window, "__flareRecord") ?? [])
 	return { status: response?.status() ?? 0, html, problems, record, requests }
-}
-
-// Every request the page makes, timed from its first: when each started and when it finished or failed, or that it
-// was still in flight. A page that does not hydrate shows whether its loads were progressing or stalled.
-function timeline(tab: Page, origin: string): { lines: () => string[] } {
-	const start = performance.now()
-	const at = (): string => `${Math.round(performance.now() - start)}ms`
-	const loads = new Map<unknown, { url: string; started: string; ended?: string }>()
-	tab.on("request", (request) => void loads.set(request, { url: request.url().replace(origin, ""), started: at() }))
-	const end = (request: unknown, how: string): void => {
-		const load = loads.get(request)
-		if (load !== undefined) load.ended = `${how} ${at()}`
-	}
-	tab.on("requestfinished", (request) => end(request, "finished"))
-	tab.on("requestfailed", (request) => end(request, "failed"))
-	return {
-		lines: () =>
-			[...loads.values()].map(
-				(load) => `load ${load.url} started ${load.started}, ${load.ended ?? `in flight at ${at()}`}`,
-			),
-	}
 }
 
 // Without flare(), nothing answers the dev server's `flare:styles` request, and a dev document would wait for it.
