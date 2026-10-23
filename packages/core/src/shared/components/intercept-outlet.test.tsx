@@ -1,5 +1,5 @@
 import { createComponent, createMemo, createSignal, flush } from "solid-js"
-import { Dynamic, render, type JSX } from "@solidjs/web"
+import { Dynamic, Portal, render, type JSX } from "@solidjs/web"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { mountNavigator, settled, unmountAll, type Fetch } from "../../client/navigation/navigate.fixture.ts"
 import type { NavigatorDeps } from "../../client/navigation/navigate.ts"
@@ -407,6 +407,28 @@ it("overlay focus kept", async () => {
 	document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }))
 	expect(document.activeElement?.id).toBe("first")
 	expect(built).toBe(1)
+	app.host.remove()
+})
+
+// A popup the overlay mounts through a Portal sits outside the overlay's elements, under document.body; a click or the
+// app focusing its field keeps focus there (BUGS.md 501.3).
+it("overlay portal focus", async () => {
+	view = () => [
+		button("first"),
+		createComponent(Portal, {
+			get children() {
+				return createComponent(Dynamic, { component: "input", id: "popup" })
+			},
+		}),
+	]
+	const app = await setup(async () => ndjson(photoFrames("P1")))
+	document.body.append(app.host)
+	await app.navigator.navigate(open)
+	flush()
+	const popup = document.getElementById("popup")
+	expect([document.activeElement?.id, app.host.contains(popup)]).toEqual(["first", false])
+	popup?.focus()
+	expect(document.activeElement?.id).toBe("popup")
 	app.host.remove()
 })
 

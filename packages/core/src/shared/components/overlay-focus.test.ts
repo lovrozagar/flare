@@ -12,6 +12,10 @@ function press(key: string, shiftKey = false): KeyboardEvent {
 	return event
 }
 
+function release(key: string): void {
+	document.activeElement?.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }))
+}
+
 function overlay(html: string): HTMLElement {
 	const root = document.createElement("div")
 	root.innerHTML = html
@@ -122,6 +126,7 @@ it("escaped focus", () => {
 		() => [bare],
 		() => undefined,
 	)
+	press("Tab")
 	document.getElementById("behind")?.focus()
 	expect(document.activeElement).toBe(bare)
 	closeBare()
@@ -142,25 +147,46 @@ it("close returns past the guard", () => {
 	expect(document.activeElement?.id).toBe("opener")
 })
 
-// Focus the app moves out with no key, a toast's button say, comes back to the overlay's first element while it is
-// open; once closed, nothing pulls it back (BUGS.md 501).
+// Focus a click or the app moves out with no Tab, into a popup the overlay mounted through a Portal say, stays where
+// it went. A Tab from the popup is a Tab from outside: it goes to the overlay's first element (BUGS.md 501.3).
 it("focus moved by the app", () => {
-	document.body.innerHTML = '<button id="toast">toast</button>'
+	document.body.innerHTML = '<input id="popup">'
 	const root = overlay('<button id="one">1</button><button id="two">2</button>')
 	const close = trapFocus(
 		() => [root],
 		() => undefined,
 	)
 	document.getElementById("two")?.focus()
-	document.getElementById("toast")?.focus()
+	document.getElementById("popup")?.focus()
+	expect(document.activeElement?.id).toBe("popup")
+	expect(press("Tab").defaultPrevented).toBe(true)
 	expect(document.activeElement?.id).toBe("one")
 	close()
-	document.getElementById("toast")?.focus()
-	expect(document.activeElement?.id).toBe("toast")
 })
 
-// A Shift+Tab sets the direction for the focus change that follows it only: a later move out with no key goes to the
-// first element, not the last (BUGS.md 501).
+// A Tab that moved no focus, as one the browser kept in a field, ends with its key's release: a click that follows
+// stays where it went. Another key's release leaves a pending Tab alone (BUGS.md 501.3).
+it("tab without a move", () => {
+	document.body.innerHTML = '<button id="behind">behind</button>'
+	const root = overlay('<button id="one">1</button><button id="two">2</button>')
+	const close = trapFocus(
+		() => [root],
+		() => undefined,
+	)
+	press("Tab")
+	release("Tab")
+	document.getElementById("behind")?.focus()
+	expect(document.activeElement?.id).toBe("behind")
+	document.getElementById("two")?.focus()
+	press("Tab", true)
+	release("Shift")
+	document.getElementById("behind")?.focus()
+	expect(document.activeElement?.id).toBe("two")
+	close()
+})
+
+// A Shift+Tab sets the direction for the focus change that follows it only: a later Tab that leaves goes to the first
+// element, not the last, and a move after that with no Tab stays where it went (BUGS.md 501, 501.3).
 it("direction resets", () => {
 	document.body.innerHTML = '<button id="behind">behind</button>'
 	const root = overlay('<button id="one">1</button><button id="two">2</button>')
@@ -171,7 +197,10 @@ it("direction resets", () => {
 	document.getElementById("two")?.focus()
 	press("Tab", true)
 	document.getElementById("one")?.focus()
+	press("Tab")
 	document.getElementById("behind")?.focus()
 	expect(document.activeElement?.id).toBe("one")
+	document.getElementById("behind")?.focus()
+	expect(document.activeElement?.id).toBe("behind")
 	close()
 })

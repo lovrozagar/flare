@@ -10,9 +10,9 @@ import { expect, idle, open, serverOf, test, watch } from "./docs.fixture.ts"
 // again on 2026-10-18, after BUGS.md 352's entry handler grew each page's client script from 71 to 985 bytes. The
 // JavaScript is the docs app's whole client: v0.9.23's measure on the same page was 70 KB of initial JS and 2.86 KB of
 // navigation JS, against v1's 54 KB and 1.5 KB for the same route alone. The first load's JavaScript was raised to its
-// measured size on 2026-10-21 and 2026-10-22, with no room, each raise's breakdown in its commit message, and with
-// the prefetch's for Solid 2.0.0-rc.17's own code (BUGS.md 426). The heavy pages' entries, /perf/200 and /perf/1000,
-// are their sizes measured on 2026-10-21 with the same 3% room.
+// measured size on 2026-10-21, 2026-10-22, and 2026-10-23, with no room, each raise's breakdown in its commit
+// message, and with the prefetch's for Solid 2.0.0-rc.17's own code (BUGS.md 426). The heavy pages' entries, /perf/200
+// and /perf/1000, are their sizes measured on 2026-10-21 with the same 3% room.
 const BUDGET: Record<string, number> = {
 	"html /perf/200": 87_800,
 	"ndjson /perf/200": 25_800,
@@ -26,7 +26,7 @@ const BUDGET: Record<string, number> = {
 	"html gz /docs/routing": 13_700,
 	"state /docs/routing": 6_450,
 	"ndjson /docs/routing": 4_970,
-	"initial js gz": 123_095,
+	"initial js gz": 123_127,
 	"prefetch js gz": 12_606,
 	"navigation js gz": 0,
 }
