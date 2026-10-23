@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { createServer as createViteServer, isRunnableDevEnvironment } from "vite"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { flare } from "../../src/vite/plugin/flare.ts"
-import { builtServer, fixtureApps, page, rootLayout, viteBuild, type Server } from "./vite-app.ts"
+import { builtServer, failedBuild, fixtureApps, page, rootLayout, viteBuild, type Server } from "./vite-app.ts"
 
 // dx/routes.md through real apps (B96): each fixture is an app of route files under src/routes, built by `vite build`
 // from a config file with flare(), as the CLI runs it, and answered by the built server's `fetch`. A build error is
@@ -253,9 +253,7 @@ it("static beside catch-all", async () => {
 
 // What a failed build printed. A build that passed throws.
 async function failure(routes: Record<string, string>): Promise<string> {
-	const built = await viteBuild(project(routes))
-	if (built.status === 0) throw new Error("the build passed")
-	return built.output
+	return failedBuild(await viteBuild(project(routes)))
 }
 
 const ROOT = { "_root_/root.root-layout.tsx": rootLayout("_root_") }
@@ -285,9 +283,9 @@ describe("build errors", () => {
 	// A build only checks the id; only `vite dev` writes it (routes-dev.test), so the source is as it was.
 	it("id mismatch", async () => {
 		const root = project({ ...ROOT, "_root_/about/about.page.tsx": page("_root_/abut") })
-		const built = await viteBuild(root)
-		expect(built.status).not.toBe(0)
-		expect(built.output).toContain('_root_/about/about.page.tsx: the id string "_root_/abut" is not "_root_/about"')
+		expect(failedBuild(await viteBuild(root))).toContain(
+			'_root_/about/about.page.tsx: the id string "_root_/abut" is not "_root_/about"',
+		)
 		expect(readFileSync(join(root, "src/routes/_root_/about/about.page.tsx"), "utf8")).toBe(page("_root_/abut"))
 	})
 

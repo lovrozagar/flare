@@ -71,6 +71,15 @@ export function viteBuild(root: string): Promise<Built> {
 	return new Promise((done) => child.on("close", (status, signal) => done({ status, signal, output })))
 }
 
+// The output of a build that failed on its own, for a case that asserts the error a build prints. A build a signal
+// ended throws naming the signal, so a kill never reads as the build's own failure or as empty output, and a build
+// that passed throws too (BUGS.md 500.6).
+export function failedBuild(built: Built): string {
+	if (built.signal !== null) throw new Error(`vite build ${exitOf(built.status, built.signal)}`)
+	if (built.status === 0) throw new Error("the build passed")
+	return built.output
+}
+
 export type Server = { fetch: (request: Request) => Promise<Response> }
 
 // The app built, and its server, or the failure: how the build exited, its code or the signal that killed it, then
