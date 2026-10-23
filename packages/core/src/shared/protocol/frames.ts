@@ -39,6 +39,18 @@ export function encodeFrame(frame: Frame): string {
 	return `${JSON.stringify(mapValues(frame, toWire))}\n`
 }
 
+// The error a value throws as a `c` frame's value, where the wire cannot hold it (a function, a class instance), or
+// undefined when it encodes: the one check a data answer's `e` frame and a document's deferred view share (B145,
+// BUGS.md 149, 505).
+export function unencodable(value: unknown): { error: unknown } | undefined {
+	try {
+		encodeFrame({ t: "c", m: "", k: "", d: value })
+		return undefined
+	} catch (error) {
+		return { error }
+	}
+}
+
 export function decodeLine(line: string): Frame {
 	return mapValues(parsedLine(line), fromWire)
 }
