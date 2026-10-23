@@ -20,12 +20,37 @@ export type Packed = {
 	close: () => void
 }
 
+// The last lines a failed child printed on stderr, enough to read why without the whole build log.
+const TAIL_LINES = 20
+
+// How a child ended, as a failure says it: the signal that ended it, else its exit status (BUGS.md 500.4).
+export function ended(status: number | null, signal: string | null): string {
+	return signal === null ? `exited with status ${status}` : `ended by ${signal}`
+}
+
+// One child the release runs, its stdout returned. A failure throws the command line, how the child ended, and the
+// tail of its stderr, which is piped so the error carries it: a build the host killed reads as a kill, not as
+// "Command failed" (BUGS.md 500.4).
+export function runChild(command: string, args: readonly string[], options: { cwd?: string } = {}): string {
+	try {
+		return execFileSync(command, args, { ...options, encoding: "utf8", stdio: "pipe", maxBuffer: 1 << 28 })
+	} catch (error) {
+		const failed = Object(error) as { status?: number | null; signal?: string | null; stderr?: string }
+		const tail = String(failed.stderr ?? "")
+			.trimEnd()
+			.split("\n")
+			.slice(-TAIL_LINES)
+			.join("\n")
+		const how = ended(failed.status ?? null, failed.signal ?? null)
+		throw new Error(`${[command, ...args].join(" ")} ${how}${tail === "" ? "" : `\n${tail}`}`, { cause: error })
+	}
+}
+
 // The packager the bits/14 spike chose: tsdown passed the whole contract, and tsc did not copy the image module types.
 export function buildDist(out: string): void {
 	const tsdown = join(REPO, "node_modules/.bin/tsdown")
-	execFileSync(tsdown, ["--config", join(CORE, "tsdown.config.ts"), "--out-dir", out, "--log-level", "error"], {
+	runChild(tsdown, ["--config", join(CORE, "tsdown.config.ts"), "--out-dir", out, "--log-level", "error"], {
 		cwd: CORE,
-		stdio: "pipe",
 	})
 }
 
@@ -84,10 +109,7 @@ export function stagePackage(out: string): string {
 // `npm` is the command that runs npm: the PATH's by default, or a pinned Node and its npm CLI (plan 21 5.5).
 export function packTarball(dir: string, out: string, npm: readonly string[] = ["npm"]): string {
 	const [command = "npm", ...prefix] = npm
-	const result = execFileSync(command, [...prefix, "pack", "--json", "--pack-destination", out], {
-		cwd: dir,
-		encoding: "utf8",
-	})
+	const result = runChild(command, [...prefix, "pack", "--json", "--pack-destination", out], { cwd: dir })
 	// npm 11+ keys the report by package name; older npm wrote an array.
 	const report: unknown = JSON.parse(result)
 	const [packed] = Array.isArray(report) ? report : Object.values(Object(report))
@@ -98,7 +120,7 @@ export function packTarball(dir: string, out: string, npm: readonly string[] = [
 export function installTarball(tarball: string, stage: string): string {
 	const modules = join(stage, "node_modules")
 	mkdirSync(join(modules, "@lovrozagar"), { recursive: true })
-	execFileSync("tar", ["-xzf", tarball, "-C", modules])
+	runChild("tar", ["-xzf", tarball, "-C", modules])
 	const root = join(modules, "@lovrozagar/flare")
 	renameSync(join(modules, "package"), root)
 	mkdirSync(join(modules, ".bin"), { recursive: true })
@@ -113,7 +135,7 @@ export function packCore(): Packed {
 	try {
 		// FLARE_TARBALL names a tarball already packed: the release checks the bytes it ships, not a fresh build.
 		const tarball = process.env.FLARE_TARBALL ?? packTarball(stagePackage(join(stage, "build")), stage)
-		const entries = execFileSync("tar", ["-tzf", tarball], { encoding: "utf8" }).split("\n").filter(Boolean)
+		const entries = runChild("tar", ["-tzf", tarball]).split("\n").filter(Boolean)
 		const root = installTarball(tarball, stage)
 		const manifest: Manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
 		return { stage, root, tarball, entries, manifest, close }
@@ -123,7 +145,9 @@ export function packCore(): Packed {
 	}
 }
 
-export type RunResult = { status: number; stdout: string }
+// `status` is the exit status, 1 for a child a signal ended, so every caller's comparison keeps its meaning; `signal`
+// names that signal beside it (BUGS.md 500.4).
+export type RunResult = { status: number; stdout: string; signal: string | null }
 
 // What the release touches, passed in so its rows run without git, npm, or a network.
 export type ReleaseDeps = {
@@ -180,7 +204,7 @@ export function distTag(version: string): string[] {
 
 function publish(deps: ReleaseDeps, tarball: string, extra: readonly string[]): number {
 	const result = deps.run("npm", ["publish", tarball, "--access", "public", ...extra])
-	return result.status === 0 ? 0 : refuse(deps, `npm publish exited ${result.status}`)
+	return result.status === 0 ? 0 : refuse(deps, `npm publish failed: ${ended(result.status, result.signal)}`)
 }
 
 // Locally and in the verify job: a clean tree whose tag, if HEAD has one, is the manifest's version, every gate green,
@@ -191,7 +215,9 @@ function dryRun(flags: Flags, version: string, deps: ReleaseDeps): number {
 	const name = tag.stdout.trim()
 	if (tag.status === 0 && name !== `v${version}`) return refuse(deps, `tag ${name} is not v${version}`)
 	for (const [command = "", ...args] of flags.testCommand === undefined ? GATES : [flags.testCommand]) {
-		if (deps.run(command, args).status !== 0) return refuse(deps, `${[command, ...args].join(" ")} failed`)
+		const gate = deps.run(command, args)
+		if (gate.status !== 0)
+			return refuse(deps, `${[command, ...args].join(" ")} failed: ${ended(gate.status, gate.signal)}`)
 	}
 	const tarball = deps.pack(flags.out)
 	const golden = deps.run("bunx", ["vitest", "run", "tests/e2e/golden.test.ts"], {
@@ -229,19 +255,26 @@ export function release(argv: readonly string[], deps: ReleaseDeps): number {
 	return flags.publish ? publishVerified(flags, version, deps) : dryRun(flags, version, deps)
 }
 
+// The release's own runs: stdout piped and echoed, stderr straight to the terminal.
+export function runRelease(
+	command: string,
+	args: readonly string[],
+	options?: { cwd?: string; env?: Record<string, string> },
+): RunResult {
+	const result = spawnSync(command, args, {
+		cwd: options?.cwd ?? REPO,
+		env: { ...process.env, ...options?.env },
+		encoding: "utf8",
+		maxBuffer: 1 << 28,
+		stdio: ["ignore", "pipe", "inherit"],
+	})
+	if (command !== "git") process.stdout.write(result.stdout ?? "")
+	return { status: result.status ?? 1, stdout: result.stdout ?? "", signal: result.signal }
+}
+
 function realDeps(): ReleaseDeps {
 	return {
-		run(command, args, options) {
-			const result = spawnSync(command, args, {
-				cwd: options?.cwd ?? REPO,
-				env: { ...process.env, ...options?.env },
-				encoding: "utf8",
-				maxBuffer: 1 << 28,
-				stdio: ["ignore", "pipe", "inherit"],
-			})
-			if (command !== "git") process.stdout.write(result.stdout ?? "")
-			return { status: result.status ?? 1, stdout: result.stdout ?? "" }
-		},
+		run: runRelease,
 		pack(out) {
 			mkdirSync(out, { recursive: true })
 			return packTarball(stagePackage(join(out, "build")), out)

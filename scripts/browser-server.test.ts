@@ -135,7 +135,10 @@ it("endpoint env costs isolation", async () => {
 	expect(ISOLATION_LOST).toContain("ERR_NETWORK_CHANGED")
 	const bare = machine({ env, installed: true })
 	await browserEndpoint(bare.deps)
+	await browserEndpoint(bare.deps)
 	expect(bare.warnings).toEqual([])
+	// Docker is asked once a process, whatever it answered, so a run with no daemon does not spawn it each call.
+	expect(bare.runs.filter((args) => args[0] === "version")).toHaveLength(1)
 })
 
 // Two containers from the pinned image, each with the lockfile's playwright-core and the repo's scripts mounted
