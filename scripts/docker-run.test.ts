@@ -1,5 +1,5 @@
-import { expect, it } from "vitest"
-import { runPinned, type DockerResult } from "./docker-run.ts"
+import { expect, it, vi } from "vitest"
+import { dockerRun, runPinned, type DockerResult } from "./docker-run.ts"
 
 const IMAGE = "busybox@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e"
 const ok: DockerResult = { status: 0, stdout: "id\n", stderr: "" }
@@ -60,4 +60,22 @@ it("bounded", () => {
 		`docker could not run ${IMAGE} after 3 attempts, pulling it again between them: ${snapshot.stderr}`,
 	)
 	expect(calls.filter((args) => args[0] === "run")).toHaveLength(3)
+})
+
+// A Docker call a signal ended reports the signal beside its null status, so a test that starts a container names a
+// kill rather than an empty failure. The child is real: FLARE_DOCKER points the call at sh, which SIGKILLs itself
+// (BUGS.md 500.9).
+it("killed call named", () => {
+	vi.stubEnv("FLARE_DOCKER", "sh")
+	try {
+		expect(dockerRun(["-c", "kill -9 $$"])).toEqual({ status: null, signal: "SIGKILL", stdout: "", stderr: "" })
+		expect(dockerRun(["-c", "echo broke >&2; exit 3"])).toEqual({
+			status: 3,
+			signal: null,
+			stdout: "",
+			stderr: "broke\n",
+		})
+	} finally {
+		vi.unstubAllEnvs()
+	}
 })

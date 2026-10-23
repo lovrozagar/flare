@@ -1,5 +1,13 @@
-// One `docker` call's outcome.
-export type DockerResult = { status: number | null; stdout: string; stderr: string }
+import { spawnSync } from "node:child_process"
+
+// One `docker` call's outcome. `signal` names what ended a call a signal ended, its status then null (BUGS.md 500.9).
+export type DockerResult = { status: number | null; signal?: NodeJS.Signals | null; stdout: string; stderr: string }
+
+// One call of the Docker CLI, FLARE_DOCKER's when set, as the tests that start containers read it.
+export function dockerRun(args: readonly string[]): DockerResult {
+	const done = spawnSync(process.env["FLARE_DOCKER"] ?? "docker", args, { encoding: "utf8" })
+	return { status: done.status, signal: done.signal, stdout: done.stdout ?? "", stderr: done.stderr ?? "" }
+}
 
 // A pinned image's container start that survives the machine's pruner (BUGS.md 484): `docker-auto-prune` removes an
 // image nothing uses, and can take its layers while a run is unpacking them ("parent snapshot … does not exist") or the
