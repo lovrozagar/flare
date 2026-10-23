@@ -81,7 +81,7 @@ const NAMED_FAILURES = appFrom(`
 const anchor = (to) => api.solid.createComponent(api.web.Dynamic, { component: "a", href: to, id: "to-" + to.slice(1), children: to })
 const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
 	api.h("head", "head"),
-	api.h("body", "body", () => [anchor("/gone-page"), anchor("/gone-layout"), api.h("main", "slot", () => ["root[", props.children, "]"])]),
+	api.h("body", "body", () => [anchor("/gone-page"), anchor("/gone-layout"), anchor("/refused"), api.h("main", "slot", () => ["root[", props.children, "]"])]),
 ]))
 const area = api.layout.createLayout("_root_/(area)")
 	.loader(({ request }) => {
@@ -96,6 +96,8 @@ const routeTree = [
 	page("_root_/(area)/gone-page", "/gone-page", (p) =>
 		p.loader(() => { throw api.errors.notFound() }).render(() => "never").notFoundRender(() => "page missing")),
 	page("_root_/(area)/gone-layout", "/gone-layout", (p) => p.render(() => "never")),
+	page("_root_/(area)/refused", "/refused", (p) =>
+		p.loader(() => ({ later: new Promise(() => undefined) })).render(() => "never").errorRender((props) => "refused missing: " + props.error.message)),
 ]
 return { router: api.router.createRouter({ layouts: { _root_: root, "_root_/(area)": area }, routeTree }) }
 `)
@@ -389,6 +391,19 @@ describe.each(ENGINES)("%s", (engine) => {
 	it("errorRender reset", async () => {
 		const result = await run(engine, { app: RESET, path: "/flaky?q=1", steps: resetSteps })
 		expect(result.record).toEqual([{ path: "/flaky?q=1", pushed: 0 }])
+	})
+})
+
+describe.each(ENGINES)("%s", (engine) => {
+	// A page loader's value the wire refuses, one holding a Promise, is that loader's failure on a client navigation: the
+	// data answer's `e` frame paints the page's errorRender in its slot, as a throw does (BUGS.md 508).
+	it("refused loader value navigation", async () => {
+		const result = await run(engine, { app: NAMED_FAILURES, path: "/home", steps: failedSteps("/refused") })
+		// Before BUGS.md 508 the answer was a bare 500, which the client paints as "Request failed".
+		expect(result.record).toEqual([
+			"root[area[refused missing: a Promise inside the value cannot cross the wire: return a later value through defer()]]",
+		])
+		expect(result.problems).toEqual([])
 	})
 })
 

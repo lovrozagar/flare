@@ -1,6 +1,7 @@
 import { defined } from "../../shared/errors/index.ts"
-import type { PreloaderContext, RouteHeaders, RouteSecurity } from "../../shared/route-builder/chain.ts"
-import type { SecurityConfig } from "../../shared/route-builder/types.ts"
+import { headTags, replacing } from "../../shared/head/index.ts"
+import type { HeadOptions, PreloaderContext, RouteHeaders, RouteSecurity } from "../../shared/route-builder/chain.ts"
+import type { HeadConfig, SecurityConfig } from "../../shared/route-builder/types.ts"
 import { mergeHeaders } from "../security/apply.ts"
 import type { Settled } from "./cascade.ts"
 
@@ -13,6 +14,32 @@ export type StepRoute = {
 	search: unknown
 	headers?: ((ctx: View) => RouteHeaders) | undefined
 	security?: RouteSecurity | undefined
+}
+
+// The part of a validated match its head reads.
+export type HeadRoute = {
+	params: unknown
+	search: unknown
+	head?: ((ctx: View) => HeadConfig) | undefined
+	headOptions?: HeadOptions | undefined
+}
+
+type Finish = { frame: { d: unknown }; kept: PreloaderContext; bugs: unknown[] }
+
+// A match's head, from its loader's data. A replacing route's head is marked, so the document merge, the `h` frame,
+// and the state all read it (dx/head.md).
+export function routeHead(route: HeadRoute, at: Finish): HeadConfig | undefined {
+	try {
+		const values = { params: route.params, search: route.search }
+		const head = route.head?.({ ...values, loaderData: at.frame.d, preloaderContext: at.kept })
+		// A value the head cannot write, such as a relative canonical, fails here as a throw from .head() does: this
+		// match's head is omitted and the status stays the loader's (B82).
+		if (head !== undefined) headTags(head)
+		return head !== undefined && route.headOptions?.replace === true ? replacing(head) : head
+	} catch (error) {
+		at.bugs.push(error)
+		return undefined
+	}
 }
 
 export type StepsInput = {

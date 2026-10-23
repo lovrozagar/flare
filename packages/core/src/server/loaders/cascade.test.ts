@@ -1,5 +1,6 @@
 import { expect, it } from "vitest"
 import { UnauthenticatedError, notFound, unauthenticated, unauthorized } from "../../shared/errors/http.ts"
+import { toWire } from "../../shared/protocol/value.ts"
 import { runLoaders, type LoaderRun, type LoaderRoute, type RunInput } from "./run.ts"
 
 const boom = new Error("boom")
@@ -70,7 +71,7 @@ it("document throw", async () => {
 	const { run, overlay } = await spied("document", layoutData, throws(boom))
 	expect(run.response.status).toBe(500)
 	expect(run.failed).toEqual({ m: "page", status: 500, boundary: "errorRender", error: boom })
-	expect(run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }])
+	expect(run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 }, wire: toWire({ a: 1 }) }])
 	expect(overlay).toEqual([boom])
 })
 
@@ -78,7 +79,7 @@ it("data throw", async () => {
 	const { run, finished } = await spied("data", layoutData, throws(boom))
 	expect(run.response.status).toBe(200)
 	expect(run.frames).toEqual([
-		{ t: "l", m: "layout", d: { a: 1 } },
+		{ t: "l", m: "layout", d: { a: 1 }, wire: toWire({ a: 1 }) },
 		{ t: "e", m: "page", e: boom },
 	])
 	expect(finished).toEqual(["layout head", "layout headers"])
@@ -88,7 +89,7 @@ it("prefetch throw", async () => {
 	const { run, finished } = await spied("prefetch", layoutData, throws(boom))
 	expect(run.response.status).toBe(200)
 	expect(run.frames).toEqual([
-		{ t: "l", m: "layout", d: { a: 1 } },
+		{ t: "l", m: "layout", d: { a: 1 }, wire: toWire({ a: 1 }) },
 		{ t: "e", m: "page", e: boom },
 	])
 	expect(finished).toEqual(["layout head", "layout headers"])
@@ -104,13 +105,13 @@ it("named status", async () => {
 		const document = await spied("document", layoutData, call)
 		expect(document.run.response.status).toBe(status)
 		expect(document.run.failed?.boundary).toBe(boundary)
-		expect(document.run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }])
+		expect(document.run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 }, wire: toWire({ a: 1 }) }])
 		expect(document.overlay).toEqual([])
 		// A data answer keeps the frames above the failure too, so those layouts paint this URL's data (plan 21 12.5).
 		const data = await spied("data", layoutData, call)
 		expect(data.run.response.status).toBe(status)
 		expect(data.run.failed?.boundary).toBe(boundary)
-		expect(data.run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }])
+		expect(data.run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 }, wire: toWire({ a: 1 }) }])
 		expect(data.overlay).toEqual([])
 	}
 })

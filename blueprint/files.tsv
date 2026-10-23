@@ -278,13 +278,13 @@ packages/core/src/server/auth/gate.test.ts	P4	test	server	Unit cases for gate.ts
 packages/core/src/server/auth/index.ts	P4	index	server	Re-exports
 packages/core/src/server/loaders/run.ts	P1	src	server	Run validate, authenticate, preloader, authorize, loaders, head, headers
 packages/core/src/server/loaders/run.test.ts	P1	test	server	Unit cases for run.ts
-packages/core/src/server/loaders/route-steps.ts	P15	src	server	Merge the matches' `.headers()` and `.security()` root to page: an object security covers the first failure and every match before it, a function config waits for its own loader
+packages/core/src/server/loaders/route-steps.ts	P15	src	server	Each match's `.head()` from its loader's data, and the matches' `.headers()` and `.security()` merged root to page: an object security covers the first failure and every match before it, a function config waits for its own loader
 packages/core/src/server/loaders/route-steps.test.ts	P15	test	server	Unit cases for route-steps.ts
 packages/core/src/server/loaders/scope.ts	P13	src	server	inLoaderScope: each loader and preloader call runs under a child request event naming it, its params, and the locale config
 packages/core/src/server/loaders/scope.test.ts	P13	test	server	Unit cases for scope.ts
 packages/core/src/server/loaders/cascade.ts	P4	src	server	After Promise.all, drop data-carrying descendants of a failed layout
 packages/core/src/server/loaders/cascade.test.ts	P4	test	server	Unit cases for cascade.ts
-packages/core/src/server/loaders/defer.ts	P4	src	server	defer() returns a placeholder and a promise
+packages/core/src/server/loaders/defer.ts	P4	src	server	defer() returns a placeholder and a promise; a route's stored defer mode from its cache config
 packages/core/src/server/loaders/defer.test.ts	P4	test	server	Unit cases for defer.ts
 packages/core/src/server/loaders/hints.ts	P4	src	server	Apply _flare_stale. Layout loaders always run
 packages/core/src/server/loaders/hints.test.ts	P4	test	server	Unit cases for hints.ts

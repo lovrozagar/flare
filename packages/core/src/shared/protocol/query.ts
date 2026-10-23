@@ -8,7 +8,7 @@ export const QUERY_GETTER: unique symbol = Symbol.for("flare.query")
 // boot's signal that the hydration mount is over (B102). `clear` empties the document's client when the visitor may
 // have changed (B133).
 export type QueryGetter = (() => unknown) & {
-	dehydrate: () => unknown
+	dehydrate: (serializeData: (data: unknown) => unknown) => unknown
 	hydrated?: () => void
 	clear?: () => void
 	// A data answer's `q` frame into the document's client, at commit (B134).

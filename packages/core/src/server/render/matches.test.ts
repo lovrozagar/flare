@@ -18,6 +18,7 @@ function run(data: unknown[]): LoaderRun {
 	return {
 		response,
 		frames: [],
+		kept: [],
 		data,
 		heads,
 		contexts: [{}],

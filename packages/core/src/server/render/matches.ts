@@ -5,8 +5,10 @@ import type { LoadedEntry } from "../../shared/router/create-router.ts"
 import type { LoaderRun } from "../loaders/run.ts"
 import type { Projected } from "./projector.ts"
 import type { StateMatch } from "./state.ts"
+import { Encoded } from "../../shared/protocol/value.ts"
 import { isReplacing } from "../../shared/head/index.ts"
 import type { HeadConfig } from "../../shared/route-builder/types.ts"
+import type { SerovalJSON } from "seroval"
 
 // One rendered document: the chain, its loader run, and what fills the slot below the kept matches. `failed`
 // is the projected root-most failure. `unknown` is an unknown URL, painted with its not-found (B77).
@@ -35,16 +37,23 @@ export function outletMatches(rendered: Rendered): OutletMatch[] {
 export function stateMatches(matches: readonly OutletMatch[], rendered: Rendered): StateMatch[] {
 	const run = rendered.run
 	const failure = rendered.failed?.wire ?? null
+	// The wire form each kept match's loader settled with, by match id, which the state reuses rather than encoding
+	// again (BUGS.md 508).
+	const wires = new Map(run.kept.map((frame) => [frame.m, frame.wire]))
 	return matches.map((match, index) => ({
 		id: match.id,
 		params: match.params,
 		search: match.search,
-		data: match.data ?? null,
+		data: wireOr(wires.get(match.id), match.data),
 		preloader: run.contexts[index] ?? null,
 		head: run.heads[index] ?? null,
 		error: index < run.data.length ? null : failure,
 		...(replaces(run.heads[index]) && { replace: true as const }),
 	}))
+}
+
+function wireOr(wire: SerovalJSON | undefined, data: unknown): unknown {
+	return wire === undefined ? (data ?? null) : new Encoded(wire)
 }
 
 function replaces(head: HeadConfig | undefined): boolean {

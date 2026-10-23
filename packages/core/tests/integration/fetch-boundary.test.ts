@@ -20,20 +20,15 @@ afterEach(() => {
 })
 
 const root = createRootLayout("_root_").render((props) => props.children)
-const big = createPage("_root_/big")
-	// A function is no wire value (B145).
-	.loader(() => ({ n: () => 1 }))
-	.render(() => "big")
 const router = createRouter({
 	layouts: { _root_: root },
-	routeTree: [
-		{ id: "_root_/", path: "/", module: createPage("_root_/").render(() => "home") },
-		{ id: "_root_/big", path: "/big", module: big },
-	],
+	routeTree: [{ id: "_root_/", path: "/", module: createPage("_root_/").render(() => "home") }],
 })
 
 type Case = { name: string; options: object; request: Request; logged: RegExp }
 
+// A loader value the wire cannot hold no longer reaches this boundary: it is that loader's failure, a data answer's
+// `e` frame (wire-later.test, BUGS.md 508).
 const CASES: readonly Case[] = [
 	{
 		name: "server function module",
@@ -55,12 +50,6 @@ const CASES: readonly Case[] = [
 		options: { mounts: [mount("/m", () => undefined as never)] },
 		request: new Request("http://localhost/m/x"),
 		logged: /mount \/m answered undefined, not a Response/,
-	},
-	{
-		name: "data serialization",
-		options: {},
-		request: new Request("http://localhost/big?_flare=data"),
-		logged: /Seroval/,
 	},
 	{
 		name: "server context",

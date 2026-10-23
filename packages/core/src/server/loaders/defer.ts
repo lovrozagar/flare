@@ -1,9 +1,16 @@
 import { DOCUMENT_VIEW, deferredFailure, type DeferredFailure } from "../../shared/protocol/deferred-failure.ts"
 import { unencodable } from "../../shared/protocol/frames.ts"
+import type { CacheConfig } from "../../shared/route-builder/chain.ts"
 import type { Deferred } from "../../shared/route-builder/register.ts"
 import { inDeferred, insideDeferred } from "./scope.ts"
 
 export type DeferMode = "resolve" | "stream"
+
+// The route's stored defer mode, from `cache.ssr.defer`, `cache.isr.defer`, or `cache.ssg.defer`.
+export function deferMode(cache: CacheConfig | undefined): DeferMode | undefined {
+	const mode = cache?.ssr ?? cache?.isr ?? cache?.ssg
+	return typeof mode === "object" ? mode.defer : undefined
+}
 
 export type DeferOptions = { key?: string; prerender?: DeferMode }
 

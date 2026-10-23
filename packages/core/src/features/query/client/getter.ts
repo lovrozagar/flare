@@ -1,7 +1,7 @@
 import { getRequestEvent, isServer } from "@solidjs/web"
 import { dehydrate, hydrate, QueryClient, type Query } from "@tanstack/solid-query"
 import { registeredQuery, registerQuery, type QueryGetter } from "../../../shared/protocol/index.ts"
-import { fromWire, toWire } from "../../../shared/protocol/value.ts"
+import { fromWire } from "../../../shared/protocol/value.ts"
 
 // A loader's `ctx.queryClient` is TanStack's client once the app imports `./query`, which loads this module
 // (dx/types.md `query client present`). Core declares the empty register and never names TanStack.
@@ -22,15 +22,16 @@ class RequestQueries {
 
 // A query's data is an app value, so it travels as every other one does (B145): the server dehydrates it with the
 // wire codec, and the client hydrates it back, a Date as a Date, whether the document or a navigation carried it
-// (BUGS.md 364). TanStack's own `serializeData` and `deserializeData` carry the codec.
-const TO_WIRE = { serializeData: toWire }
+// (BUGS.md 364). TanStack's own `serializeData` and `deserializeData` carry the codec. The server's writer passes the
+// serializer `dehydrate` uses, so how a refused value travels to its failure path stays the server's, and the client,
+// which never dehydrates, carries none of it (BUGS.md 508).
 const FROM_WIRE = { defaultOptions: { deserializeData: fromWire } }
 
 // Marks a getter this module made, so the registered one can be returned with its type.
 const BRAND = Symbol.for("flare.query.getter")
 
 type ClientGetter = (() => QueryClient) & {
-	dehydrate: () => unknown
+	dehydrate: (serializeData: (data: unknown) => unknown) => unknown
 	hydrated: () => void
 	clear: () => void
 	hydrate: (state: unknown) => void
@@ -50,9 +51,9 @@ export function createQueryClientGetter(): () => QueryClient {
 		return documentClient
 	}
 	const created = Object.assign(getter, {
-		dehydrate: () => {
+		dehydrate: (serializeData: (data: unknown) => unknown) => {
 			const request = isServer ? requestQueries() : undefined
-			return request === undefined ? undefined : requestState(request)
+			return request === undefined ? undefined : requestState(request, { serializeData })
 		},
 		// The client boot calls this once the hydration mount is over (B102).
 		hydrated: () => void (phase.hydrated = true),
@@ -93,12 +94,15 @@ function createRequestQueries(): RequestQueries {
 }
 
 // The request's dehydrated cache, plus each query that succeeded in it and was cleared since.
-function requestState(request: RequestQueries): ReturnType<typeof dehydrate> {
+function requestState(
+	request: RequestQueries,
+	options: { serializeData: (data: unknown) => unknown },
+): ReturnType<typeof dehydrate> {
 	const cleared = new QueryClient()
 	for (const query of request.succeeded.values())
 		if (request.client.getQueryCache().get(query.queryHash) === undefined) cleared.getQueryCache().add(query)
-	const live = dehydrate(request.client, TO_WIRE)
-	return { ...live, queries: [...live.queries, ...dehydrate(cleared, TO_WIRE).queries] }
+	const live = dehydrate(request.client, options)
+	return { ...live, queries: [...live.queries, ...dehydrate(cleared, options).queries] }
 }
 
 // The document's `queries`, which the server wrote into the state script, fill the client before hydrate, so a query

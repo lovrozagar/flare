@@ -1,5 +1,5 @@
 import type { HeadConfig } from "../route-builder/types.ts"
-import { fromWire, toWire } from "./value.ts"
+import { fromWire, wireOf } from "./value.ts"
 
 // `stack` in dev, `digest` in production, and never both (B76).
 export type FrameError = { message: string; stack?: string | undefined; digest?: string | undefined }
@@ -36,7 +36,7 @@ const encoder = new TextEncoder()
 // A frame's app values, an `l` frame's data, preloader context, and validated params and search, and a `c` frame's
 // value, travel as wire values; the frame around them is JSON (B145).
 export function encodeFrame(frame: Frame): string {
-	return `${JSON.stringify(mapValues(frame, toWire))}\n`
+	return `${JSON.stringify(mapValues(frame, wireOf))}\n`
 }
 
 // The error a value throws as a `c` frame's value, where the wire cannot hold it (a function, a class instance), or

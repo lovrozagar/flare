@@ -11,6 +11,7 @@ function runOf(deferred: Promise<unknown>, headers: LoaderRun["headers"] = {}): 
 	return {
 		response: new Response(null, { status: 200 }),
 		frames: [],
+		kept: [],
 		data: ["root data", "layout data", "page data"],
 		heads: [{ title: "root" }, undefined, { title: "page" }],
 		contexts: [{}, {}, {}],
