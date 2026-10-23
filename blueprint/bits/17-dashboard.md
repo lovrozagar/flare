@@ -60,6 +60,7 @@ The query client comes from `createQueryClientGetter()` (`src/query.ts`), provid
 | `back closes overlay` | Back closes the dialog with no document load, and focus returns to the row's link |
 | `reload keeps detail` | a reload of an open dialog's URL renders the project's page |
 | `rename revalidates list` | a rename shows in the dialog and in the row behind it, and stays after the dialog closes; no document load |
+| `portal popover keeps focus` | in the open dialog, the Note button's popover, mounted through a Portal under `document.body`, takes a click on its field and typing, and the dialog stays open (BUGS.md 501.3) |
 | `missing project` | `/app/projects/9999` is 404 with `Page not found` in the page slot under the shell; `/app/no-such-page` is 404 with the root's `Page not found` and no shell |
 
 ## `tests/e2e/dashboard-mutations.test.ts` (every project)

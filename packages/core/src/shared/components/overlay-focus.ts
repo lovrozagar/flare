@@ -14,8 +14,8 @@ const FOCUSABLE = [
 // they are now, so content that changes while it is open is trapped too. Focus moves in as it opens, to the element
 // marked `autofocus`, else the first that takes focus, else the overlay's first element, without scrolling the page
 // under it. Tab and Shift+Tab wrap inside it, Escape dismisses it unless the app already handled the key, and the
-// returned close gives focus back to the element that had it before, the link that opened the overlay. Focus that
-// lands outside it comes back, to its first element or, after Shift+Tab, its last: macOS Safari's own Tab skips links,
+// returned close gives focus back to the element that had it before, the link that opened the overlay. Focus a Tab
+// moves outside it comes back, to its first element or, after Shift+Tab, its last: macOS Safari's own Tab skips links,
 // so from the middle of an overlay it can step past the overlay's links to the page behind (BUGS.md 501).
 export function trapFocus(roots: () => readonly Element[], dismiss: () => void, doc: Document = document): () => void {
 	const opener = doc.activeElement
@@ -27,26 +27,34 @@ export function trapFocus(roots: () => readonly Element[], dismiss: () => void, 
 		.map((root) => root.querySelector<HTMLElement>("[autofocus]"))
 		.find((node) => node !== null)
 	focusOn(marked ?? focusables()[0] ?? roots()[0])
-	let backward = false
+	// The Tab whose focus move comes next, if any: only that move is pulled back. A click, or the app focusing a popup
+	// it mounted through a Portal outside the overlay, is left where it went (BUGS.md 501.3).
+	let tab: "forward" | "backward" | undefined
 	const onKey = (event: KeyboardEvent): void => {
 		if (event.defaultPrevented || event.isComposing) return
 		if (event.key === "Escape") return void dismiss()
 		if (event.key !== "Tab") return
-		backward = event.shiftKey
+		tab = event.shiftKey ? "backward" : "forward"
 		wrap(event, focusables(), doc.activeElement)
 	}
-	// A Tab's direction holds for the focus change it makes, then resets: a later move with no key goes to the first.
+	// The next focus move takes the Tab, whichever way it went; a Tab that moved no focus ends with its key's release.
+	const onKeyUp = (event: KeyboardEvent): void => {
+		if (event.key === "Tab") tab = undefined
+	}
 	const onFocus = (event: FocusEvent): void => {
-		const back = backward
-		backward = false
+		const by = tab
+		tab = undefined
+		if (by === undefined) return
 		if (roots().some((root) => event.target instanceof Node && root.contains(event.target))) return
 		const list = focusables()
-		focusOn((back ? list.at(-1) : list[0]) ?? roots()[0])
+		focusOn((by === "backward" ? list.at(-1) : list[0]) ?? roots()[0])
 	}
 	doc.addEventListener("keydown", onKey)
+	doc.addEventListener("keyup", onKeyUp)
 	doc.addEventListener("focusin", onFocus)
 	return () => {
 		doc.removeEventListener("focusin", onFocus)
+		doc.removeEventListener("keyup", onKeyUp)
 		doc.removeEventListener("keydown", onKey)
 		if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true })
 	}

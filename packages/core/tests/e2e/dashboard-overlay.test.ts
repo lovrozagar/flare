@@ -92,6 +92,21 @@ test("rename revalidates list", async ({ page, dashboard }) => {
 	expect(loads).toEqual([])
 })
 
+// A popover the open dialog mounts through a Portal sits outside the dialog under document.body; a click on its field
+// keeps focus there and typing reaches it, while the dialog stays open (BUGS.md 501.3).
+test("portal popover keeps focus", async ({ page, dashboard }) => {
+	await signedIn(page, dashboard.origin, TABLE)
+	await page.locator("#projects .project-link").first().click()
+	await expect(page.locator("#project-dialog")).toBeVisible()
+	await page.locator("#dialog-note").click()
+	const field = page.locator("#note-field")
+	await field.click()
+	await expect(field).toBeFocused()
+	await page.keyboard.type("todo")
+	await expect(field).toHaveValue("todo")
+	await expect(page.locator("#project-dialog")).toBeVisible()
+})
+
 // A project id the workspace does not have is a 404 under the shell; a URL no route matches is the root's not-found
 // (notFoundMode "root", B146), with no shell.
 test("missing project", async ({ page, dashboard }) => {

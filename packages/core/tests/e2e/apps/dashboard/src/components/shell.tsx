@@ -1,6 +1,6 @@
 import { InterceptOutlet, Link, useNavigate, useNavigationProgress } from "@lovrozagar/flare"
-import { Show } from "solid-js"
-import type { JSX } from "@solidjs/web"
+import { createSignal, Show } from "solid-js"
+import { Portal, type JSX } from "@solidjs/web"
 import type { Role } from "../db.ts"
 import { signOut } from "../fns/auth.ts"
 import { DEFAULT_SEARCH } from "../search.ts"
@@ -95,7 +95,8 @@ function ProjectDialog(): JSX.Element {
 						data-background={state.backgroundLocation.pathname}
 						class="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-xl"
 					>
-						<div class="mb-2 flex justify-end">
+						<div class="mb-2 flex justify-end gap-3">
+							<NotePopover />
 							<button id="dialog-close" type="button" class="text-sm text-slate-500" onClick={() => state.dismiss()}>
 								Close
 							</button>
@@ -105,5 +106,25 @@ function ProjectDialog(): JSX.Element {
 				</div>
 			)}
 		</InterceptOutlet>
+	)
+}
+
+// A popover the dialog mounts through a Portal, under document.body and outside the dialog's own elements; its field
+// takes a click and typing while the dialog is open (BUGS.md 501.3).
+function NotePopover(): JSX.Element {
+	const [open, setOpen] = createSignal(false)
+	return (
+		<>
+			<button id="dialog-note" type="button" class="text-sm text-slate-500" onClick={() => setOpen(!open())}>
+				Note
+			</button>
+			<Show when={open()}>
+				<Portal>
+					<div id="note-popover" class="fixed end-6 top-6 z-50 rounded-md border border-slate-200 bg-white p-3 shadow">
+						<input id="note-field" aria-label="Note" class="rounded border border-slate-300 px-2 py-1 text-sm" />
+					</div>
+				</Portal>
+			</Show>
+		</>
 	)
 }
