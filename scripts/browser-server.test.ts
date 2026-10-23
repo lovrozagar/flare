@@ -1,5 +1,5 @@
 import { expect, it } from "vitest"
-import { browserEndpoint, frozenWebkit, IMAGE_DIGEST, type BrowserDeps } from "./browser-server.ts"
+import { browserEndpoint, frozenWebkit, IMAGE_DIGEST, ISOLATION_LOST, type BrowserDeps } from "./browser-server.ts"
 
 const IMAGE = `mcr.microsoft.com/playwright:v1.64.1-noble@sha256:${IMAGE_DIGEST}`
 const VERSION = ["version", "--format", "{{.Server.Version}}"]
@@ -76,6 +76,7 @@ function machine(
 	} = {},
 ) {
 	const runs: (readonly string[])[] = []
+	const warnings: string[] = []
 	const answers: Record<string, Answer> = {}
 	const listening = new Set<number>()
 	for (const name of Object.keys(input.containers ?? {})) listening.add(name === "flare-chromium" ? 3334 : 3333)
@@ -107,8 +108,9 @@ function machine(
 		scripts: () => "/repo/scripts",
 		proxyVersion: () => "p1",
 		sleep: async () => undefined,
+		warn: (line) => void warnings.push(line),
 	}
-	return { deps, runs, answers }
+	return { deps, runs, answers, warnings }
 }
 
 // A run-server the user set serves every engine as it is: no container, no proxy.
@@ -118,7 +120,22 @@ it("endpoint env", async () => {
 		endpoint: "ws://10.0.0.2:3000/",
 		chromium: { endpoint: "ws://10.0.0.2:3000/", headers: {} },
 	})
-	expect(runs).toEqual([])
+	expect(runs).toEqual([["version", "--format", "{{.Server.Version}}"]])
+})
+
+// Set where Docker answers, the variable takes Chromium out of flare-chromium's isolation, so the run says what that
+// costs, once a process; where Docker does not answer there is no isolation to lose, and nothing is said (BUGS.md
+// 484.8).
+it("endpoint env costs isolation", async () => {
+	const env = { FLARE_BROWSER_WS: "ws://127.0.0.1:3333/" }
+	const docked = machine({ env, docker: true })
+	await browserEndpoint(docked.deps)
+	await browserEndpoint(docked.deps)
+	expect(docked.warnings).toEqual([ISOLATION_LOST])
+	expect(ISOLATION_LOST).toContain("ERR_NETWORK_CHANGED")
+	const bare = machine({ env, installed: true })
+	await browserEndpoint(bare.deps)
+	expect(bare.warnings).toEqual([])
 })
 
 // Two containers from the pinned image, each with the lockfile's playwright-core and the repo's scripts mounted
