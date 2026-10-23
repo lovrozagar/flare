@@ -7,6 +7,7 @@ import { parseSync } from "oxc-parser"
 import { onFreePort } from "../../../../scripts/free-port.ts"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { packCore, type Packed } from "../../../../scripts/release.ts"
+import { exitOf } from "../e2e/child.ts"
 import { identifiers, marked, quickStart, readme, tableRows } from "./readme.ts"
 
 // The packager contract (bits/14), against the tarball `npm pack` writes, installed into a stage the way an app gets it.
@@ -279,7 +280,8 @@ it(
 )
 
 // The README's serve.js in `app`, once it answers the stub's 404. A server that never answers says why, its exit and its
-// output (BUGS.md 492); one whose port was taken before it listened runs again on another (BUGS.md 493).
+// output (BUGS.md 492); one whose port was taken before it listened runs again on another (BUGS.md 493). One a signal
+// ended stops the wait at once, as an exit does (BUGS.md 500.12).
 function serveReadme(app: string): Promise<{ child: ChildProcess; port: number }> {
 	return onFreePort(async (port) => {
 		const child = spawn(process.execPath, [join(app, "serve.js")], {
@@ -290,7 +292,8 @@ function serveReadme(app: string): Promise<{ child: ChildProcess; port: number }
 		child.stdout?.on("data", (chunk: Buffer) => void (output += String(chunk)))
 		child.stderr?.on("data", (chunk: Buffer) => void (output += String(chunk)))
 		const deadline = Date.now() + 10_000
-		while (Date.now() < deadline && child.exitCode === null) {
+		const ended = (): boolean => child.exitCode !== null || child.signalCode !== null
+		while (Date.now() < deadline && !ended()) {
 			const status = await fetch(`http://127.0.0.1:${port}/`).then(
 				(response) => response.status,
 				() => 0,
@@ -298,8 +301,9 @@ function serveReadme(app: string): Promise<{ child: ChildProcess; port: number }
 			if (status === 404) return { child, port }
 			await new Promise((resolve) => setTimeout(resolve, 100))
 		}
+		const state = ended() ? exitOf(child.exitCode, child.signalCode) : "still running"
 		child.kill()
-		throw new Error(`no answer; exit ${child.exitCode ?? child.signalCode ?? "none yet"}; output: ${output}`)
+		throw new Error(`no answer; ${state}; output: ${output}`)
 	})
 }
 
