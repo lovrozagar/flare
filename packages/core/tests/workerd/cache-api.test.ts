@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { afterAll, beforeAll, expect, it } from "vitest"
+import { bundled } from "./bundle.ts"
 
 const src = (path: string): string => JSON.stringify(fileURLToPath(new URL(`../../src/${path}`, import.meta.url)))
 
@@ -41,7 +42,7 @@ export default {
 	const built = spawnSync("bun", ["build", entry, "--outfile", worker, "--format=esm", "--target=browser"], {
 		encoding: "utf8",
 	})
-	if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
+	bundled(built)
 	return new Miniflare(
 		convertV4MiniflareOptions({ modules: true, scriptPath: worker, compatibilityDate: "2026-07-10" }),
 	)

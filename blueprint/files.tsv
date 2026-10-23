@@ -800,6 +800,8 @@ packages/core/tests/integration/features-media.test.ts	P13	test	node	dx/features
 packages/core/tests/integration/query.test.ts	P13	test	node	dx/features.md's Query rows through the real createServer(...).fetch: the request's client, a loader's prefetch read by useSuspenseQuery, the dehydrated state, and the server fn options (plan 14 9.6)
 packages/core/tests/integration/query-client.test.ts	P13	test	node	B134 in the browser: a loader's prefetched query paints on a click and on a hovered prefetch with no browser run (BUGS.md 192)
 packages/core/tests/workerd/handler.test.ts	P3	test	workers	The workers handler delegates unmatched GET to the assets binding and calls waitUntil
+packages/core/tests/workerd/bundle.ts	P3	test	node	The workerd tests' worker bundle check: a `bun build` that did not finish throws its code or the signal that killed it, then its stderr (BUGS.md 500.8)
+packages/core/tests/workerd/bundle.test.ts	P3	test	node	A bundle child a signal ended is named by the signal, one that failed by its code and stderr (BUGS.md 500.8)
 packages/core/tests/workerd/server.test.ts	P15	test	node	The real createServer behind createWorkersHandler in workerd, bundled with Solid's server build (B96, dx/adapters.md)
 packages/core/tests/workerd/disconnect.test.ts	P15	test	node	Canaries: local Miniflare does not report a client disconnect to the worker (BUGS.md B45), and resets a kept-alive connection after an answer that left the body unread (BUGS.md B56, dx/adapters.md)
 packages/core/tests/structure/ci.test.ts	P15	test	node	ci.yml matches the decisions it implements: every job pins Node 24, and both OS jobs run the unit suite (B3, BUGS.md B24, B27)
