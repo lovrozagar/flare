@@ -191,7 +191,7 @@ async function listen(
 		const active = apps.active
 		if (active !== undefined && isAppRequest(url)) {
 			const origin = `http://127.0.0.1:${portOf(http)}`
-			const request = served.request(url)
+			const request = served.request(url, req.socket)
 			void requestInit(req)
 				.then((init) => appDocument(vite, { id: active, url, origin, init, served: request }))
 				.then(

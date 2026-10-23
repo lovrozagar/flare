@@ -37,6 +37,8 @@ afterAll(async () => {
 // sent with its bytes, and that the body never ended.
 it("open body named", async () => {
 	if (harness === undefined) throw new Error("the harness did not start")
+	// The page starts well after the harness, so a page clock and a server clock that differ read apart.
+	await new Promise((done) => setTimeout(done, 3000))
 	const loading = harness.app("chromium", { app: OPEN, path: "/open", loadTimeout: 3000, client() {} })
 	const error = await loading.then(
 		() => new Error("the document loaded"),
@@ -45,7 +47,17 @@ it("open body named", async () => {
 	const message = String(error)
 	expect(message).toContain("the document did not load")
 	expect(message).toMatch(/load \/open started \d+ms, in flight at \d+ms/)
+	// One clock: the request reached the server soon after the page started it, though the page started 3 s after the
+	// harness (BUGS.md 504.6).
+	const started = Number(/load \/open started (\d+)ms/.exec(message)?.[1])
+	const arrived = Number(/server \/open[^:]*: in (\d+)ms/.exec(message)?.[1])
+	expect(arrived - started).toBeGreaterThanOrEqual(0)
+	expect(arrived - started).toBeLessThan(1500)
+	// Which siblings exited depends on the files around this one, so only the line's shape is fixed.
 	expect(message).toMatch(
-		/server \/open: in \d+ms, answered 200 \d+ms, chunk 1 \d+ bytes \d+ms …".+"(, chunk \d+ .*)?, body never ended \(open at \d+ms\)/,
+		/harness worker \d+; of \d+ workers at the case's start, exited since: (none|\d+( \d+)*) \(an exit/,
+	)
+	expect(message).toMatch(
+		/server \/open \(port \d+, socket request 1\): in \d+ms, answered 200 \d+ms, chunk 1 \d+ bytes \d+ms …".+"(, chunk \d+ .*)?, body never ended \(open at \d+ms\)/,
 	)
 }, 30_000)

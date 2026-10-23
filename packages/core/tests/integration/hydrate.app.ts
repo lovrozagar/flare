@@ -4,7 +4,13 @@ import { vi } from "vitest"
 import { STYLES_EVENT, stylesRequest } from "../../src/shared/protocol/index.ts"
 import type { Api, Side } from "./hydrate.harness.ts"
 import type { createClient } from "../../src/client/boot/create-client.ts"
-import { pageTimeline, type ServedRequest, type ServerTimeline } from "./hydrate.timeline.ts"
+import {
+	pageTimeline,
+	siblingWorkers,
+	workerLine,
+	type ServedRequest,
+	type ServerTimeline,
+} from "./hydrate.timeline.ts"
 
 // The harness's app mode (B96): a real document `createServer(...).fetch` serves from Solid's server build in Vite's SSR
 // runner, hydrated in a real engine by the real `createClient` with Solid's browser build. A case is its app (the
@@ -160,6 +166,7 @@ export async function appIn(
 	input: AppCase,
 ): Promise<AppResult> {
 	const mark = at.server.mark()
+	const workers = siblingWorkers()
 	const problems: string[] = []
 	const seen: string[] = []
 	const requests: string[] = []
@@ -181,13 +188,13 @@ export async function appIn(
 		if (answer.status() >= 400) seen.push(`${answer.status()}: ${answer.url()}`)
 	})
 	await input.init?.(at.tab)
-	const loads = pageTimeline(at.tab, at.origin)
+	const loads = pageTimeline(at.tab, at.origin, at.server.clock)
 	// A document whose load never fires says which of its loads were still in flight, and what the server sent of each
 	// (CI's WebKit, 2026-10-21; BUGS.md 504).
 	const response = await at.tab
 		.goto(`${at.origin}${input.path ?? "/"}`, { timeout: input.loadTimeout ?? 30_000 })
 		.catch((error: unknown) => {
-			const lines = [...seen, ...loads.lines(), ...at.server.lines(mark)]
+			const lines = [...seen, ...loads.lines(), ...at.server.lines(mark), workerLine(workers)]
 			throw new Error(`the document did not load: ${String(error)}\n${lines.join("\n")}`)
 		})
 	const html = (await response?.text()) ?? ""
@@ -196,7 +203,7 @@ export async function appIn(
 		// timeline says whether the loads were progressing or stalled.
 		.waitForSelector("html[data-flare-hydrated]", { state: "attached", timeout: 10_000 })
 		.catch((error: unknown) => {
-			const lines = [...seen, ...loads.lines(), ...at.server.lines(mark)]
+			const lines = [...seen, ...loads.lines(), ...at.server.lines(mark), workerLine(workers)]
 			throw new Error(`the client did not hydrate: ${String(error)}\n${lines.join("\n")}\n${html.slice(-600)}`)
 		})
 	await input.steps?.(at.tab)
