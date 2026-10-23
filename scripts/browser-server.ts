@@ -49,6 +49,8 @@ export type BrowserDeps = {
 	// A short hash of loopback-proxy.ts, in the containers' label.
 	proxyVersion: () => string
 	sleep: (ms: number) => Promise<void>
+	// One line to the run's output.
+	warn: (line: string) => void
 }
 
 // The run-servers to connect to: `endpoint` for Firefox and WebKit, and Chromium's own with the headers its connect
@@ -58,13 +60,30 @@ export type BrowserEndpoints = {
 	chromium: { endpoint: string; headers: Record<string, string> }
 }
 
-// Where the engines come from (B97): `FLARE_BROWSER_WS`, which then serves every engine as it is, else the pinned
+// What a FLARE_BROWSER_WS set where Docker answers costs: Chromium runs on that server, outside flare-chromium's own
+// network namespace, so another process's interface change fails its loads (BUGS.md 484, 484.8).
+export const ISOLATION_LOST =
+	"FLARE_BROWSER_WS serves every engine, Chromium included, so Chromium runs outside flare-chromium's isolation " +
+	"and a host interface change fails its loads with ERR_NETWORK_CHANGED (BUGS.md 484). " +
+	"Unset it to use the pinned containers."
+
+// The warn functions that already said ISOLATION_LOST: the native one once a process.
+const warned = new WeakSet<(line: string) => void>()
+
+// Where the engines come from (B97): `FLARE_BROWSER_WS`, which then serves every engine as it is (saying, where Docker
+// answers, that Chromium leaves its isolation), else the pinned
 // containers' run-servers when Docker answers, else Playwright's installed engines, as on the macOS runners and inside
 // the CI image, which have no Docker. The endpoints, or undefined for the installed engines. With none of the three,
 // one error names all three.
 export async function browserEndpoint(deps: BrowserDeps = NATIVE): Promise<BrowserEndpoints | undefined> {
 	const set = deps.env["FLARE_BROWSER_WS"]
-	if (set !== undefined) return { endpoint: set, chromium: { endpoint: set, headers: {} } }
+	if (set !== undefined) {
+		if (!warned.has(deps.warn) && daemon(deps)) {
+			warned.add(deps.warn)
+			deps.warn(ISOLATION_LOST)
+		}
+		return { endpoint: set, chromium: { endpoint: set, headers: {} } }
+	}
 	if (daemon(deps)) return browserServers(deps)
 	if (deps.installed()) return undefined
 	throw new Error(
@@ -191,6 +210,7 @@ const NATIVE: BrowserDeps = {
 		return { dir: dirname(manifest), version }
 	},
 	scripts: () => dirname(fileURLToPath(import.meta.url)),
+	warn: (line) => void process.stderr.write(`${line}\n`),
 	proxyVersion: () =>
 		createHash("sha256")
 			.update(readFileSync(fileURLToPath(new URL("loopback-proxy.ts", import.meta.url))))
