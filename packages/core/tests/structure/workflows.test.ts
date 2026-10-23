@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { load } from "js-yaml"
 import { expect, it } from "vitest"
 import { distTag } from "../../../../scripts/release.ts"
 
@@ -14,7 +15,13 @@ const workflows = readdirSync(dir)
 	.map((name) => ({ name, text: readFileSync(join(dir, name), "utf8") }))
 
 it("pinned actions", () => {
-	expect(workflows.map((file) => file.name)).toEqual(["ci.yml", "consumers-newest.yml", "nightly.yml", "release.yml"])
+	expect(workflows.map((file) => file.name)).toEqual([
+		"ci.yml",
+		"consumers-newest.yml",
+		"nightly.yml",
+		"release.yml",
+		"repro.yml",
+	])
 	const unpinned = workflows.flatMap(({ name, text }) =>
 		[...text.matchAll(/uses:\s*(\S+)/g)]
 			.map((found) => found[1] ?? "")
@@ -103,4 +110,29 @@ it("nightly", () => {
 	expect(save).toBeGreaterThan(compare)
 	expect(text).toContain("tests/perf/baseline.ts --v0")
 	expect(text).toContain("--check")
+})
+
+// The repro job (plan 41 2.2.1): dispatched by hand with a ref, a spec, a grep, projects, a repeat count, and a runner
+// class, it runs main's file against the checked-out ref, so a ref older than the file runs too; it traces the dev
+// servers, uploads the test results whatever the outcome, and counts each project's runs in the job summary, so a
+// dispatch reads without a download (BUGS.md 453).
+it("repro", () => {
+	const text = workflows.find((file) => file.name === "repro.yml")?.text ?? ""
+	expect(text).toMatch(/^on:\n {2}workflow_dispatch:\n {4}inputs:/m)
+	for (const input of ["ref", "spec", "grep", "projects", "repeat-each", "timeout", "runner"])
+		expect(text).toContain(`      ${input}:\n`)
+	// Inputs reach a script through env only: spec and grep are free text, and an expression inside `run:` would be
+	// pasted into the shell. The timeout passes only when set, so an empty one keeps the config's.
+	const steps: Array<{ run?: string }> = Object(load(text)).jobs.repro.steps
+	expect(steps.filter((step) => step.run?.includes("${{") === true).map((step) => step.run)).toEqual([])
+	expect(text).toContain("TIMEOUT: ${{ inputs.timeout }}")
+	expect(text).toContain('if [ -n "$TIMEOUT" ]; then args+=(--timeout "$TIMEOUT"); fi')
+	expect(text).toContain("options: [macos-latest, ubuntu-latest]")
+	expect(text).toContain("runs-on: ${{ inputs.runner }}")
+	expect(text).toMatch(/uses: actions\/checkout@[\da-f]{40} # [^\n]+\n\s+with:\n\s+ref: \$\{\{ inputs\.ref \}\}/)
+	expect(text).toContain('FLARE_E2E_TRACE: "1"')
+	expect(text).toContain('--repeat-each "$REPEAT" --retries 0')
+	expect(text).toContain("GITHUB_STEP_SUMMARY")
+	expect(text).toMatch(/- if: always\(\)\n\s+uses: actions\/upload-artifact@/)
+	expect(text).toMatch(/^permissions:\n {2}contents: read$/m)
 })

@@ -1,0 +1,104 @@
+name: repro
+
+# A long repro on demand, on the runner class a failure came from (plan 41 2.2.1): one spec's cases, by grep, repeated
+# on the chosen projects at any ref, older refs that predate this file included. The dev servers trace each request's
+# lifecycle where the ref has tests/e2e/trace.ts (BUGS.md 453), the test results are uploaded whether the run passes or
+# fails, and the job summary counts each project's passed, failed, and flaky runs, so a dispatch reads without a
+# download.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: The commit, tag, or branch to run
+        required: true
+      spec:
+        description: The spec file under packages/core/tests/e2e, as Playwright filters it (minimal.test.ts)
+        required: true
+      grep:
+        description: The cases, as Playwright's -g reads it
+        required: true
+      projects:
+        description: Space-separated Playwright projects (node-dev-webkit bun-dev-webkit)
+        required: true
+      repeat-each:
+        description: Runs per case per project
+        required: true
+        default: "50"
+      timeout:
+        description: Each case's timeout in ms, for a hang that needs more room or a bound to tighten; empty keeps the config's
+        required: false
+        default: ""
+      runner:
+        description: The runner class
+        required: true
+        default: macos-latest
+        type: choice
+        options: [macos-latest, ubuntu-latest]
+
+permissions:
+  contents: read
+
+env:
+  BUN_VERSION: "1.4.3"
+
+jobs:
+  repro:
+    name: repro ${{ inputs.ref }} ${{ inputs.grep }}
+    runs-on: ${{ inputs.runner }}
+    # A long repeat on a slow runner; the limit catches a hang.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium firefox webkit
+      - name: Repeat the cases
+        env:
+          FLARE_E2E_TRACE: "1"
+          SPEC: ${{ inputs.spec }}
+          GREP: ${{ inputs.grep }}
+          PROJECTS: ${{ inputs.projects }}
+          REPEAT: ${{ inputs.repeat-each }}
+          TIMEOUT: ${{ inputs.timeout }}
+          # The JSON reporter writes here, the line reporter to the log.
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/repro.json
+        run: |
+          args=()
+          for project in $PROJECTS; do args+=(--project "$project"); done
+          if [ -n "$TIMEOUT" ]; then args+=(--timeout "$TIMEOUT"); fi
+          bunx playwright test -c packages/core/tests/e2e/playwright.config.ts "${args[@]}" "$SPEC" -g "$GREP" \
+            --repeat-each "$REPEAT" --retries 0 --reporter=line,json
+      - name: Count by project
+        if: always()
+        run: |
+          node -e '
+            const report = JSON.parse(require("node:fs").readFileSync("repro.json", "utf8"))
+            const counts = {}
+            const walk = (suite) => {
+              for (const spec of suite.specs ?? [])
+                for (const test of spec.tests) {
+                  const row = (counts[test.projectName] ??= { passed: 0, failed: 0, flaky: 0, skipped: 0 })
+                  const status = test.status === "expected" ? "passed" : test.status === "unexpected" ? "failed" : test.status
+                  row[status] = (row[status] ?? 0) + 1
+                }
+              for (const child of suite.suites ?? []) walk(child)
+            }
+            for (const suite of report.suites) walk(suite)
+            const lines = ["| project | passed | failed | flaky | skipped |", "| --- | --- | --- | --- | --- |"]
+            for (const [name, row] of Object.entries(counts)) lines.push(`| ${name} | ${row.passed} | ${row.failed} | ${row.flaky} | ${row.skipped} |`)
+            require("node:fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, ["### repro", "", ...lines, ""].join("\n"))
+          '
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: repro-${{ github.run_id }}
+          path: packages/core/test-results
+          retention-days: 14
