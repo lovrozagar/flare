@@ -66,8 +66,12 @@ export default defineConfig<object, FloorOptions>({
 		"**/golden.test.ts",
 		"**/shared-cache.test.ts",
 		"**/server-log.test.ts",
+		"**/timing.test.ts",
 		"**/trace.test.ts",
 	],
+	// On GitHub, each spec file's time goes to the job summary beside the default dot output, so a green run shows what
+	// each file costs (timing.ts, BUGS.md 489).
+	...(process.env["GITHUB_STEP_SUMMARY"] !== undefined && { reporter: [["dot"], ["./timing.ts"]] }),
 	globalSetup: "./global-setup.ts",
 	fullyParallel: false,
 	retries: 0,
