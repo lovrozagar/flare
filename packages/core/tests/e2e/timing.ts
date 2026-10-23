@@ -18,11 +18,14 @@ export function timingTable(totals: ReadonlyMap<string, number>): string {
 // file exists, so a local run reports as before.
 export default class Timing implements Reporter {
 	readonly #summary: string | undefined
+	readonly #log: (text: string) => void
 	readonly #totals = new Map<string, number>()
 
-	// Playwright constructs a reporter with its options object; `summary` is the file, by default GitHub's.
-	constructor(options: { summary?: string | undefined } = {}) {
+	// Playwright constructs a reporter with its options object; `summary` is the file, by default GitHub's, and `log`
+	// the job log, by default stdout.
+	constructor(options: { summary?: string | undefined; log?: (text: string) => void } = {}) {
 		this.#summary = options.summary ?? process.env["GITHUB_STEP_SUMMARY"]
+		this.#log = options.log ?? ((text) => void process.stdout.write(text))
 	}
 
 	onTestEnd(test: TestCase, result: TestResult): void {
@@ -30,7 +33,12 @@ export default class Timing implements Reporter {
 		this.#totals.set(key, (this.#totals.get(key) ?? 0) + result.duration)
 	}
 
+	// The summary for a person, and the same table in a folded log group for a script: GitHub's API has no endpoint for
+	// a step summary (plan 41 2.1.1).
 	onEnd(): void {
-		if (this.#summary !== undefined) appendFileSync(this.#summary, timingTable(this.#totals))
+		if (this.#summary === undefined) return
+		const table = timingTable(this.#totals)
+		appendFileSync(this.#summary, table)
+		this.#log(`::group::e2e time per spec file\n${table}::endgroup::\n`)
 	}
 }
