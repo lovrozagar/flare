@@ -5,6 +5,7 @@ import { createPage, createRootLayout, createRouter } from "../../src/exports/in
 import { indexNow, sitemap } from "../../src/exports/seo.ts"
 import { createServer } from "../../src/exports/server.ts"
 import { flare } from "../../src/vite/plugin/flare.ts"
+import { exitOf } from "../e2e/child.ts"
 import { fixtureApps, page, rootLayout, viteBuild } from "./vite-app.ts"
 
 // dx/seo.md's sitemap and key file through real apps (B96): each app is built by `vite build` with
@@ -98,7 +99,7 @@ let clauses: string | undefined
 async function app(files: Record<string, string>): Promise<string> {
 	const root = apps.make({ "src/server.ts": SERVER, ...files })
 	const built = await viteBuild(root)
-	if (built.status !== 0) throw new Error(built.output)
+	if (built.status !== 0) throw new Error(`vite build ${exitOf(built.status, built.signal)}\n${built.output}`)
 	return root
 }
 

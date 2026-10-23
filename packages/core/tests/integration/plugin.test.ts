@@ -6,7 +6,7 @@ import { resolveConfig } from "vite"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { flare } from "../../src/vite/plugin/flare.ts"
 import type { FlareOptions } from "../../src/vite/plugin/options.ts"
-import { builtServer, fixtureApps, page, viteBuild, type Server } from "./vite-app.ts"
+import { builtServer, failedBuild, fixtureApps, page, viteBuild, type Server } from "./vite-app.ts"
 import { stateIn } from "../../src/server/wire.fixture.ts"
 
 // dx/plugin.md's options through real apps (B96): an app with every option set and one with the defaults, each built
@@ -370,21 +370,16 @@ const MINIMAL: Record<string, string> = {
 // `dir` lacks, a sitemap with no `site`. Three builds run one after another: 1.1 s alone, 3.8 s under the full unit
 // gate's parallel builds and engines, and once past the unit default of 5 s; the integration project's 60 s covers it.
 it("build failures", async () => {
-	const off = await viteBuild(apps.make({ ...MINIMAL, "vite.config.mjs": config("{}") }))
-	expect(off.status).not.toBe(0)
-	expect(off.output).toContain("_root_/static renders at build, and flare({ prerender }) is off")
+	const off = failedBuild(await viteBuild(apps.make({ ...MINIMAL, "vite.config.mjs": config("{}") })))
+	expect(off).toContain("_root_/static renders at build, and flare({ prerender }) is off")
 	const fontsConfig = config('{ prerender: true, fonts: { dir: "assets/fonts" } }')
 	const fonts = apps.make({ ...MINIMAL, ...DEFAULT_ENTRIES, "src/app.css": "", "vite.config.mjs": fontsConfig })
 	cpSync(FONTS, join(fonts, "assets/fonts"), { recursive: true })
 	rmSync(join(fonts, "assets/fonts/inter/latin.woff2"))
-	const missing = await viteBuild(fonts)
-	expect(missing.status).not.toBe(0)
-	expect(missing.output).toContain("latin.woff2")
+	expect(failedBuild(await viteBuild(fonts))).toContain("latin.woff2")
 	const live = { ...MINIMAL, "src/routes/_root_/static/static.page.tsx": page("_root_/static") }
 	const siteless = apps.make({ ...live, "vite.config.mjs": config("{ prerender: { sitemap: {} } }") })
-	const noSite = await viteBuild(siteless)
-	expect(noSite.status).not.toBe(0)
-	expect(noSite.output).toContain("prerender.sitemap reads createServer({ site })")
+	expect(failedBuild(await viteBuild(siteless))).toContain("prerender.sitemap reads createServer({ site })")
 	expect(existsSync(join(siteless, "dist", "client", "sitemap.xml"))).toBe(false)
 })
 

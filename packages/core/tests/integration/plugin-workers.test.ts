@@ -5,7 +5,8 @@ import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { afterAll, expect, it } from "vitest"
 import { modulesOf, UPLOAD_LIMIT, uploadedSize } from "../workers-modules.ts"
-import { fixtureApps, page, rootLayout, viteBuild } from "./vite-app.ts"
+import { exitOf } from "../e2e/child.ts"
+import { failedBuild, fixtureApps, page, rootLayout, viteBuild } from "./vite-app.ts"
 
 // dx/plugin.md's Cloudflare Workers composition through a real app (B96, B109): the app adds Cloudflare's plugin
 // beside flare() and points its Wrangler config at Flare's worker entry, `vite build` builds the worker and writes its
@@ -65,7 +66,7 @@ it.skipIf(noHooks)(
 			"wrangler.json": wrangler("@lovrozagar/flare/worker"),
 		})
 		const built = await viteBuild(root)
-		if (built.status !== 0) throw new Error(built.output)
+		if (built.status !== 0) throw new Error(`vite build ${exitOf(built.status, built.signal)}\n${built.output}`)
 		const server = join(root, "dist", "server")
 		expect(existsSync(join(server, "wrangler.json"))).toBe(true)
 		const pointer: { configPath: string } = JSON.parse(readFileSync(join(root, ".wrangler/deploy/config.json"), "utf8"))
@@ -123,9 +124,7 @@ it.skipIf(noHooks)(
 	"workers composition checked",
 	async () => {
 		const root = apps.make({ ...ROUTES, "vite.config.mjs": config("{}"), "wrangler.json": wrangler("src/server.ts") })
-		const built = await viteBuild(root)
-		expect(built.status).not.toBe(0)
-		expect(built.output).toContain("@lovrozagar/flare/worker")
+		expect(failedBuild(await viteBuild(root))).toContain("@lovrozagar/flare/worker")
 	},
 	180_000,
 )
@@ -141,10 +140,8 @@ it.skipIf(noHooks)(
 				"vite.config.mjs": config(options),
 				"wrangler.json": wrangler("@lovrozagar/flare/worker"),
 			})
-			const built = await viteBuild(root)
-			expect([options, built.status === 0, built.output]).toEqual([
+			expect([options, failedBuild(await viteBuild(root))]).toEqual([
 				options,
-				false,
 				expect.stringContaining("_root_/seeded renders at build, and flare({ prerender }) is off"),
 			])
 		}
@@ -156,7 +153,7 @@ it.skipIf(noHooks)(
 			"wrangler.json": wrangler("@lovrozagar/flare/worker"),
 		})
 		const built = await viteBuild(plain)
-		expect([built.status, built.output]).toEqual([0, expect.any(String)])
+		expect([exitOf(built.status, built.signal), built.output]).toEqual(["code 0", expect.any(String)])
 	},
 	540_000,
 )
