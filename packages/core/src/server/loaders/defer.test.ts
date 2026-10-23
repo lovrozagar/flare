@@ -1,7 +1,9 @@
 import { expect, it } from "vitest"
 import type { Deferred } from "../../shared/route-builder/register.ts"
-import { DOCUMENT_VIEW } from "../../shared/protocol/deferred-failure.ts"
+import { DOCUMENT_VIEW, isDeferredFailure } from "../../shared/protocol/deferred-failure.ts"
+import { decodeLine } from "../../shared/protocol/frames.ts"
 import { withServerContext } from "../context/ctx.ts"
+import { dataBody } from "../navigation/response.ts"
 import { createDefer, type DeferScope } from "./defer.ts"
 
 const live: DeferScope = { stored: false, dev: false }
@@ -249,6 +251,55 @@ it("document view", async () => {
 	const stored = createDefer({ stored: true, dev: false })
 	stored.defer(() => Promise.resolve(1))
 	expect(stored.started.map((entry) => entry.stored)).toEqual([true])
+})
+
+// A fulfilled value the wire cannot hold, a function or a class instance, is its projected failure in the document's
+// view, as it is that key's `e` frame in a data answer, and the value beside it still settles as itself. Solid's
+// hydration writer then never sees a value it cannot serialize, whatever it batches (BUGS.md 505).
+it("unencodable document value", async () => {
+	class Thing {}
+	const loader = createDefer(live)
+	loader.defer(() => Promise.resolve(() => 10))
+	loader.defer(() => Promise.resolve(new Thing()))
+	loader.defer(() => Promise.resolve("ok"))
+	const views = await Promise.all(loader.started.map((entry) => entry.document(projected)))
+	expect(views.map((view) => isDeferredFailure(view))).toEqual([true, true, false])
+	expect(views[0]).toEqual({
+		__deferredFailure: true,
+		error: { name: expect.any(String), message: expect.any(String) },
+	})
+	expect(views[2]).toBe("ok")
+	await expect(loader.started[0]?.promise).resolves.toBeTypeOf("function")
+})
+
+// A data answer and a live document fail the same values: each key the document's view projects is a key the data
+// answer writes as `e`, with the same message, and every other key is the value on both (B145, BUGS.md 505).
+it("document and data agree", async () => {
+	class Thing {}
+	const cycle: Record<string, unknown> = {}
+	cycle["self"] = cycle
+	const values: unknown[] = [() => 10, new Thing(), 10n, cycle, new Date(0), new Map([[1, 2]]), "ok", null]
+	const loader = createDefer(live)
+	for (const value of values) loader.defer(() => Promise.resolve(value))
+	const deferred = loader.started.map((entry) => ({ m: "_root_/p", k: entry.key, promise: entry.promise }))
+	const body = dataBody({
+		loaded: [],
+		heads: [],
+		deferred,
+		project: (error) => ({ message: (error as Error).message }),
+	})
+	const text = await new Response(body).text()
+	const frames = text.trim().split("\n").map(decodeLine)
+	const failed = new Map(
+		frames.flatMap((frame) => (frame.t === "e" && frame.k !== undefined ? [[frame.k, frame.e.message]] : [])),
+	)
+	const views = await Promise.all(loader.started.map((entry) => entry.document(projected)))
+	const projectedKeys = new Map(
+		views.flatMap((view, index) => (isDeferredFailure(view) ? [[`d${index}`, view.error.message]] : [])),
+	)
+	expect([...projectedKeys.keys()]).toEqual(["d0", "d1"])
+	expect(projectedKeys).toEqual(failed)
+	expect(views.slice(2)).toEqual(values.slice(2))
 })
 
 // A function that throws before it returns its promise fails its own value, as a rejection does: the loader goes on,

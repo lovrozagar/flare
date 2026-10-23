@@ -1,4 +1,5 @@
 import { DOCUMENT_VIEW, deferredFailure, type DeferredFailure } from "../../shared/protocol/deferred-failure.ts"
+import { unencodable } from "../../shared/protocol/frames.ts"
 import type { Deferred } from "../../shared/route-builder/register.ts"
 import { inDeferred, insideDeferred } from "./scope.ts"
 
@@ -76,11 +77,16 @@ class Placeholder<T> implements Deferred<T> {
 
 	// What a document's render reads through `useDeferred`: a rejection resolves to its projected failure, which Solid
 	// writes in the hydration data and `useDeferred` throws on both sides. Solid leaves a rejected read for the client to
-	// render again, so a rejection would paint nothing (BUGS.md 374). `promise` stays the value as it settled, so a
-	// direct read rejects as before (BUGS.md 375).
+	// render again, so a rejection would paint nothing (BUGS.md 374). A value the wire cannot hold is its failure too,
+	// as it is the key's `e` frame in a data answer, so Solid's writer never meets a value it cannot serialize, which on
+	// seroval 1.7 drops every value written beside it (BUGS.md 505). `promise` stays the value as it settled, so a direct
+	// read rejects as before (BUGS.md 375).
 	document(project: (error: unknown) => DeferredFailure["error"]): Promise<T> {
 		this.#view ??= this.#promise.then(
-			(value) => value,
+			(value) => {
+				const failed = unencodable(value)
+				return failed === undefined ? value : (deferredFailure(project(failed.error)) as T)
+			},
 			(error: unknown) => deferredFailure(project(error)) as T,
 		)
 		return this.#view

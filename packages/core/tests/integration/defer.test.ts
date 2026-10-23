@@ -457,3 +457,25 @@ it("unserializable deferred", async () => {
 		process.off("unhandledRejection", note)
 	}
 })
+
+// The same values in a live document: the document's view turns the one the wire cannot hold into its projected failure
+// before Solid's hydration writer sees it, so its slot gets that failure, the value beside it still reaches the client,
+// and the document ends. Solid's writer batches the writes of one tick into one serialization, and on seroval 1.7 a
+// value it cannot serialize drops every value in that batch (solidjs/solid#4242); flare's check keeps that rule out of
+// the way (BUGS.md 505). A document whose stream never ended is BUGS.md 504's shape from the app's side.
+it("unserializable deferred document", async () => {
+	const page = createPage("_root_/odd")
+		.loader(({ defer }) => ({
+			big: defer(() => Promise.resolve(() => 10)),
+			fine: defer(() => Promise.resolve("still here")),
+		}))
+		.render(() => "odd")
+	const get = serve([{ id: "_root_/odd", path: "/odd", module: page }])
+	const ended = await Promise.race([
+		get("/odd").then((answer) => answer.text),
+		new Promise<string>((done) => setTimeout(() => done("the document did not end within 10 s"), 10_000)),
+	])
+	expect(ended).toContain("</html>")
+	expect(ended).toContain("still here")
+	expect(ended).toContain("__deferredFailure")
+}, 20_000)
