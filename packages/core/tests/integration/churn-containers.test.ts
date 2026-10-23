@@ -1,6 +1,6 @@
-import { spawn, spawnSync } from "node:child_process"
+import { spawn } from "node:child_process"
 import { expect, it } from "vitest"
-import { runPinned } from "../../../../scripts/docker-run.ts"
+import { dockerRun, runPinned } from "../../../../scripts/docker-run.ts"
 import { alive, ownedLabels, removeOrphans, removeOwned } from "./churn-containers.ts"
 
 // A fake Docker holding labeled containers, each `id owner`; it records what it was asked to remove.
@@ -40,10 +40,6 @@ it("nothing left", () => {
 })
 
 const BUSYBOX = "busybox@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e"
-const dockerRun = (args: readonly string[]) => {
-	const done = spawnSync(process.env["FLARE_DOCKER"] ?? "docker", args, { encoding: "utf8" })
-	return { status: done.status, stdout: done.stdout ?? "", stderr: done.stderr ?? "" }
-}
 const docker = (...args: string[]) => dockerRun(args)
 
 // With real Docker: an owner SIGKILLed before its cleanup leaves its container running, and the sweep removes it.

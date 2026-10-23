@@ -1,11 +1,11 @@
-import { spawnSync } from "node:child_process"
 import { createServer } from "node:http"
 import { dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { chromium } from "@playwright/test"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { browserEndpoint, IMAGE_DIGEST, type BrowserEndpoints } from "../../../../scripts/browser-server.ts"
-import { runPinned } from "../../../../scripts/docker-run.ts"
+import { dockerRun, runPinned } from "../../../../scripts/docker-run.ts"
+import { exitOf } from "../e2e/child.ts"
 import { alive, CHURN_SECONDS, ownedLabels, removeOrphans, removeOwned } from "./churn-containers.ts"
 
 // Another process adding or removing a network interface, a Docker network, a container's veth, a VPN, fails every
@@ -27,10 +27,6 @@ const CHURN =
 	"ip link add d$((i%50)) type dummy 2>/dev/null && ip link set d$((i%50)) up; sleep 0.05; " +
 	"ip addr del 10.77.$((i%200)).1/32 dev lo; ip link del d$((i%50)) 2>/dev/null; sleep 0.05; done"
 
-const dockerRun = (args: readonly string[]) => {
-	const done = spawnSync(process.env["FLARE_DOCKER"] ?? "docker", args, { encoding: "utf8" })
-	return { status: done.status, stdout: done.stdout ?? "", stderr: done.stderr ?? "" }
-}
 const docker = (...args: string[]) => dockerRun(args)
 let endpoints: BrowserEndpoints | undefined
 let origin = ""
@@ -78,7 +74,11 @@ async function churning<T>(network: string, run: () => Promise<T>): Promise<T> {
 		"-c",
 		CHURN,
 	])
-	if (started.status !== 0) throw new Error(`the churn sidecar did not start: ${started.stderr}`)
+	if (started.status !== 0) {
+		throw new Error(
+			`the churn sidecar did not start (${exitOf(started.status, started.signal ?? null)}): ${started.stderr}`,
+		)
+	}
 	try {
 		return await run()
 	} finally {
@@ -141,7 +141,9 @@ it("churn in its own namespace fails chromium only", async (context) => {
 		"sleep",
 		"600",
 	])
-	if (box.status !== 0) throw new Error(`the probe container did not start: ${box.stderr}`)
+	if (box.status !== 0) {
+		throw new Error(`the probe container did not start (${exitOf(box.status, box.signal ?? null)}): ${box.stderr}`)
+	}
 	const lines = await churning(`container:${name}`, async () => docker("exec", name, "node", "/probe.mjs").stdout)
 	const [chromiumLine, ...others] = lines
 		.trim()
