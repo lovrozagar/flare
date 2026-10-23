@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { afterAll, beforeAll, expect, it } from "vitest"
+import { bundled } from "./bundle.ts"
 
 const handlerPath = fileURLToPath(new URL("../../src/adapters/workers/handler.ts", import.meta.url))
 const finalizePath = fileURLToPath(new URL("../../src/server/lifecycle/finalize.ts", import.meta.url))
@@ -57,7 +58,7 @@ async function start(): Promise<Miniflare> {
 	const built = spawnSync("bun", ["build", entry, "--outfile", worker, "--format=esm", "--target=browser"], {
 		encoding: "utf8",
 	})
-	if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
+	bundled(built)
 	return new Miniflare(
 		convertV4MiniflareOptions({
 			modules: true,

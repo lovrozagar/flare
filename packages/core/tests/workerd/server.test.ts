@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url"
 import { gzipSync } from "node:zlib"
 import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { afterAll, expect, it } from "vitest"
+import { bundled } from "./bundle.ts"
 
 // The real `createServer` behind `createWorkersHandler` in workerd (B96, dx/adapters.md Workers): a worker bundled
 // with Solid's server build, run by Miniflare with an assets binding, the way Cloudflare runs a deploy.
@@ -99,7 +100,7 @@ const built = spawnSync(
 	// bundle a dev server.
 	{ encoding: "utf8", env: { PATH: process.env["PATH"] ?? "", HOME: process.env["HOME"] ?? "" } },
 )
-if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
+bundled(built)
 
 // Miniflare 5's dispatchFetch routes a request to workerd through an undici dispatcher, which Bun's fetch ignores, so
 // under Bun the request leaves for its own host: the cases that dispatch run under Node, where the worker under test runs
