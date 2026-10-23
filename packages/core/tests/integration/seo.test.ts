@@ -6,7 +6,7 @@ import { indexNow, sitemap } from "../../src/exports/seo.ts"
 import { createServer } from "../../src/exports/server.ts"
 import { flare } from "../../src/vite/plugin/flare.ts"
 import { exitOf } from "../e2e/child.ts"
-import { fixtureApps, page, rootLayout, viteBuild } from "./vite-app.ts"
+import { failedBuild, fixtureApps, page, rootLayout, viteBuild } from "./vite-app.ts"
 
 // dx/seo.md's sitemap and key file through real apps (B96): each app is built by `vite build` with
 // `flare({ prerender: { sitemap } })`, and its sitemap.xml and robots.txt are read from the client output, which the
@@ -195,37 +195,40 @@ it("sitemap options checked", () => {
 // What only the app's routes and `site` decide fails the build: a record key that is no route id, an extra entry off
 // `site`.
 it("sitemap build errors", async () => {
-	const unknown = await viteBuild(
-		apps.make({
-			...TWO_PAGES,
-			"vite.config.mjs": config('{ changefreq: { "_root_/nope": "daily" } }'),
-			"src/server.ts": SERVER,
-		}),
+	const unknown = failedBuild(
+		await viteBuild(
+			apps.make({
+				...TWO_PAGES,
+				"vite.config.mjs": config('{ changefreq: { "_root_/nope": "daily" } }'),
+				"src/server.ts": SERVER,
+			}),
+		),
 	)
-	expect(unknown.status).not.toBe(0)
-	expect(unknown.output).toContain("_root_/nope")
-	const offSite = await viteBuild(
-		apps.make({
-			...TWO_PAGES,
-			"vite.config.mjs": config('{ additionalEntries: [{ loc: "https://other.test/x" }] }'),
-			"src/server.ts": SERVER,
-		}),
+	expect(unknown).toContain("_root_/nope")
+	const offSite = failedBuild(
+		await viteBuild(
+			apps.make({
+				...TWO_PAGES,
+				"vite.config.mjs": config('{ additionalEntries: [{ loc: "https://other.test/x" }] }'),
+				"src/server.ts": SERVER,
+			}),
+		),
 	)
-	expect(offSite.status).not.toBe(0)
-	expect(offSite.output).toContain("https://other.test/x")
+	expect(offSite).toContain("https://other.test/x")
 	// A page that re-exports its route from another module is past what the codegen scan reads: the hint says public,
 	// the loaded page requires auth, and the build fails rather than list it (B25).
-	const hidden = await viteBuild(
-		apps.make({
-			...TWO_PAGES,
-			"src/routes/_root_/gated/gated.page.tsx": 'export { route } from "../../../gated.tsx";\n',
-			"src/gated.tsx": page("_root_/gated", ".authenticate()"),
-			"vite.config.mjs": config("{}"),
-			"src/server.ts": SERVER,
-		}),
+	const hidden = failedBuild(
+		await viteBuild(
+			apps.make({
+				...TWO_PAGES,
+				"src/routes/_root_/gated/gated.page.tsx": 'export { route } from "../../../gated.tsx";\n',
+				"src/gated.tsx": page("_root_/gated", ".authenticate()"),
+				"vite.config.mjs": config("{}"),
+				"src/server.ts": SERVER,
+			}),
+		),
 	)
-	expect(hidden.status).not.toBe(0)
-	expect(hidden.output).toContain("_root_/gated: the codegen auth hint says public, the loaded modules say requires")
+	expect(hidden).toContain("_root_/gated: the codegen auth hint says public, the loaded modules say requires")
 })
 
 // `GET /<key>.txt` answers the key as text/plain; any other request reaches the app.
