@@ -84,7 +84,12 @@ jobs:
         run: |
           node -e '
             const fs = require("node:fs")
-            const out = (lines) => fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, ["### repro", "", ...lines, ""].join("\n"))
+            // The summary for a person, and the same text in a folded log group for a script: the API has no summary.
+            const out = (lines) => {
+              const text = ["### repro", "", ...lines, ""].join("\n")
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, text)
+              process.stdout.write(`::group::repro\n${text}::endgroup::\n`)
+            }
             if (!fs.existsSync("repro.json")) {
               out(["no report: Playwright stopped before running a case; the log says why"])
               process.exit(0)

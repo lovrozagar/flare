@@ -228,7 +228,10 @@ it("repro summary", () => {
 			rmSync(summary, { force: true })
 			const ran = spawnSync("node", ["-e", script], { cwd: dir, env: { ...process.env, GITHUB_STEP_SUMMARY: summary } })
 			expect([ran.status, String(ran.stderr)]).toEqual([0, ""])
-			return existsSync(summary) ? readFileSync(summary, "utf8") : ""
+			const text = existsSync(summary) ? readFileSync(summary, "utf8") : ""
+			// The same text in a folded log group, which a script can read where the summary cannot (plan 41 2.1.1).
+			expect(String(ran.stdout)).toBe(`::group::repro\n${text}::endgroup::\n`)
+			return text
 		}
 		expect(summarize()).toBe("### repro\n\nno report: Playwright stopped before running a case; the log says why\n")
 		writeFileSync(join(dir, "repro.json"), JSON.stringify(REPORT))

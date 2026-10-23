@@ -70,3 +70,19 @@ it("reporter from playwright", () => {
 		rmSync(dir, { recursive: true })
 	}
 })
+
+// The same table goes to the job log in a folded group: GitHub's API has no endpoint for a step summary, so the log is
+// where a script reads a run's times (plan 41 2.1.1, BUGS.md 489).
+it("reporter logs the table", () => {
+	const dir = mkdtempSync(join(tmpdir(), "flare-timing-"))
+	const summary = join(dir, "summary.md")
+	const logged: string[] = []
+	try {
+		const reporter = new Timing({ summary, log: (text) => void logged.push(text) })
+		reporter.onTestEnd(test("node-prod-chromium", "docs-hostile.test.ts"), { duration: 2_000 } as never)
+		reporter.onEnd()
+		expect(logged).toEqual([`::group::e2e time per spec file\n${readFileSync(summary, "utf8")}::endgroup::\n`])
+	} finally {
+		rmSync(dir, { recursive: true })
+	}
+})
