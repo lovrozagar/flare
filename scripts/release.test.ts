@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, it } from "vitest"
-import { distTag, release, shipped, type ReleaseDeps } from "./release.ts"
+import { distTag, release, runChild, runRelease, shipped, type ReleaseDeps } from "./release.ts"
 
 const VERSION: string = JSON.parse(
 	readFileSync(new URL("../packages/core/package.json", import.meta.url), "utf8"),
@@ -10,14 +10,17 @@ const TARBALL = `/tmp/out/lovrozagar-flare-${VERSION}.tgz`
 type Call = { command: string; args: readonly string[]; env?: Record<string, string> }
 
 // A tree, its gates, and npm, recorded. `status` answers each command line; anything unlisted succeeds.
-function deps(answers: Record<string, { status: number; stdout?: string }> = {}, env: Record<string, string> = {}) {
+function deps(
+	answers: Record<string, { status: number; stdout?: string; signal?: string }> = {},
+	env: Record<string, string> = {},
+) {
 	const calls: Call[] = []
 	const logged: string[] = []
 	const fake: ReleaseDeps = {
 		run(command, args, options) {
 			calls.push({ command, args, ...(options?.env && { env: options.env }) })
 			const answer = answers[[command, ...args].join(" ")]
-			return { status: answer?.status ?? 0, stdout: answer?.stdout ?? "" }
+			return { status: answer?.status ?? 0, stdout: answer?.stdout ?? "", signal: answer?.signal ?? null }
 		},
 		pack: () => TARBALL,
 		env,
@@ -122,4 +125,26 @@ it("fixtures dropped", () => {
 		"src/features/fonts/registry.json",
 	]
 	expect(paths.filter(shipped)).toEqual(["src/client/navigation/navigate.ts", "src/features/fonts/registry.json"])
+})
+
+// A child a signal ended fails naming the signal and the tail of what it printed; one that exited non-zero names its
+// status. The child is real: sh kills itself as the host's reaper kills a build, so the error is what execFileSync
+// throws, on Node and on Bun (BUGS.md 500.4).
+it("killed child named", () => {
+	expect(() => runChild("sh", ["-c", "echo partial >&2; kill -9 $$"])).toThrow(/^sh -c .+ ended by SIGKILL\n.*partial/s)
+	expect(() => runChild("sh", ["-c", "echo broken >&2; exit 3"])).toThrow(/^sh -c .+ exited with status 3\n.*broken/s)
+	expect(runChild("sh", ["-c", "echo fine"])).toBe("fine\n")
+})
+
+// The release's own runs report the signal beside the status, which stays a number, and a gate a signal ended is
+// refused naming it, as one that failed names its status (BUGS.md 500.4).
+it("run reports signal", () => {
+	expect(runRelease("sh", ["-c", "kill -9 $$"])).toEqual({ status: 1, stdout: "", signal: "SIGKILL" })
+	expect(runRelease("sh", ["-c", "exit 2"])).toEqual({ status: 2, stdout: "", signal: null })
+	const killed = deps({ ...CLEAN, ...TAGGED, "node gate.mjs": { status: 1, signal: "SIGKILL" } })
+	expect(release(["--test-command", "node gate.mjs"], killed.fake)).not.toBe(0)
+	expect(killed.logged.join("\n")).toContain("node gate.mjs failed: ended by SIGKILL")
+	const red = deps({ ...CLEAN, ...TAGGED, "node gate.mjs": { status: 1 } })
+	release(["--test-command", "node gate.mjs"], red.fake)
+	expect(red.logged.join("\n")).toContain("node gate.mjs failed: exited with status 1")
 })

@@ -67,8 +67,9 @@ export const ISOLATION_LOST =
 	"and a host interface change fails its loads with ERR_NETWORK_CHANGED (BUGS.md 484). " +
 	"Unset it to use the pinned containers."
 
-// The warn functions that already said ISOLATION_LOST: the native one once a process.
-const warned = new WeakSet<(line: string) => void>()
+// The warn functions whose run already asked Docker about ISOLATION_LOST, whatever it answered: the native one once a
+// process, so a run with FLARE_BROWSER_WS and no daemon does not spawn `docker version` on every call.
+const asked = new WeakSet<(line: string) => void>()
 
 // Where the engines come from (B97): `FLARE_BROWSER_WS`, which then serves every engine as it is (saying, where Docker
 // answers, that Chromium leaves its isolation), else the pinned
@@ -78,9 +79,9 @@ const warned = new WeakSet<(line: string) => void>()
 export async function browserEndpoint(deps: BrowserDeps = NATIVE): Promise<BrowserEndpoints | undefined> {
 	const set = deps.env["FLARE_BROWSER_WS"]
 	if (set !== undefined) {
-		if (!warned.has(deps.warn) && daemon(deps)) {
-			warned.add(deps.warn)
-			deps.warn(ISOLATION_LOST)
+		if (!asked.has(deps.warn)) {
+			asked.add(deps.warn)
+			if (daemon(deps)) deps.warn(ISOLATION_LOST)
 		}
 		return { endpoint: set, chromium: { endpoint: set, headers: {} } }
 	}
