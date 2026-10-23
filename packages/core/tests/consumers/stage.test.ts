@@ -1,6 +1,6 @@
 import { tmpdir } from "node:os"
 import { expect, it } from "vitest"
-import { newestReport, peerSpecs, run } from "./stage.ts"
+import { newestReport, peerSpecs, run, serve } from "./stage.ts"
 
 // A manifest shaped as packages/core/package.json: each peer's range is `>=` its exact devDependency (B79).
 const MANIFEST = {
@@ -68,4 +68,13 @@ it("killed step named", () => {
 	expect(killed).toEqual({ status: null, signal: "SIGKILL", output: "" })
 	const failed = run(node, { cwd: tmpdir(), args: ["-e", 'console.error("broke"); process.exit(3)'] })
 	expect(failed).toEqual({ status: 3, signal: null, output: "broke\n" })
+})
+
+// A server the host kills before it answers fails the serve at once and names the signal, rather than polling to the
+// deadline and then waiting on an exit that already happened. The child is real, as in `killed step named`
+// (BUGS.md 500.12).
+it("killed server named", async () => {
+	const node = { node: process.execPath, npm: "" }
+	const start = { dir: tmpdir(), args: () => ["-e", 'process.kill(process.pid, "SIGKILL")'], timeout: 30_000 }
+	await expect(serve(node, start)).rejects.toThrow(/did not answer on http:\/\/127\.0\.0\.1:\d+ \(signal SIGKILL\)/)
 })

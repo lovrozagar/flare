@@ -7,6 +7,7 @@ import { rcompare, satisfies } from "semver"
 import { onFreePort } from "../../../../scripts/free-port.ts"
 import { nodeAt, type PinnedNode } from "../../../../scripts/node-at.ts"
 import { packTarball, stagePackage } from "../../../../scripts/release.ts"
+import { exitOf } from "../e2e/child.ts"
 import { marked, readme } from "../structure/readme.ts"
 
 // The consumer cells (plan 21 5.5): the packed tarball installed into a fresh project under the OS temp dir, outside
@@ -183,7 +184,8 @@ export type Served = { origin: string; output: () => string; stop: () => Promise
 export type Start = { dir: string; args: (port: number) => readonly string[]; timeout: number }
 
 // Starts `args` with the given Node on a free port and waits until GET / answers, at most `timeout` ms. A port taken
-// between the pick and the server's listen is picked again (BUGS.md 493).
+// between the pick and the server's listen is picked again (BUGS.md 493). A server that ends first, by its own exit or
+// a signal, fails at once and names how it ended (BUGS.md 500.12).
 export function serve(node: PinnedNode, start: Start): Promise<Served> {
 	return onFreePort((port) => serveOn(node, start, port))
 }
@@ -195,15 +197,17 @@ async function serveOn(node: PinnedNode, start: Start, port: number): Promise<Se
 	child.stdout.on("data", (chunk) => void (output += String(chunk)))
 	child.stderr.on("data", (chunk) => void (output += String(chunk)))
 	const origin = `http://127.0.0.1:${port}`
+	// A child a signal ended has no exit code, only a signal code.
+	const ended = (): boolean => child.exitCode !== null || child.signalCode !== null
 	const stop = (): Promise<void> =>
 		new Promise((resolve) => {
-			if (child.exitCode !== null) return resolve()
+			if (ended()) return resolve()
 			child.once("exit", () => resolve())
 			child.kill("SIGTERM")
 		})
 	const deadline = Date.now() + start.timeout
 	while (Date.now() < deadline) {
-		if (child.exitCode !== null) break
+		if (ended()) break
 		const up = await fetch(`${origin}/`).then(
 			() => true,
 			() => false,
@@ -211,6 +215,7 @@ async function serveOn(node: PinnedNode, start: Start, port: number): Promise<Se
 		if (up) return { origin, output: () => output, stop }
 		await new Promise((resolve) => setTimeout(resolve, 200))
 	}
+	const state = ended() ? exitOf(child.exitCode, child.signalCode) : "still running"
 	await stop()
-	throw new Error(`stage: ${args.join(" ")} did not answer on ${origin}:\n${output}`)
+	throw new Error(`stage: ${args.join(" ")} did not answer on ${origin} (${state}):\n${output}`)
 }
