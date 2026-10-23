@@ -245,3 +245,26 @@ it("wire data", async () => {
 	}
 	expect(await rejection(callServerFn(echo, 1, deps(raw)))).toMatchObject({ message: "HTTP 200" })
 })
+
+// An input holding a Promise is no wire value: the call fails before any request goes out, naming defer(), and the
+// promise is observed, so its later rejection is no unhandled one (BUGS.md 507).
+it("later input refused", async () => {
+	const unhandled: unknown[] = []
+	const note = (reason: unknown): void => void unhandled.push(reason)
+	process.on("unhandledRejection", note)
+	try {
+		const call = deps(json({ name: "echo", status: 200, data: null }))
+		const late = new Promise((_, fail) => setTimeout(() => fail(new Error("inner down")), 10))
+		const read = { ...echo, record: { method: "get" as const } }
+		for (const fn of [echo, read]) {
+			await expect(callServerFn(fn, { a: late }, call)).rejects.toThrow(
+				"a Promise inside the value cannot cross the wire: return a later value through defer()",
+			)
+		}
+		expect(call.fetch).not.toHaveBeenCalled()
+		await new Promise((done) => setTimeout(done, 40))
+		expect(unhandled).toEqual([])
+	} finally {
+		process.off("unhandledRejection", note)
+	}
+})

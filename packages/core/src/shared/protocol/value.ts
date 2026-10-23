@@ -26,12 +26,58 @@ const deferredPlugin = createPlugin<Placeholder, { wire: SerovalNode }>({
 // The wire's plugins. seroval's JS form, which the wire does not use, reads them too.
 export const wirePlugins: NonNullable<FromJSONOptions["plugins"]> = [deferredPlugin, URLPlugin, URLSearchParamsPlugin]
 
+type Later = Promise<unknown> | ReadableStream<unknown>
+
+function isLater(value: unknown): value is Later {
+	return value instanceof Promise || value instanceof ReadableStream
+}
+
+// One encode's refusal: its plugin, whether it met anything, and the failure that names what it met.
+type Refusal = { plugin: NonNullable<FromJSONOptions["plugins"]>[number]; found: () => boolean; fail: () => never }
+
+// seroval's sync form writes a Promise or a ReadableStream as a reference no later line settles, whatever its state, so
+// the client would wait on it forever, and a rejection nothing read would end a Node server (BUGS.md 507). The encode
+// side alone runs this ahead of the wire's plugins: it notes every one in the value, catches each promise and cancels
+// each unlocked stream, so nothing runs unread, and the encode then fails once with what it met. fromWire and Solid's
+// own serializer, which streams a promise, never see it; writing or reading a refused node is the same failure.
+function refusal(): Refusal {
+	const kinds = new Set<string>()
+	const fail = (): never => {
+		throw new TypeError(
+			`${[...kinds].join(" and ")} inside the value cannot cross the wire: return a later value through defer()`,
+		)
+	}
+	const plugin = createPlugin<Later, Record<string, never>>({
+		tag: "flare/later",
+		test: isLater,
+		parse: {
+			sync(value) {
+				if (value instanceof Promise) {
+					kinds.add("a Promise")
+					value.catch(() => undefined)
+				} else {
+					kinds.add("a ReadableStream")
+					if (!value.locked) value.cancel().catch(() => undefined)
+				}
+				return {}
+			},
+		},
+		serialize: fail,
+		deserialize: fail,
+	})
+	return { plugin, fail, found: () => kinds.size > 0 }
+}
+
 // An app value on the wire: seroval's JSON form, the codec Solid's own hydration data uses, so a loader's, a deferred
 // value's, or a server function's value reaches the client as the server held it, whatever carries it: a Date, a
-// BigInt, a Map, a Set, a URL, an undefined key, NaN (decision B145). A function or a class instance throws. The
-// envelope around it stays JSON.
+// BigInt, a Map, a Set, a URL, an undefined key, NaN (decision B145). A function or a class instance throws, and so does
+// a Promise or a ReadableStream at any depth: a value that arrives later is defer()'s (BUGS.md 507). The envelope
+// around it stays JSON.
 export function toWire(value: unknown): SerovalJSON {
-	return toJSON(value, { plugins: wirePlugins })
+	const later = refusal()
+	const wire = toJSON(value, { plugins: [later.plugin, ...wirePlugins] })
+	if (later.found()) later.fail()
+	return wire
 }
 
 // A server-function envelope with its `data` on the wire; the envelope itself is JSON (dx/server-fn.md).

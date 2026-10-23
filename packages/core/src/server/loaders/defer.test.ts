@@ -262,8 +262,10 @@ it("unencodable document value", async () => {
 	loader.defer(() => Promise.resolve(() => 10))
 	loader.defer(() => Promise.resolve(new Thing()))
 	loader.defer(() => Promise.resolve("ok"))
+	// A promise inside the value is no wire value either, as it is not in a data answer (BUGS.md 507).
+	loader.defer(() => Promise.resolve({ later: Promise.resolve(1) }))
 	const views = await Promise.all(loader.started.map((entry) => entry.document(projected)))
-	expect(views.map((view) => isDeferredFailure(view))).toEqual([true, true, false])
+	expect(views.map((view) => isDeferredFailure(view))).toEqual([true, true, false, true])
 	expect(views[0]).toEqual({
 		__deferredFailure: true,
 		error: { name: expect.any(String), message: expect.any(String) },
