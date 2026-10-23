@@ -1,6 +1,9 @@
-import { dirname, resolve } from "node:path"
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { dirname, join, resolve } from "node:path"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { startHarness, type Harness } from "./hydrate.harness.ts"
+import { siblingWorkers, workerLine } from "./hydrate.timeline.ts"
 import { appFrom } from "./harness-app.ts"
 
 // A document whose body the server never ends: its deferred value never settles, so the stream stays open after the
@@ -47,12 +50,13 @@ it("open body named", async () => {
 	const message = String(error)
 	expect(message).toContain("the document did not load")
 	expect(message).toMatch(/load \/open started \d+ms, in flight at \d+ms/)
-	// One clock: the request reached the server soon after the page started it, though the page started 3 s after the
-	// harness (BUGS.md 504.6).
+	// One clock: the page's start and the server's arrival read close together, though the page started 3 s after the
+	// harness. The page's start is when Playwright's request event reached the harness, which can trail the arrival,
+	// so the two may read in either order: the bound is two-sided on purpose, and `>= 0` read -18 under load. It
+	// still fails the 3 s gap two clocks gave (BUGS.md 504.6, 504.7).
 	const started = Number(/load \/open started (\d+)ms/.exec(message)?.[1])
 	const arrived = Number(/server \/open[^:]*: in (\d+)ms/.exec(message)?.[1])
-	expect(arrived - started).toBeGreaterThanOrEqual(0)
-	expect(arrived - started).toBeLessThan(1500)
+	expect(Math.abs(arrived - started)).toBeLessThan(1500)
 	// Which siblings exited depends on the files around this one, so only the line's shape is fixed.
 	expect(message).toMatch(
 		/harness worker \d+; of \d+ workers at the case's start, exited since: (none|\d+( \d+)*) \(an exit/,
@@ -61,3 +65,26 @@ it("open body named", async () => {
 		/server \/open \(port \d+, socket request 1\): in \d+ms, answered 200 \d+ms, chunk 1 \d+ bytes \d+ms …".+"(, chunk \d+ .*)?, body never ended \(open at \d+ms\)/,
 	)
 }, 30_000)
+
+// The worker listing reads `ps`, which Linux and macOS both have: on macOS the Linux-only /proc listing read
+// "workers unknown on this OS", so a Mac runner, where BUGS.md 504's WebKit hang shows, could not tell a kill from an
+// exit (CI run 39973286163, BUGS.md 504.7). This worker is one of its parent's children.
+it("workers listed", () => {
+	expect(siblingWorkers()).toContain(process.pid)
+	const bin = mkdtempSync(join(tmpdir(), "flare-ps-"))
+	try {
+		const ps = join(bin, "ps")
+		writeFileSync(ps, `#!/bin/sh\nprintf '  11 ${process.ppid}\\n  12 1\\n 13   ${process.ppid}\\n'\n`)
+		chmodSync(ps, 0o755)
+		expect(siblingWorkers(ps)).toEqual([11, 13])
+	} finally {
+		rmSync(bin, { recursive: true })
+	}
+})
+
+// Where `ps` is missing or fails, the listing is unknown and the line says why, rather than throwing.
+it("no ps", () => {
+	expect(siblingWorkers(join(tmpdir(), "flare-no-such-ps"))).toBeUndefined()
+	expect(siblingWorkers("false")).toBeUndefined()
+	expect(workerLine(undefined, undefined)).toBe(`harness worker ${process.pid}; workers unknown (no ps)`)
+})

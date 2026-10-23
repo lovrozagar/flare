@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 import type { ServerResponse } from "node:http"
 import type { Socket } from "node:net"
 import type { Page } from "@playwright/test"
@@ -85,7 +85,8 @@ export function serverTimeline(): ServerTimeline {
 }
 
 // Every request the page makes, on the server timeline's clock: when each started, when its response came, and when
-// it finished or failed, or that it was still in flight. A page that does not hydrate shows whether its loads were
+// it finished or failed, or that it was still in flight. Each time is when Playwright's event reached the harness, so a
+// page's start can read a few ms after the server's arrival for the same request (BUGS.md 504.7). A page that does not hydrate shows whether its loads were
 // progressing or stalled.
 export function pageTimeline(tab: Page, origin: string, at: () => string): { lines: () => string[] } {
 	const loads = new Map<unknown, { url: string; started: string; response?: string; ended?: string }>()
@@ -109,15 +110,15 @@ export function pageTimeline(tab: Page, origin: string, at: () => string): { lin
 	}
 }
 
-// The vitest workers beside the harness's own: its parent's children, read where Linux lists them, else unknown.
-export function siblingWorkers(
-	read: (path: string) => string = (path) => readFileSync(path, "utf8"),
-): number[] | undefined {
-	try {
-		return read(`/proc/${process.ppid}/task/${process.ppid}/children`).split(" ").filter(Boolean).map(Number)
-	} catch {
-		return undefined
-	}
+// The vitest workers beside the harness's own: the processes whose parent is its parent, by `ps`, which Linux and
+// macOS both have, so a Mac runner lists them too; unknown where `ps` is missing or fails (BUGS.md 504.7).
+export function siblingWorkers(command = "ps"): number[] | undefined {
+	const listed = spawnSync(command, ["-A", "-o", "pid=,ppid="], { encoding: "utf8" })
+	if (listed.error !== undefined || listed.status !== 0) return undefined
+	return listed.stdout.split("\n").flatMap((line) => {
+		const [pid, ppid] = line.trim().split(/\s+/).map(Number)
+		return pid !== undefined && ppid === process.ppid ? [pid] : []
+	})
 }
 
 // Which vitest worker ran the case, and which of its siblings at the case's start have exited since. An exit is not
@@ -125,7 +126,7 @@ export function siblingWorkers(
 // vitest's own "Worker exited unexpectedly" is what names a kill; a sibling's exit status is not ours to read. A
 // recurrence of a hang compares the two (BUGS.md 485, 504.6).
 export function workerLine(before: number[] | undefined, now: number[] | undefined = siblingWorkers()): string {
-	if (before === undefined || now === undefined) return `harness worker ${process.pid}; workers unknown on this OS`
+	if (before === undefined || now === undefined) return `harness worker ${process.pid}; workers unknown (no ps)`
 	const gone = before.filter((pid) => !now.includes(pid))
 	const exited = gone.length === 0 ? "none" : gone.join(" ")
 	return `harness worker ${process.pid}; of ${before.length} workers at the case's start, exited since: ${exited} (an exit, not a kill: a worker exits when its file is done)`
