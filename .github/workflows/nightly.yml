@@ -8,6 +8,13 @@ on:
   schedule:
     - cron: "41 3 * * *"
   workflow_dispatch:
+    inputs:
+      # A run that fails black-box-parity before it starts, so a dispatch proves the issues job opens an issue and the
+      # next clean run closes it (plan 34 8.2). A scheduled night has no inputs and never plants.
+      plant:
+        description: Fail black-box-parity on purpose
+        type: boolean
+        default: false
 
 concurrency:
   group: nightly
@@ -138,6 +145,10 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
+      - if: inputs.plant
+        run: |
+          echo "planted failure (plan 34 8.2)"
+          exit 1
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       # The night's seed is its UTC date, so the night replays from its date alone.

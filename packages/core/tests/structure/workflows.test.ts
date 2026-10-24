@@ -79,7 +79,7 @@ it("browsers from browser-server", () => {
 
 // The nightly (plan 21 15.6, 17.1): scheduled and on demand; every job feeds the issues job, which runs whatever they did and
 // alone may write issues, so a job 17.1 adds without joining it fails here; the benches restore the previous night
-// before comparing and save tonight only after a pass; the baseline checks its budgets.
+// before comparing and save tonight only after a pass; the baseline checks its budgets; a dispatch can plant a failure.
 it("nightly", () => {
 	const text = workflows.find((file) => file.name === "nightly.yml")?.text ?? ""
 	expect(text).toContain('cron: "41 3 * * *"')
@@ -115,6 +115,15 @@ it("nightly", () => {
 	expect(save).toBeGreaterThan(compare)
 	expect(text).toContain("tests/perf/baseline.ts --v0")
 	expect(text).toContain("--check")
+	// A dispatch can plant one failure to prove the issue path; only black-box-parity reads it, and a schedule never does.
+	const jobsOf = Object(load(text)).jobs as Record<string, { steps: Array<{ if?: string; run?: string }> }>
+	const planted = Object.entries(jobsOf).flatMap(([job, { steps }]) =>
+		steps.filter((step) => step.if?.includes("inputs.plant") === true).map((step) => ({ job, step })),
+	)
+	expect(planted).toEqual([
+		{ job: "black-box-parity", step: { if: "inputs.plant", run: 'echo "planted failure (plan 34 8.2)"\nexit 1\n' } },
+	])
+	expect(Object(load(text)).on.workflow_dispatch.inputs.plant).toMatchObject({ type: "boolean", default: false })
 })
 
 // Playwright's `--project` takes every bare word after it, so `--project node-prod-chromium docs-perf` asks for a
