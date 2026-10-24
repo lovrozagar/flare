@@ -14,7 +14,7 @@ import { RedirectError } from "../../shared/errors/redirect.ts"
 import { redirectLocation } from "../redirect/index.ts"
 import type { RuntimeOptions } from "./options.ts"
 import { finalize, ownStage } from "./finalize.ts"
-import { applySecurity } from "../security/apply.ts"
+import { applySecurity, type SecurityContext } from "../security/apply.ts"
 
 const ALLOW = "GET, HEAD, OPTIONS"
 
@@ -75,30 +75,72 @@ function namedMethods(listed: ReadonlySet<string>): string {
 // and TRACK. The answer is what Bun's pipeline gives, in its order: an unknown internal param's 400; the canonical
 // step's redirect, a step that throws answering as `failed` does (a redirect's Location, else the projected 500); on a mounted path, which the method cannot reach here,
 // 501; a server function's 404 for an unknown id, else 405 naming its method; a route's 405 with its own Allow (RFC
-// 9110, BUGS.md 280, 284, 289). Middleware does not run: it needs the request this runtime cannot make. Every answer
-// carries the security set Bun's pipeline builds before the request runs, the server's own when it is an object and the
-// defaults when it is a callback, which needs the request's context (BUGS.md 491).
+// 9110, BUGS.md 280, 284, 289). Middleware does not run: it needs the request this runtime cannot make. The 400 and
+// the canonical step's answers carry the set Bun's pipeline builds before serverContext runs: the server's own when it
+// is an object, the defaults when it is a callback (BUGS.md 491). Every later answer runs serverContext first, as Bun's
+// does, and carries the server's set, a callback's built with a RefusedMethodRequest; a throw in either is the projected
+// 500 with the defaults, as `failed` answers (BUGS.md 514).
 export const REFUSED: unique symbol = Symbol.for("flare.refused")
 
 export type RefusedAnswer = { status: number; location?: string; allow?: string; headers?: Headers }
 
-type Refused = { method: string; url: string }
+type Refused = { method: string; url: string; headers: Headers; env: unknown }
+
+// The request a server's security callback and serverContext get for a method Node cannot make a Request of: a GET of
+// the URL and headers, with no body, whose `method` reads the real one. Only the method, the URL, and the headers are
+// the client's (dx/adapters.md, BUGS.md 514).
+export class RefusedMethodRequest extends Request {
+	readonly #method: string
+
+	constructor(refused: Pick<Refused, "method" | "url" | "headers">) {
+		super(refused.url, { method: "GET", headers: refused.headers })
+		this.#method = refused.method
+	}
+
+	override get method(): string {
+		return this.#method
+	}
+}
+
+type RefusedServing = {
+	options: Pick<RuntimeOptions, "router" | "serverFns" | "security" | "serverContext">
+	mounts: readonly Mount[]
+	sink: ErrorSink
+}
 
 export function refusedChannel(
-	serving: {
-		options: Pick<RuntimeOptions, "router" | "serverFns" | "security">
-		mounts: readonly Mount[]
-		sink: ErrorSink
-	},
+	serving: RefusedServing,
 	step: (request: Refused) => { status: number; location?: string },
 ): { [REFUSED]: (request: Refused) => Promise<RefusedAnswer> } {
 	return {
 		[REFUSED]: async (request) => {
-			const answer = await refusedAnswer(serving, { request, step })
 			const { security } = serving.options
-			const secured = applySecurity({ url: request.url, headers: new Headers(), dev: serving.sink.dev, security })
-			return { ...answer, headers: secured.headers }
+			const unscoped = applySecurity({ url: request.url, headers: new Headers(), dev: serving.sink.dev, security })
+			const early = earlyAnswer(serving, { request, step })
+			if (early !== undefined) return { ...early, headers: unscoped.headers }
+			const scoped = scopedSecurity(serving, request)
+			if (scoped === undefined) return { status: 500, headers: unscoped.headers }
+			return { ...(await refusedAnswer(serving, request)), headers: scoped }
 		},
+	}
+}
+
+// The set an answer after serverContext carries: serverContext runs with the stand-in request, then the server's
+// security, a callback with that request, its env, and serverContext's value. A throw in either is projected, and the
+// answer is the 500 (`undefined` here).
+function scopedSecurity(serving: RefusedServing, refused: Refused): Headers | undefined {
+	const request = new RefusedMethodRequest(refused)
+	const { security } = serving.options
+	// As withServerContext takes it: the env is the adapter's, typed by the register only for the app.
+	const serverContext: ((ctx: { request: Request; env: unknown }) => unknown) | undefined =
+		serving.options.serverContext
+	try {
+		const value = serverContext === undefined ? {} : serverContext({ request, env: refused.env })
+		const context = { request, env: refused.env, serverContext: value as SecurityContext["serverContext"] }
+		return applySecurity({ url: refused.url, headers: new Headers(), dev: serving.sink.dev, security, context }).headers
+	} catch (error) {
+		projectError(error, serving.sink)
+		return undefined
 	}
 }
 
@@ -114,17 +156,27 @@ function thrownAnswer(error: unknown, at: { router: RuntimeOptions["router"]; si
 	}
 }
 
-async function refusedAnswer(
-	serving: { options: Pick<RuntimeOptions, "router" | "serverFns">; mounts: readonly Mount[]; sink: ErrorSink },
+// The answers Bun's pipeline gives before serverContext: an unknown internal param's 400, and the canonical step's
+// redirect or its throw's answer. `undefined` when the request goes on.
+function earlyAnswer(
+	serving: RefusedServing,
 	at: { request: Refused; step: (request: Refused) => { status: number; location?: string } },
-): Promise<RefusedAnswer> {
-	const { router, serverFns = {} } = serving.options
-	const url = new URL(at.request.url)
-	const internal = classify(url, router.basePath)
+): RefusedAnswer | undefined {
+	const { router } = serving.options
+	const internal = classify(new URL(at.request.url), router.basePath)
 	if (internal.status !== 200) return { status: internal.status }
 	try {
 		const step = at.step(at.request)
-		if (step.status !== 200) return step
+		return step.status === 200 ? undefined : step
+	} catch (error) {
+		return thrownAnswer(error, { router, sink: serving.sink })
+	}
+}
+
+async function refusedAnswer(serving: RefusedServing, request: Refused): Promise<RefusedAnswer> {
+	const { router, serverFns = {} } = serving.options
+	const url = new URL(request.url)
+	try {
 		if (mountSpelling(serving.mounts, url.pathname) !== undefined) return { status: 501 }
 		if (isServerFn(url, router.basePath)) {
 			const id = url.pathname.slice(fnPrefix(router.basePath).length)
