@@ -16,7 +16,9 @@ export function trace(write: Write = (line) => void process.stderr.write(`${line
 		name: "flare:e2e-trace",
 		enforce: "pre",
 		configureServer(server) {
-			server.middlewares.use(traced(write))
+			const conns = connections(write)
+			server.httpServer?.on("connection", conns.accept)
+			server.middlewares.use(traced(write, undefined, conns))
 			traceModules(server, write)
 			const stop = stalls(write)
 			server.httpServer?.once("close", stop)
@@ -31,13 +33,49 @@ const POLL = 2
 // How long an answer whose head went out may send no bytes before it logs `quiet` (BUGS.md 504.8).
 const QUIET = 1000
 
-// Each request, numbered, from its arrival: `[trace] <ms> #<n> <method> <url> <event>`. Every request logs `arrived`,
-// `finish <status> <bytes>` when its answer was handed to the socket, and `close` with whether it finished, whether the
-// head went out, and the bytes written. An answer the app writes, a document, a data request, or a server function,
+// Each connection the dev server accepts, numbered: `[trace] <ms> s<n> accept`, then `end` when the client half-closes
+// it, `error <code>`, and `close requests=<k> read=<bytes> written=<bytes>`. A request's `arrived` names its socket, so
+// a request the page sent that no `arrived` line shows reads against the sockets open then: bytes a socket read beyond
+// the requests it carried were one the server never parsed (BUGS.md 504.14). No `data` listener is added, which would
+// take a Node socket off its native parser. A socket that does not count its bytes, as Bun's may not, reads 0.
+export function connections(write: Write, now: Now = () => performance.now()) {
+	const start = now()
+	let count = 0
+	const known = new WeakMap<Socket, { id: number; requests: number }>()
+	const line = (id: number, event: string): void => write(`[trace] ${Math.round(now() - start)} s${id} ${event}`)
+	return {
+		accept(socket: Socket): void {
+			const state = { id: ++count, requests: 0 }
+			known.set(socket, state)
+			line(state.id, "accept")
+			socket.once("end", () => line(state.id, "end"))
+			socket.on("error", (error: NodeJS.ErrnoException) => line(state.id, `error ${error.code ?? error.message}`))
+			socket.once("close", () => {
+				const read = Number(socket.bytesRead ?? 0)
+				line(state.id, `close requests=${state.requests} read=${read} written=${written(socket)}`)
+			})
+		},
+		// The socket a request came on, counted: `s<n>`, or `s?` for one accepted before the trace listened.
+		request(socket: Socket): string {
+			const state = known.get(socket)
+			if (state === undefined) return "s?"
+			state.requests += 1
+			return `s${state.id}`
+		},
+	}
+}
+
+// Each request, numbered, from its arrival: `[trace] <ms> #<n> <method> <url> <event>`. Every request logs `arrived on
+// s<n>`, its socket, `finish <status> <bytes>` when its answer was handed to the socket, and `close` with whether it
+// finished, whether the head went out, and the bytes written. An answer the app writes, a document, a data request, or a server function,
 // also logs `head <status>` and `first bytes` when they go out, `quiet <bytes>` once a second passes with no new bytes,
 // and `resumed <bytes> after <ms>` when they flow again. Under Cloudflare's plugin the head goes out when workerd
 // answers, so an app request with no head is one workerd has not answered (BUGS.md 504.8).
-export function traced(write: Write, now: Now = () => performance.now()) {
+export function traced(
+	write: Write,
+	now: Now = () => performance.now(),
+	conns: Pick<ReturnType<typeof connections>, "request"> = { request: () => "s?" },
+) {
 	const start = now()
 	let count = 0
 	return (req: IncomingMessage, res: ServerResponse, next: Next): void => {
@@ -48,7 +86,7 @@ export function traced(write: Write, now: Now = () => performance.now()) {
 		const socket = req.socket
 		const base = written(socket)
 		const bytes = (): number => written(socket) - base
-		line("arrived")
+		line(`arrived on ${conns.request(socket)}`)
 		const stop = isAnswer(req) ? watchAnswer({ res, line, bytes, now }) : () => undefined
 		res.once("finish", () => line(`finish ${res.statusCode} ${bytes()}`))
 		res.once("close", () => {

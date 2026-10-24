@@ -5,7 +5,7 @@ import type { ViteDevServer } from "vite"
 import { expect, it, vi } from "vitest"
 import { boot, type Boot } from "./boot.ts"
 import { traceEnv } from "./e2e-env.ts"
-import { stalls, traceModules, traced } from "./trace.ts"
+import { connections, stalls, traceModules, traced } from "./trace.ts"
 
 // A real vite dev server boots in a child process, as boot.test's cases do.
 const VITE_BOOT = 30_000
@@ -68,17 +68,28 @@ it.each(["node", "bun"])(
 				.filter((line) => line.startsWith("GET /skeletons "))
 				// A slow runner can stretch the 900 ms between the two deferred values past the quiet bound.
 				.filter((line) => !/ (quiet|resumed) /.test(line))
-				.map((line) => line.replace(/(?<=finish 200 |bytes=)\d+$/, "N"))
+				.map((line) => line.replace(/(?<=finish 200 |bytes=)\d+$/, "N").replace(/(?<=arrived on s)\d+$/, "N"))
 			expect(page).toEqual([
-				"GET /skeletons arrived",
+				"GET /skeletons arrived on sN",
 				"GET /skeletons head 200",
 				"GET /skeletons first bytes",
 				"GET /skeletons finish 200 N",
 				"GET /skeletons close finished=true head=true bytes=N",
 			])
 			const module = traced().filter((line) => line.startsWith("GET /@vite/client "))
-			expect(module[0]).toBe("GET /@vite/client arrived")
+			expect(module[0]).toMatch(/^GET \/@vite\/client arrived on s\d+$/)
 			expect(module.at(-1)).toMatch(/^GET \/@vite\/client close finished=true head=true bytes=\d+$/)
+			// Each request's socket was accepted, and closes with the requests it carried once the client lets go
+			// (BUGS.md 504.14).
+			const arrival = traced().find((line) => line.startsWith("GET /skeletons arrived on "))
+			const socket = /arrived on (s\d+)$/.exec(arrival ?? "")?.[1] ?? ""
+			const conn = (): string[] =>
+				session
+					.logs()
+					.filter((line) => line.startsWith("[trace]"))
+					.map((line) => line.replace(/^\[trace\] \d+ /, ""))
+					.filter((line) => line.startsWith(`${socket} `))
+			expect(conn()[0]).toBe(`${socket} accept`)
 		} finally {
 			await session.close()
 		}
@@ -106,9 +117,14 @@ it.each(["node", ...(typeof Reflect.get(nodeModule, "registerHooks") === "functi
 			const data = traced()
 				.filter((line) => line.includes(" GET /skeletons?_flare=data "))
 				.filter((line) => !/ (quiet|resumed) /.test(line))
-				.map((line) => line.replace(/^#\d+ /, "").replace(/(?<=finish 200 |bytes=)\d+$/, "N"))
+				.map((line) =>
+					line
+						.replace(/^#\d+ /, "")
+						.replace(/(?<=finish 200 |bytes=)\d+$/, "N")
+						.replace(/(?<=arrived on s)\d+$/, "N"),
+				)
 			expect(data).toEqual([
-				"GET /skeletons?_flare=data arrived",
+				"GET /skeletons?_flare=data arrived on sN",
 				"GET /skeletons?_flare=data head 200",
 				"GET /skeletons?_flare=data first bytes",
 				"GET /skeletons?_flare=data finish 200 N",
@@ -171,8 +187,8 @@ it("trace quiet stream", () => {
 		feed.res.emit("close")
 		const stamped = lines.map((line) => line.replace(/^\[trace\] \d+ /, ""))
 		expect(stamped).toEqual([
-			"#1 GET /app/_flare/fn/abc?_b=dev arrived",
-			"#2 GET /src/fns/activity.ts arrived",
+			"#1 GET /app/_flare/fn/abc?_b=dev arrived on s?",
+			"#2 GET /src/fns/activity.ts arrived on s?",
 			"#1 GET /app/_flare/fn/abc?_b=dev head 200",
 			"#1 GET /app/_flare/fn/abc?_b=dev first bytes",
 			"#1 GET /app/_flare/fn/abc?_b=dev quiet 100",
@@ -184,6 +200,52 @@ it("trace quiet stream", () => {
 	} finally {
 		vi.useRealTimers()
 	}
+})
+
+// Each socket the server accepts is numbered and logged from its accept to its close, with the requests it carried and
+// the bytes it read and wrote; each request names its socket. A socket that read more than its requests' bytes carried
+// one the server never parsed (BUGS.md 504.14).
+it("trace sockets", () => {
+	const lines: string[] = []
+	let clock = 0
+	const conns = connections(
+		(line) => lines.push(line),
+		() => clock,
+	)
+	const middleware = traced(
+		(line) => lines.push(line),
+		() => clock,
+		conns,
+	)
+	const socket = Object.assign(new EventEmitter(), { bytesRead: 0, bytesWritten: 0 })
+	const other = Object.assign(new EventEmitter(), { bytesRead: 0, bytesWritten: 0 })
+	conns.accept(socket as never)
+	conns.accept(other as never)
+	clock = 5
+	for (const url of ["/a", "/b"]) {
+		const exchange = fakeExchange(url)
+		Object.assign(exchange.req, { socket })
+		middleware(exchange.req, exchange.res, () => undefined)
+	}
+	const unknown = fakeExchange("/c")
+	middleware(unknown.req, unknown.res, () => undefined)
+	clock = 40
+	Object.assign(socket, { bytesRead: 812, bytesWritten: 9000 })
+	socket.emit("end")
+	socket.emit("error", Object.assign(new Error("reset"), { code: "ECONNRESET" }))
+	socket.emit("close")
+	other.emit("error", new Error("gone"))
+	expect(lines).toEqual([
+		"[trace] 0 s1 accept",
+		"[trace] 0 s2 accept",
+		"[trace] 5 #1 GET /a arrived on s1",
+		"[trace] 5 #2 GET /b arrived on s1",
+		"[trace] 5 #3 GET /c arrived on s?",
+		"[trace] 40 s1 end",
+		"[trace] 40 s1 error ECONNRESET",
+		"[trace] 40 s1 close requests=2 read=812 written=9000",
+		"[trace] 40 s2 error gone",
+	])
 })
 
 // Each server environment's module fetch is logged, numbered on its own: asked, then answered or failed with the time

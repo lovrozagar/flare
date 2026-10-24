@@ -176,7 +176,7 @@ it("request log", () => {
 	for (const run of handlers.request) run(again)
 	const server = [
 		"== http://127.0.0.1:5000",
-		"[trace] 2010 #1 GET /app/cdn arrived",
+		"[trace] 2010 #1 GET /app/cdn arrived on s1",
 		"[trace] 2012 #1 GET /app/cdn finish 200 4488",
 		"[trace] 2012 #1 GET /app/cdn close finished=true head=true bytes=4488",
 		"[trace] 2020 #2 GET /src/a.ts?v=1 arrived",
@@ -185,7 +185,7 @@ it("request log", () => {
 		"in flight: 2 of 4 requests",
 		"40 document http://127.0.0.1:5000/app/cdn in flight; server: not seen",
 		"20 script http://127.0.0.1:5000/src/a.ts?v=1 response 200 at 25; server: #2 arrived, no answer",
-		"10 document http://127.0.0.1:5000/app/cdn response 200 at 12, finished at 13; server: #1 arrived, answered 200",
+		"10 document http://127.0.0.1:5000/app/cdn response 200 at 12, finished at 13; server: #1 arrived on s1, answered 200",
 		"  header content-type: text/html",
 		"  header cross-origin-opener-policy: same-origin",
 		"  header vary: Sec-Fetch-Dest",
