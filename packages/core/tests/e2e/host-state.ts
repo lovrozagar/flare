@@ -21,10 +21,12 @@ export type HostDeps = {
 	meminfo: () => Promise<string>
 }
 
-const run: Run = (command, args) =>
+// A failed command rejects with its stdout on the error: execFile hands it to the callback alone, and lsof exits 1 with
+// a full answer when a listed process is gone (BUGS.md 504.11).
+export const run: Run = (command, args) =>
 	new Promise((resolve, reject) => {
 		execFile(command, [...args], { timeout: 10_000, maxBuffer: 64 * 1024 * 1024 }, (error, stdout) =>
-			error === null ? resolve(stdout) : reject(error),
+			error === null ? resolve(stdout) : reject(Object.assign(error, { stdout })),
 		)
 	})
 
@@ -94,8 +96,9 @@ async function descriptors(deps: HostDeps, tree: readonly Proc[]): Promise<Map<n
 		return new Map(counts.filter((entry): entry is [number, number] => !Number.isNaN(entry[1])))
 	}
 	const pids = tree.map((proc) => proc.pid).join(",")
-	// lsof exits 1 when one of the processes is gone by the time it looks; it still prints the others.
-	const out = await attempt("lsof", () => deps.run("lsof", ["-n", "-P", "-p", pids]).catch(lsofOutput))
+	// lsof exits 1 when one of the processes is gone by the time it looks, as the ps that listed them always is; it still
+	// prints the others, so any answer with its header counts, whatever the exit.
+	const out = await attempt("lsof", () => deps.run("lsof", ["-n", "-P", "-p", pids]).then(lsofAnswer, lsofOutput))
 	if (typeof out !== "string") return out
 	const counts = new Map<number, number>()
 	for (const line of out.split("\n").slice(1)) {
@@ -107,8 +110,13 @@ async function descriptors(deps: HostDeps, tree: readonly Proc[]): Promise<Map<n
 
 function lsofOutput(error: unknown): string {
 	const stdout = Reflect.get(Object(error), "stdout")
-	if (Reflect.get(Object(error), "code") === 1 && typeof stdout === "string" && stdout !== "") return stdout
+	if (typeof stdout === "string" && stdout.startsWith("COMMAND")) return stdout
 	throw error
+}
+
+function lsofAnswer(stdout: string): string {
+	if (!stdout.startsWith("COMMAND")) throw new Error("no lsof header")
+	return stdout
 }
 
 // macOS's netstat; Linux's ss, which lists only the TIME_WAIT sockets with no header, as hosts without net-tools have it.
