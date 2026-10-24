@@ -42,6 +42,15 @@ test("layout not found navigation", async ({ page }: { page: Page; browser: Brow
 	expect(await page.evaluate(() => Reflect.get(window, "__stayed"))).toBe(true)
 })
 
+// Under the e2e boot a WebKit document goes without Cross-Origin-Opener-Policy, whose process swap hangs about 1 in
+// 1250 concurrent WebKit navigations (bugs.webkit.org 325840, BUGS.md 504.12); Chromium and Firefox keep flare's
+// default, so the override cannot spread past the engine it is for.
+test("coop by engine", async ({ page, browserName }) => {
+	const response = await page.goto(`${session.origin}/`)
+	const coop = response?.headers()["cross-origin-opener-policy"]
+	expect([browserName, coop]).toEqual([browserName, browserName === "webkit" ? undefined : "same-origin"])
+})
+
 test.describe("basepath", () => {
 	let base: Boot
 

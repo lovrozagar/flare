@@ -5,7 +5,9 @@ import { join } from "node:path"
 import { expect, it } from "vitest"
 import { acquire, type Remote } from "./safari-lock.ts"
 import { SafariSession, type Fetcher } from "./safari-driver.ts"
-import { configOf, FLOWS, runFlows, tunnel, verifySafari, type Flow } from "./verify-safari.ts"
+import { createServer } from "node:http"
+import type { AddressInfo } from "node:net"
+import { configOf, coopWatch, expose, FLOWS, runFlows, tunnel, verifySafari, type Flow } from "./verify-safari.ts"
 
 // The defaults: the Mac at `ssh mac`, its driver on 4799, and this machine at its first Tailscale address.
 it("config defaults", () => {
@@ -273,5 +275,40 @@ it("limit closes", async () => {
 		expect(existsSync(path)).toBe(false)
 	} finally {
 		rmSync(dir, { recursive: true, force: true })
+	}
+})
+
+// An upstream that answers /page as an HTML document, with COOP or without by its query, and /data as JSON without.
+async function upstream(): Promise<{ origin: string; close: () => void }> {
+	const server = createServer((request, response) => {
+		const url = new URL(request.url ?? "/", "http://h")
+		if (url.pathname === "/data") return void response.writeHead(200, { "content-type": "application/json" }).end("{}")
+		const headers: Record<string, string> = { "content-type": "text/html; charset=utf-8" }
+		if (url.searchParams.get("coop") !== "off") headers["cross-origin-opener-policy"] = "same-origin"
+		response.writeHead(200, headers).end("<!doctype html><p>x</p>")
+	})
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+	return { origin: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, close: () => server.close() }
+}
+
+// Every HTML document real Safari receives through the run's proxy carries flare's default COOP: verify:safari never
+// sets the e2e WebKit switch, so a shell or CI step that exported it, or a refactor that routes the run through
+// playwright.config, fails here, on the path Safari takes (BUGS.md 504.12). A non-HTML answer is exempt, and a run no
+// document passed through fails too.
+it("safari keeps coop", async () => {
+	const app = await upstream()
+	const watch = coopWatch()
+	const shown = await expose(app.origin, watch)
+	try {
+		const via = `http://127.0.0.1:${shown.port}`
+		expect(watch.problem()).toBe("no HTML document reached Safari through the proxy")
+		await (await fetch(`${via}/page`)).text()
+		await (await fetch(`${via}/data`)).text()
+		expect([watch.problem(), watch.summary()]).toEqual([undefined, "1 HTML document, each with COOP same-origin"])
+		await (await fetch(`${via}/page?coop=off`)).text()
+		expect(watch.problem()).toBe("an HTML document reached Safari without COOP same-origin: /page?coop=off")
+	} finally {
+		shown.server.close()
+		app.close()
 	}
 })

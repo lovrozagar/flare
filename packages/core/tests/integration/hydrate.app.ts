@@ -11,6 +11,7 @@ import {
 	type ServedRequest,
 	type ServerTimeline,
 } from "./hydrate.timeline.ts"
+import { withWebKitCoop } from "./webkit-coop.ts"
 
 // The harness's app mode (B96): a real document `createServer(...).fetch` serves from Solid's server build in Vite's SSR
 // runner, hydrated in a real engine by the real `createClient` with Solid's browser build. A case is its app (the
@@ -134,7 +135,7 @@ function serverOf(vite: ViteDevServer, input: { id: string; origin: string }): P
 		)
 		const app = loaded.app(loaded.api, "server")
 		const site = app.server?.["store"] === undefined ? {} : { site: input.origin }
-		return create.createServer({ router: app.router, ...site, ...app.server })
+		return create.createServer({ router: app.router, ...site, ...app.server, security: withWebKitCoop(app.server) })
 	})()
 	servers.set(input.id, made)
 	return made

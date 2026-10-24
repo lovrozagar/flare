@@ -469,7 +469,7 @@ async function tunnelOn(
 // The docs server on every interface, so the Mac reaches it. Bodies stream through as they arrive. A browser that
 // closes its request aborts the upstream one, and an upstream that breaks, as the server's own close does to a held
 // stream, ends that one response instead of the run.
-function expose(upstream: string): Promise<{ port: number; server: Server }> {
+export function expose(upstream: string, watch?: CoopWatch): Promise<{ port: number; server: Server }> {
 	const server = createServer((request, response) => {
 		const chunks: Buffer[] = []
 		const abort = new AbortController()
@@ -478,7 +478,7 @@ function expose(upstream: string): Promise<{ port: number; server: Server }> {
 		request.on("end", () => {
 			const body =
 				request.method === "GET" || request.method === "HEAD" ? undefined : Uint8Array.from(Buffer.concat(chunks))
-			forward({ upstream, request, body, signal: abort.signal }, response).catch(() => response.destroy())
+			forward({ upstream, request, body, signal: abort.signal, watch }, response).catch(() => response.destroy())
 		})
 	})
 	return new Promise((resolve) =>
@@ -491,6 +491,34 @@ type Forwarded = {
 	request: IncomingMessage
 	body: Uint8Array<ArrayBuffer> | undefined
 	signal: AbortSignal
+	watch?: CoopWatch | undefined
+}
+
+// What real Safari received of flare's default COOP through the run's proxies (BUGS.md 504.12): the e2e runs serve
+// Playwright's WebKit without it under FLARE_E2E_WEBKIT_NO_COOP, which this run never sets, so every HTML document
+// Safari gets must carry `same-origin`. A shell or CI step that exported the switch, or a route through
+// playwright.config, fails the run. Answers that are not HTML documents are exempt.
+export type CoopWatch = {
+	see: (path: string, answer: Headers) => void
+	problem: () => string | undefined
+	summary: () => string
+}
+
+export function coopWatch(): CoopWatch {
+	let documents = 0
+	const missing: string[] = []
+	return {
+		see(path, answer) {
+			if (!(answer.get("content-type") ?? "").startsWith("text/html")) return
+			documents += 1
+			if (answer.get("cross-origin-opener-policy") !== "same-origin") missing.push(path)
+		},
+		problem() {
+			if (missing.length > 0) return `an HTML document reached Safari without COOP same-origin: ${missing.join(", ")}`
+			return documents === 0 ? "no HTML document reached Safari through the proxy" : undefined
+		},
+		summary: () => `${documents} HTML document${documents === 1 ? "" : "s"}, each with COOP same-origin`,
+	}
 }
 
 async function forward(input: Forwarded, response: ServerResponse): Promise<void> {
@@ -504,6 +532,7 @@ async function forward(input: Forwarded, response: ServerResponse): Promise<void
 		redirect: "manual",
 		signal: input.signal,
 	})
+	input.watch?.see(input.request.url ?? "/", answer.headers)
 	const out = Object.fromEntries(
 		[...answer.headers].filter(([key]) => !["content-length", "content-encoding"].includes(key)),
 	)
@@ -566,7 +595,8 @@ async function drive(config: SafariConfig, signal: AbortSignal): Promise<number>
 		opened.push(driver.close)
 		const docs = await boot({ app: "docs", runtime: "node", mode: "prod" })
 		opened.push(docs.close)
-		const exposed = await expose(docs.origin)
+		const watch = coopWatch()
+		const exposed = await expose(docs.origin, watch)
 		opened.push(() => exposed.server.close())
 		const upstream = docs.origin
 		const site: Site = {
@@ -589,13 +619,16 @@ async function drive(config: SafariConfig, signal: AbortSignal): Promise<number>
 			(basepath ??= (async () => {
 				const app = await boot({ app: "basepath", runtime: "node", mode: "prod" })
 				opened.push(app.close)
-				const shown = await expose(app.origin)
+				const shown = await expose(app.origin, watch)
 				opened.push(() => shown.server.close())
 				return `http://${config.host}:${shown.port}`
 			})())
 		const safari = await SafariSession.open(driver.base, fetch)
 		opened.push(() => safari.close())
-		return await runFlows(safari, site, { log: (line) => console.log(line) })
+		const failed = await runFlows(safari, site, { log: (line) => console.log(line) })
+		const coop = watch.problem()
+		console.log(coop === undefined ? `PASS  coop: ${watch.summary()}` : `FAIL  coop: ${coop}`)
+		return coop === undefined ? failed : 1
 	} finally {
 		await closeAll()
 	}

@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs"
-import { join } from "node:path"
+import { createRequire } from "node:module"
+import { dirname, join } from "node:path"
 import { expect, it } from "vitest"
 import { crashWatch, navigationLog, requestLog } from "../e2e/crash.ts"
 import config from "../e2e/playwright.config.ts"
@@ -241,4 +242,17 @@ it("playwright specs outside vitest", async () => {
 	const playwright = specs.filter((name) => !ignored.some((glob) => glob.test(`tests/e2e/${name}`)))
 	expect(playwright.filter((name) => !outside(name))).toEqual([])
 	expect(specs.filter((name) => !playwright.includes(name) && outside(name))).toEqual([])
+})
+
+// The e2e runs and the hydrate harness serve Playwright's WebKit without COOP because revision 2370 hangs about 1 in
+// 1250 concurrent navigations to a COOP document (bugs.webkit.org 325840, BUGS.md 504.12). Any other revision fails
+// here until it is measured again: the probe at ~/.cache/flare-gates/probes/coop (repro.ts), 4000 navigations per arm
+// with and without COOP, before the override is kept or dropped.
+it("webkit coop revision", () => {
+	const pkg = createRequire(import.meta.url).resolve("playwright-core/package.json")
+	const listed: { browsers: { name: string; revision: string }[] } = JSON.parse(
+		readFileSync(join(dirname(pkg), "browsers.json"), "utf8"),
+	)
+	const webkit = listed.browsers.find((browser) => browser.name === "webkit")?.revision
+	expect(webkit, "Playwright's WebKit changed: rerun the COOP stress repro, 4000 per arm (BUGS.md 504.12)").toBe("2370")
 })

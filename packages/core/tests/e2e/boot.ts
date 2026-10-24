@@ -8,7 +8,7 @@ import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { bootChild, exitOf, remove } from "./child.ts"
 import { onFreePort } from "../../../../scripts/free-port.ts"
-import { E2E_ENV, traceEnv } from "./e2e-env.ts"
+import { E2E_ENV, traceEnv, webkitCoopEnv } from "./e2e-env.ts"
 import { capture, tracked } from "./server-log.ts"
 
 const apps = fileURLToPath(new URL("./apps/", import.meta.url))
@@ -70,7 +70,7 @@ async function start(input: BootInput): Promise<Boot> {
 	}
 	if (input.runtime === "workers") return { ...(await bootWorkers({ appDir, cacheDir, outDir })), outDir }
 	const [bin, args] = input.runtime === "bun" ? ["bun", ["-e", BUN_SERVE]] : [process.execPath, NODE_ARGS]
-	const env = E2E_ENV
+	const env = { ...E2E_ENV, ...webkitCoopEnv() }
 	return { ...(await bootChild({ appDir, cacheDir, bin, args: [...args, outDir], dirs: [outDir], env })), outDir }
 }
 
@@ -122,6 +122,7 @@ function devCommand(
 		FLARE_E2E_RUNTIME: runtime,
 		...E2E_ENV,
 		...traceEnv(),
+		...webkitCoopEnv(),
 		...(runtime === "workers" ? WORKERS_DEV_ENV : {}),
 	}
 	const listen = ["--host", "127.0.0.1", "--port", String(port), "--strictPort"]
@@ -174,7 +175,7 @@ async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: st
 			// The worker's console, which Miniflare 5 parses out of workerd's output as structured logs (BUGS.md 377).
 			handleStructuredLogs: ({ message }: { message: string }) => output.line(message),
 			// The docs and dashboard apps' e2e-only controls answer only under this flag.
-			bindings: Object.assign({}, options.bindings, E2E_ENV),
+			bindings: Object.assign({}, options.bindings, E2E_ENV, webkitCoopEnv()),
 		}),
 	)
 	const clean = (): void => remove([input.cacheDir, input.outDir])
