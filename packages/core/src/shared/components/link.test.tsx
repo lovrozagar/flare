@@ -2,6 +2,7 @@ import { createComponent, createSignal, flush, type Context } from "solid-js"
 import { render, type JSX } from "@solidjs/web"
 import { afterEach, expect, it, vi } from "vitest"
 import { createPrefetcher } from "../../client/navigation/prefetch.ts"
+import { userWork } from "../../client/navigation/user-work.ts"
 import { createPage } from "../route-builder/page.ts"
 import { createRootLayout } from "../route-builder/root-layout.ts"
 import type { RouteModule } from "../router/create-router.ts"
@@ -109,6 +110,7 @@ function realPrefetch() {
 		fetch,
 		build: "",
 		land: { dev: false },
+		work: userWork(() => 0),
 		env: {
 			network: {},
 			observe: vi.fn<(element: Element, run: () => void) => () => void>(() => () => undefined),

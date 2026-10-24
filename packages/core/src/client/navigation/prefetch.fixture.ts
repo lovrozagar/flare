@@ -6,6 +6,7 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule, type Router, type RouterOptions } from "../../shared/router/create-router.ts"
 import type { Fetch } from "./navigate.fixture.ts"
 import { createPrefetcher, type PrefetchEnv, type Prefetcher } from "./prefetch.ts"
+import { userWork, type UserWork } from "./user-work.ts"
 
 // The routes, router, and prefetcher the prefetch tests share (prefetch.test, prefetch-all.test).
 export const root: RouteModule = createRootLayout("_root_").render((props) => ["root[", props.children, "]"])
@@ -40,7 +41,7 @@ export function routerOf(options: Partial<RouterOptions> = {}, aboutClient?: Rou
 	})
 }
 
-export type Setup = { fetch?: Fetch; env?: Partial<PrefetchEnv>; current?: () => Location }
+export type Setup = { fetch?: Fetch; env?: Partial<PrefetchEnv>; current?: () => Location; work?: UserWork }
 
 // What `setup` made: the prefetcher, its mocked fetch and viewport observer, the idle and observed callbacks it was
 // handed, and the clock it reads.
@@ -52,6 +53,8 @@ export type PrefetchApp = {
 	env: PrefetchEnv
 	clock: { now: number }
 	router: Router
+	// The user work the warm-up yields to, on the same clock (BUGS.md 520).
+	work: UserWork
 }
 
 export function setup(router: Router = routerOf(), options: Setup = {}): PrefetchApp {
@@ -71,6 +74,7 @@ export function setup(router: Router = routerOf(), options: Setup = {}): Prefetc
 		relPrefetch: true,
 		...options.env,
 	}
+	const work = options.work ?? userWork(() => clock.now)
 	const prefetcher = createPrefetcher({
 		router,
 		origin: location.origin,
@@ -79,8 +83,9 @@ export function setup(router: Router = routerOf(), options: Setup = {}): Prefetc
 		build: "b1",
 		land: { dev: false },
 		env,
+		work,
 	})
-	return { prefetcher, fetch, observed, idle, env, clock, router }
+	return { prefetcher, fetch, observed, idle, env, clock, router, work }
 }
 
 export function anchor(): HTMLAnchorElement {
