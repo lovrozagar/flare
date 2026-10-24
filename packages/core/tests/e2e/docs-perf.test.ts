@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import { gzipSync } from "node:zlib"
 import type { Page, TestInfo } from "@playwright/test"
 import { duplicates, heapGrowth, prodDocumentProblems, slowdown } from "../perf/rules.ts"
+import type { Boot } from "./boot.ts"
 import { expect, idle, open, serverOf, test, watch } from "./docs.fixture.ts"
 
 // What the docs app ships, in bytes, from the production build: each page's document and its gzip, its state script,
@@ -122,6 +125,8 @@ test("bytes and long tasks", async ({ page, http, docs }, info) => {
 			for (const entry of list.getEntries()) longest.ms = Math.max(longest.ms, entry.duration)
 		}).observe({ type: "longtask", buffered: true })
 	})
+	await page.addInitScript(trackPrefetchLinks)
+	const flying = inFlight(page)
 	const gzipped = async (urls: readonly string[]) => {
 		let total = 0
 		for (const url of urls) total += gzipSync(await (await http.get(url)).body()).length
@@ -129,18 +134,14 @@ test("bytes and long tasks", async ({ page, http, docs }, info) => {
 	}
 	await open(page, docs.origin, "/")
 	// The app prefetches every route module once idle (`prefetch: { modules: "all" }`). The first load's JavaScript is
-	// what it fetched but those, the prefetch is its own number, read once every `rel=prefetch` module has landed, and
-	// a navigation then fetches none (BUGS.md 295).
+	// what it fetched but those, the prefetch is its own number, read once the warm-up has drained, and a navigation
+	// then fetches none (BUGS.md 295, 521).
 	await idle(page)
-	const prefetched = await page.waitForFunction(() => {
-		const loaded = new Set(performance.getEntriesByType("resource").map((entry) => entry.name))
-		const hrefs = [...document.querySelectorAll<HTMLLinkElement>("link[rel=prefetch]")].map((link) => link.href)
-		return hrefs.length > 0 && hrefs.every((href) => loaded.has(href)) ? hrefs : undefined
-	})
+	const prefetched = await drained(page, warmable(docs), flying)
 	// A module the page imported is the first load's, even when the idle prefetch also listed it, as it does for a route
 	// a viewport prefetch was still importing when the list was made (CI 39093904905: 5298 bytes on the wrong side).
 	const imported = [...new Set(await scripts(page, true))]
-	const prefetch = ((await prefetched.jsonValue()) as string[]).filter((url) => !imported.includes(url))
+	const prefetch = prefetched.filter((url) => !imported.includes(url))
 	const loaded = await scripts(page)
 	sizes["initial js gz"] = await gzipped(imported)
 	sizes["prefetch js gz"] = await gzipped(prefetch)
@@ -152,6 +153,134 @@ test("bytes and long tasks", async ({ page, http, docs }, info) => {
 	const longest = await page.evaluate(() => Number(Reflect.get(Object(Reflect.get(window, "__longest")), "ms")))
 	expect(longest).toBeLessThanOrEqual(LONGEST_TASK_MS)
 })
+
+// Every file the idle warm-up can fetch, as a path: each route module's chunk in the client build and the chunks it
+// imports, less the entry's own closure, which loads at boot. It is the closure fill's rule (vite/codegen/closures.ts,
+// BUGS.md 80, 124.6), read from the app's route map (src/_gen/routes.gen.ts) and the client build's manifest.
+function warmable(docs: Boot): Set<string> {
+	type Chunk = { file: string; isEntry?: boolean; imports?: string[] }
+	const manifest = JSON.parse(readFileSync(join(docs.outDir ?? "", "client/.vite/manifest.json"), "utf8")) as Record<
+		string,
+		Chunk
+	>
+	const closure = (keys: readonly string[]): Set<string> => {
+		const seen = new Set<string>()
+		const queue = [...keys]
+		for (let key = queue.shift(); key !== undefined; key = queue.shift()) {
+			const chunk = manifest[key]
+			if (chunk === undefined || seen.has(key)) continue
+			seen.add(key)
+			queue.push(...(chunk.imports ?? []))
+		}
+		return seen
+	}
+	const map = /^export const chunks = \{.*\};$/m.exec(readFileSync(join(docs.appDir, "src/_gen/routes.gen.ts"), "utf8"))
+	const routes = [...(map?.[0] ?? "").matchAll(/"\/(src\/[^"]+)"/g)].map(([, source]) => String(source))
+	const boot = closure(Object.keys(manifest).filter((key) => manifest[key]?.isEntry === true))
+	const files = [...closure(routes)].filter((key) => !boot.has(key))
+	return new Set(files.map((key) => `/${manifest[key]?.file}`))
+}
+
+// In the page: each `rel=prefetch` link the client appends, and how many of them have loaded or failed.
+function trackPrefetchLinks(): void {
+	const links = { hrefs: [] as string[], settled: 0 }
+	Object.assign(window, { __prefetchLinks: links })
+	const settle = (): void => void (links.settled += 1)
+	new MutationObserver((records) => {
+		for (const node of records.flatMap((record) => [...record.addedNodes])) {
+			if (!(node instanceof HTMLLinkElement) || node.rel !== "prefetch") continue
+			links.hrefs.push(node.href)
+			node.addEventListener("load", settle, { once: true })
+			node.addEventListener("error", settle, { once: true })
+		}
+	}).observe(document, { childList: true, subtree: true })
+}
+
+// The page's requests that have not finished or failed.
+function inFlight(page: Page): () => number {
+	const open = new Set<unknown>()
+	page.on("request", (request) => open.add(request))
+	page.on("requestfinished", (request) => open.delete(request))
+	page.on("requestfailed", (request) => open.delete(request))
+	return () => open.size
+}
+
+// In the page: every appended prefetch link has loaded or failed, and every one of `paths` has been fetched.
+function settled(paths: readonly string[]): boolean {
+	const links = Reflect.get(window, "__prefetchLinks") as { hrefs: string[]; settled: number }
+	const fetched = new Set(performance.getEntriesByType("resource").map((entry) => new URL(entry.name).pathname))
+	return links.settled === links.hrefs.length && paths.every((path) => fetched.has(path))
+}
+
+// Waits until the idle warm-up has drained and returns the links it appended: every file it can fetch has been fetched,
+// by a prefetch link or an import, every link it appended has loaded or failed, and no request of the page is in flight.
+// "Every link present has loaded" also holds while the warm-up waits for the user's own requests, with files still
+// queued (BUGS.md 520, 521). The next link goes in within the task of the last one's load, so a check never lands
+// between them.
+async function drained(page: Page, files: ReadonlySet<string>, flying: () => number): Promise<string[]> {
+	await expect
+		.poll(async () => flying() === 0 && (await page.evaluate(settled, [...files])), { timeout: 30_000 })
+		.toBe(true)
+	const hrefs = await page.evaluate(() => (Reflect.get(window, "__prefetchLinks") as { hrefs: string[] }).hrefs)
+	expect(hrefs.map((href) => new URL(href).pathname).filter((path) => !files.has(path))).toEqual([])
+	return hrefs
+}
+
+// Holds every `_flare=prefetch` request 1 s: the user's own work, which the warm-up waits for (BUGS.md 520).
+async function holdPrefetches(page: Page): Promise<void> {
+	await page.route(
+		(url) => url.searchParams.get("_flare") === "prefetch",
+		async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 1000))
+			await route.continue()
+		},
+	)
+}
+
+// In the page: as the warm-up appends its first link, the user asks for something, by focusing a link that prefetches
+// on intent or by scrolling the viewport prefetch's links into view, so the warm-up pauses partway.
+function pauseAtFirstLink(by: string): void {
+	const observer = new MutationObserver((records) => {
+		const added = records.flatMap((record) => [...record.addedNodes])
+		if (!added.some((node) => node instanceof HTMLLinkElement && node.rel === "prefetch")) return
+		observer.disconnect()
+		if (by === "intent") document.querySelector<HTMLElement>('aside a[data-active="false"]')?.focus()
+		else window.scrollTo(0, document.body.scrollHeight)
+	})
+	observer.observe(document, { childList: true, subtree: true })
+}
+
+// A navigation after the idle warm-up fetches no script, also when the user's own request pauses the warm-up partway:
+// a focused sidebar link's intent prefetch, or a viewport prefetch a scroll fires, its data request held 1 s. The
+// warm-up appends a link after that request ends, so the pause came partway.
+const PAUSES = [
+	{ by: "intent", from: "/docs/routing", to: "/", marker: "#message" },
+	{ by: "viewport", from: "/", to: "/docs/routing", marker: "#doc-title" },
+] as const
+for (const pause of PAUSES) {
+	test(`warm-up paused by ${pause.by}`, async ({ page, docs }, info) => {
+		prodChromium(info)
+		const files = warmable(docs)
+		const flying = inFlight(page)
+		await page.addInitScript(trackPrefetchLinks)
+		await page.addInitScript(pauseAtFirstLink, pause.by)
+		await holdPrefetches(page)
+		await open(page, docs.origin, pause.from)
+		await idle(page)
+		await drained(page, files, flying)
+		const loaded = await scripts(page)
+		await navigate(page, pause.to, pause.marker)
+		await drained(page, files, flying)
+		expect((await scripts(page)).filter((url) => !loaded.includes(url))).toEqual([])
+		const resumed = await page.evaluate(() => {
+			const entries = performance.getEntriesByType("resource") as PerformanceResourceTiming[]
+			const held = entries.filter((entry) => entry.name.includes("_flare=prefetch"))
+			const links = entries.filter((entry) => entry.initiatorType === "link" && entry.name.endsWith(".js"))
+			return links.some((link) => held.some((entry) => link.startTime >= entry.responseEnd))
+		})
+		expect(resumed).toBe(true)
+	})
+}
 
 // The heavy pages' first loads stay without a long main-thread task (plan 21 15.6, v0's long-task checks).
 test("heavy pages long tasks", async ({ page, docs }, info) => {
