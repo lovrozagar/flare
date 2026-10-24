@@ -25,6 +25,9 @@ export type Boot = {
 	outDir?: string | undefined
 	// What the runtime printed so far, stdout and stderr, one entry per line in the order it arrived. In memory only.
 	logs: () => readonly string[]
+	// A child server's state: `running`, or its exit, `code <n>` or `signal <name>`. Absent for a server in this
+	// process, as workerd under miniflare (BUGS.md 517).
+	status?: () => string
 	close: () => Promise<void>
 }
 
