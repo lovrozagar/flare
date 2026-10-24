@@ -1,6 +1,7 @@
 import { mutations } from "../black-box/fuzz.ts"
 import { type Entry, request, withEcho } from "../black-box/hostile-corpus.ts"
 import { header, raw } from "../black-box/raw.ts"
+import { differences } from "../black-box/parity.ts"
 import { replayLine, runFrom } from "../black-box/seeded.ts"
 import { boot, type Boot } from "./boot.ts"
 import { PAGES } from "./docs-pages.ts"
@@ -53,51 +54,6 @@ const HEADERS = [
 	"permissions-policy",
 ]
 
-// A nonce, a render time, a query's fetch time, and a build id are the request's or the build's own (the Workers
-// build is another build), and the docs app's serverContext gives each request an eight-hex id and names its runtime.
-// seroval's helpers, which it writes as its own functions' source text (`$R[3]=() => {…}`, `$R[7]=(resolver, data) =>
-// {…}`): Bun reprints a module it loads and the Workers bundle is minified, so the same helper reads three ways. Each
-// body is masked to its closing brace.
-const HELPER = /\$R\[\d+\]=\((?:\w+(?:,\s*\w+)*)?\)\s*=>\s*\{/g
-
-function maskedHelpers(text: string): string {
-	let out = ""
-	let from = 0
-	for (const match of text.matchAll(HELPER)) {
-		if (match.index < from) continue
-		let depth = 0
-		let end = match.index + match[0].length - 1
-		do {
-			if (text[end] === "{") depth++
-			else if (text[end] === "}") depth--
-			end++
-		} while (depth > 0 && end < text.length)
-		out += `${text.slice(from, match.index)}$R[<n>]=<helper>`
-		from = end
-	}
-	return out + text.slice(from)
-}
-
-function masked(text: string): string {
-	return maskedHelpers(text)
-		.replaceAll(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, "<date>")
-		.replaceAll(/[0-9a-f]{32}/g, "<nonce>")
-		.replaceAll(/"build":"[0-9a-f]+"/g, '"build":"<build>"')
-		.replaceAll(/\b1\d{12}\b/g, "<time>")
-		.replaceAll(/\b[0-9a-f]{8}\b/g, "<id>")
-		.replaceAll(/\b(?:node|bun|workers)\b/g, "<runtime>")
-		.replaceAll(/"at":\d+/g, '"at":<at>')
-		.replaceAll(/flare-build[^,;]*/g, "flare-build")
-}
-
-// Where two answers part: the character, and the text around it on both sides.
-function firstDifference(left: string, right: string): string {
-	let at = 0
-	while (at < left.length && left[at] === right[at]) at++
-	const around = (text: string) => JSON.stringify(text.slice(Math.max(0, at - 60), at + 60))
-	return `part at ${at}: ${around(left)} vs ${around(right)}`
-}
-
 // One ask through the spec's own client, a connection per call (BUGS.md 125): the CSRF refusal answers before it reads
 // the body, and local Miniflare resets a kept-alive socket that does so (BUGS.md 56). Redirects are not followed.
 async function answer(http: HttpClient, origin: string, ask: Ask): Promise<string> {
@@ -105,14 +61,14 @@ async function answer(http: HttpClient, origin: string, ask: Ask): Promise<strin
 	const data = ask.body === undefined ? undefined : ask.body === "" ? wire({ text: "hi" }) : JSON.parse(ask.body)
 	const response = await http.request(ask.method ?? "GET", `${origin}${ask.path}`, { headers, data, maxRedirects: 0 })
 	const kept = HEADERS.map((name) => `${name}: ${response.headers()[name] ?? "-"}`)
-	return masked([`${response.status()}`, ...kept, await response.text()].join("\n"))
+	return [`${response.status()}`, ...kept, await response.text()].join("\n")
 }
 
 // One corpus request, raw, as parity compares it: status, the same headers, and the masked body.
 async function rawAnswer(origin: string, text: string): Promise<string> {
 	const answer = await raw(origin, text).catch((error: unknown) => ({ status: 0, head: "", body: String(error) }))
 	const kept = HEADERS.map((name) => `${name}: ${header(answer.head, name) ?? "-"}`)
-	return masked([`${answer.status}`, ...kept, answer.body].join("\n"))
+	return [`${answer.status}`, ...kept, answer.body].join("\n")
 }
 
 // The hostile corpus's requests whose answer is the same on every runtime: a request with a runtime's own answer, such
@@ -123,7 +79,7 @@ const CORPUS_ASKS = withEcho(ECHO).filter((entry) => entry.runtime === undefined
 type Probe = { line: string; answer: (server: Boot) => Promise<string> }
 
 // Every probe against Node (the fixture's server), Bun, and workerd, each production server of its own build; a probe
-// whose answer differs anywhere is one line naming where.
+// whose answer differs anywhere is one line naming where (black-box/parity.ts).
 async function compareAcross(docs: Boot, probes: readonly Probe[]): Promise<string[]> {
 	const others: Boot[] = []
 	try {
@@ -135,16 +91,11 @@ async function compareAcross(docs: Boot, probes: readonly Probe[]): Promise<stri
 				return seen
 			}),
 		)
-		const [node, bun, workers] = answers
-		return probes.flatMap((probe, index) => {
-			const n = node?.[index] ?? ""
-			return [
-				["bun", bun?.[index] ?? ""],
-				["workers", workers?.[index] ?? ""],
-			].flatMap(([name, other]) =>
-				other === n ? [] : [`${probe.line}: node and ${name} ${firstDifference(n, String(other))}`],
-			)
-		})
+		const [node = [], bun = [], workers = []] = answers
+		return differences(
+			probes.map((probe) => probe.line),
+			{ node, bun, workers },
+		)
 	} finally {
 		for (const server of others) await server.close()
 	}
