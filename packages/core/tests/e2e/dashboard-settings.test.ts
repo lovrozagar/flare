@@ -1,5 +1,5 @@
 import type { Dialog, Page } from "@playwright/test"
-import { documents, expect, open, signedIn, submitSignIn, test } from "./dashboard.fixture.ts"
+import { documents, expect, fnId, open, signedIn, submitSignIn, test } from "./dashboard.fixture.ts"
 
 // Settings (bits/17): the profile form's unsaved-changes blocker across a link, Back, and a tab close, a save that
 // answers with a redirect, and the team page's invites and roles, seen from a second user's own browser.
@@ -85,7 +85,13 @@ test("save redirects", async ({ page, dashboard }) => {
 	await expect(page.locator("#profile-name")).toHaveValue("Ada Lovelace")
 })
 
-// The owner invites a member, then makes them an admin; the list takes each answer, and a reload shows the same.
+// changeRole's server-function path (B41).
+const CHANGE_ROLE = `/app/_flare/fn/${fnId("src/fns/settings.ts", "changeRole")}`
+
+// The owner invites a member, then makes them an admin; the list takes each answer, and a reload shows the same. The
+// select shows its new value the moment it is chosen, before the server answers, so the case waits for changeRole's
+// answer before the reload: a reload sent first cancels the call in the browser (CI 40104136999, BUGS.md 519). The
+// call is held 300 ms here so that order is what every run meets.
 test("invite and change a role", async ({ page, dashboard }) => {
 	await signedIn(page, dashboard.origin, "/app/settings/team")
 	const invited = `m${Date.now().toString(36)}@dash.test`
@@ -93,7 +99,13 @@ test("invite and change a role", async ({ page, dashboard }) => {
 	await page.locator("#invite").click()
 	const row = page.locator(`#members tr[data-email="${invited}"]`)
 	await expect(row.locator(".member-role")).toHaveValue("member")
+	await page.route(`**${CHANGE_ROLE}`, async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 300))
+		await route.continue()
+	})
+	const changed = page.waitForResponse((response) => new URL(response.url()).pathname === CHANGE_ROLE)
 	await row.locator(".member-role").selectOption("admin")
+	expect((await changed).status()).toBe(200)
 	await expect(row.locator(".member-role")).toHaveValue("admin")
 	await expect(page.locator("#team-error")).toHaveText("")
 	await page.reload()
