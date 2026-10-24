@@ -62,6 +62,57 @@ export function navigationLog(context: Logged, now: () => number = () => perform
 	return () => [...lines]
 }
 
+// A page as the console log reads it: its console messages and its uncaught errors.
+type ConsolePage = {
+	on(event: "console", listener: (message: { type(): string; text(): string }) => void): unknown
+	on(event: "pageerror", listener: (error: Error) => void): unknown
+}
+type Consoled = { pages(): readonly ConsolePage[]; on(event: "page", listener: (page: ConsolePage) => void): unknown }
+
+// Every page's console errors and warnings and its uncaught errors, timed from the watch's start as `<ms> console
+// <type> <text>` or `<ms> pageerror <name>: <message>`. A failed case carries them, so a click that sent nothing reads
+// apart from one whose handler threw (BUGS.md 510). Logs and infos are left out.
+export function consoleLog(context: Consoled, now: () => number = () => performance.now()): () => string[] {
+	const start = now()
+	const lines: string[] = []
+	const at = (): number => Math.round(now() - start)
+	const watch = (page: ConsolePage): void => {
+		page.on("console", (message) => {
+			if (message.type() === "error" || message.type() === "warning") {
+				lines.push(`${at()} console ${message.type()} ${message.text()}`)
+			}
+		})
+		page.on("pageerror", (error) => void lines.push(`${at()} pageerror ${error.name}: ${error.message}`))
+	}
+	for (const page of context.pages()) watch(page)
+	context.on("page", watch)
+	return () => [...lines]
+}
+
+// A page as the state check reads it: its URL, and an evaluate of whether its document hydrated.
+type StatedPage = { url(): string; evaluate(read: () => boolean): Promise<boolean> }
+
+// Each open page's URL and whether its document hydrated (`html[data-flare-hydrated]`), as `page <url> hydrated`, `not
+// hydrated`, or `unknown (<why>)` when the page does not answer within `bound` ms or its context is gone. A failed case
+// carries it, so a page that never hydrated reads apart from a hydrated one whose click did nothing (BUGS.md 510).
+export async function pageStates(context: { pages(): readonly StatedPage[] }, bound = 2000): Promise<string[]> {
+	return Promise.all(
+		context.pages().map(async (page) => {
+			const timer = Promise.withResolvers<never>()
+			const handle = setTimeout(() => timer.reject(new Error(`no answer in ${bound} ms`)), bound)
+			try {
+				const read = page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"))
+				const hydrated = await Promise.race([read, timer.promise])
+				return `page ${page.url()} ${hydrated ? "hydrated" : "not hydrated"}`
+			} catch (error) {
+				return `page ${page.url()} unknown (${error instanceof Error ? error.message : String(error)})`
+			} finally {
+				clearTimeout(handle)
+			}
+		}),
+	)
+}
+
 // A page as the request log reads it: every request it starts, its response, and how it ends.
 type ListedRequest = { url(): string; resourceType(): string; failure(): { errorText: string } | null }
 type ListedPage = {
@@ -199,12 +250,22 @@ export const test = base.extend<{ crashGuard: void; http: HttpClient }, FloorOpt
 			const check = crashWatch(context)
 			const log = navigationLog(context)
 			const requests = requestLog(context)
+			const consoled = consoleLog(context)
 			const marks = logMarks()
 			await use()
 			// A file in the case's output directory, which CI uploads; a body attachment is not written there.
 			if (testInfo.status !== testInfo.expectedStatus) {
 				const path = testInfo.outputPath("navigation-log.txt")
-				writeFileSync(path, `${[...log(), "== requests", ...requests(serverLines(marks))].join("\n")}\n`)
+				const lines = [
+					...log(),
+					"== pages",
+					...(await pageStates(context)),
+					"== console",
+					...consoled(),
+					"== requests",
+					...requests(serverLines(marks)),
+				]
+				writeFileSync(path, `${lines.join("\n")}\n`)
 				await testInfo.attach("navigation log", { path, contentType: "text/plain" })
 				await attachServerLog(testInfo, marks)
 				await attachHostState(testInfo)

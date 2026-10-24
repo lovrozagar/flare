@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, join } from "node:path"
 import { expect, it } from "vitest"
-import { crashWatch, navigationLog, requestLog } from "../e2e/crash.ts"
+import { consoleLog, crashWatch, navigationLog, pageStates, requestLog } from "../e2e/crash.ts"
 import config from "../e2e/playwright.config.ts"
 import { gridWorkers, memAvailable, RESERVE_BYTES, WORKER_PEAK_BYTES } from "../e2e/workers.ts"
 
@@ -242,6 +242,62 @@ it("playwright specs outside vitest", async () => {
 	const playwright = specs.filter((name) => !ignored.some((glob) => glob.test(`tests/e2e/${name}`)))
 	expect(playwright.filter((name) => !outside(name))).toEqual([])
 	expect(specs.filter((name) => !playwright.includes(name) && outside(name))).toEqual([])
+})
+
+// A failed case lists each page's console errors and warnings and its uncaught errors, timed, so a click that sent
+// nothing reads apart from one whose handler threw (BUGS.md 510). Logs and infos are left out.
+// A page whose hydration read answers as `answer` does.
+function statedPage(url: string, answer: () => Promise<boolean>): { url(): string; evaluate(): Promise<boolean> } {
+	return { url: () => url, evaluate: answer }
+}
+
+// A failed case names each open page's URL and whether its document hydrated, so a page that never hydrated reads apart
+// from a hydrated one whose click did nothing, even with an empty console (BUGS.md 510). A page that does not answer
+// within the bound, or whose context is gone, reads `unknown` with why.
+it("page states", async () => {
+	const context = {
+		pages: () => [
+			statedPage("http://h/echo", async () => true),
+			statedPage("http://h/about", async () => false),
+			statedPage("http://h/stuck", () => new Promise<boolean>(() => undefined)),
+			statedPage("http://h/gone", async () => {
+				throw new Error("Execution context was destroyed")
+			}),
+		],
+	}
+	expect(await pageStates(context, 20)).toEqual([
+		"page http://h/echo hydrated",
+		"page http://h/about not hydrated",
+		"page http://h/stuck unknown (no answer in 20 ms)",
+		"page http://h/gone unknown (Execution context was destroyed)",
+	])
+})
+
+function say(type: string, text: string): { type(): string; text(): string } {
+	return { type: () => type, text: () => text }
+}
+
+it("console log", () => {
+	type Handlers = {
+		console: ((message: { type(): string; text(): string }) => void)[]
+		pageerror: ((error: Error) => void)[]
+	}
+	const handlers: Handlers = { console: [], pageerror: [] }
+	const page = { on: (event: keyof Handlers, listener: never) => void handlers[event].push(listener) }
+	const context = { pages: () => [page], on: () => undefined }
+	let clock = 0
+	const log = consoleLog(context, () => clock)
+	clock = 5
+	for (const run of handlers.console) run(say("log", "hello"))
+	for (const run of handlers.console) run(say("warning", "[vite] hot updated"))
+	clock = 9
+	for (const run of handlers.console) run(say("error", "Failed to fetch dynamically imported module"))
+	for (const run of handlers.pageerror) run(new TypeError("shout is not a function"))
+	expect(log()).toEqual([
+		"5 console warning [vite] hot updated",
+		"9 console error Failed to fetch dynamically imported module",
+		"9 pageerror TypeError: shout is not a function",
+	])
 })
 
 // The e2e runs and the hydrate harness serve Playwright's WebKit without COOP because revision 2370 hangs about 1 in

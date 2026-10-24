@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, it } from "vitest"
-import { attachServerLog, capture, logMarks, tracked } from "./server-log.ts"
+import { attachServerLog, capture, logMarks, serverLines, tracked } from "./server-log.ts"
 
 // A failed case's server log: each live boot's lines since the case began, under its origin. A closed boot is gone, and
 // a fixture's own `server log` is kept.
@@ -29,6 +29,25 @@ it("server log", async () => {
 	await fake.close()
 	expect(closed).toEqual(["closed"])
 	expect(logMarks().has(fake)).toBe(false)
+})
+
+// A boot the case itself closed, as dev-hmr closes its private copy in its own `finally`, keeps its lines for that
+// case's server log: the fixture collects after the case's body ends (BUGS.md 510). A boot closed before the case
+// began is not listed.
+it("server log closed during case", async () => {
+	const early = tracked({ origin: "http://127.0.0.1:2", logs: () => ["gone"], close: async () => undefined })
+	await early.close()
+	const marks = logMarks()
+	const lines = ["booted", "served"]
+	const own = tracked({ origin: "http://127.0.0.1:3", logs: () => lines, close: async () => undefined })
+	await own.close()
+	expect(serverLines(marks)).toContain("== http://127.0.0.1:3")
+	expect(serverLines(marks).slice(serverLines(marks).indexOf("== http://127.0.0.1:3"))).toEqual([
+		"== http://127.0.0.1:3",
+		"booted",
+		"served",
+	])
+	expect(serverLines(marks)).not.toContain("== http://127.0.0.1:2")
 })
 
 // A stream's output, split into lines as it arrives: a line split across chunks is one line, a line still being

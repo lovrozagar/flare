@@ -38,13 +38,26 @@ export function capture() {
 
 const live = new Set<Logged>()
 
+// Boots closed lately, each with when it closed on the closes' own count: a case that closes its own boot, as dev-hmr
+// closes its private copy in its `finally`, still has that boot's lines once the fixture collects (BUGS.md 510). The
+// last few are kept, so a worker's run holds no more.
+const closed: { boot: Logged; at: number }[] = []
+const KEPT = 16
+const count = { closes: 0 }
+
+// Where the close count stood when each set of marks was taken.
+const since = new WeakMap<Map<Logged, number>, number>()
+
 // The boot, counted alive until it closes.
 export function tracked<T extends Logged>(boot: T): T {
 	live.add(boot)
 	const close = boot.close
 	return Object.assign(boot, {
 		close: () => {
-			live.delete(boot)
+			if (live.delete(boot)) {
+				closed.push({ boot, at: ++count.closes })
+				closed.splice(0, Math.max(0, closed.length - KEPT))
+			}
 			return close()
 		},
 	})
@@ -52,13 +65,17 @@ export function tracked<T extends Logged>(boot: T): T {
 
 // Where each live boot's log stood, so the lines a case added can be told from the boot's earlier ones.
 export function logMarks(): Map<Logged, number> {
-	return new Map([...live].map((boot) => [boot, boot.logs().length]))
+	const marks = new Map([...live].map((boot) => [boot, boot.logs().length]))
+	since.set(marks, count.closes)
+	return marks
 }
 
-// Each live boot's lines since `marks`, each boot's under a `== <origin>` line: a boot started during the case gives all
-// of its lines.
+// Each boot's lines since `marks`, each under a `== <origin>` line: the live ones, then those closed since the marks
+// were taken. A boot started during the case gives all of its lines.
 export function serverLines(marks: Map<Logged, number>): string[] {
-	return [...live].flatMap((boot) => [`== ${boot.origin}`, ...boot.logs().slice(marks.get(boot) ?? 0)])
+	const after = since.get(marks) ?? count.closes
+	const gone = closed.filter((entry) => entry.at > after).map((entry) => entry.boot)
+	return [...live, ...gone].flatMap((boot) => [`== ${boot.origin}`, ...boot.logs().slice(marks.get(boot) ?? 0)])
 }
 
 // Each live boot's lines since `marks`, under its origin: a boot started during the case gives all of its lines. A
