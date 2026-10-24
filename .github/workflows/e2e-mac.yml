@@ -1,0 +1,62 @@
+name: e2e-mac
+
+# The Safari-engine check: the 6 webkit projects on macOS (B97), every deep spec on each, in 3 shards so each stays
+# inside its timeout. The unit suite's macOS run (B3, BUGS.md B27, B51) goes in the first shard only. One definition,
+# called by ci.yml for each shard at the commit it checks, and by e2e-mac-context.yml at any ref, so a failure is
+# reproduced in the job it happened in, not a copy of it (BUGS.md 453).
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to check out; empty is the calling run's own commit
+        type: string
+        required: false
+        default: ""
+      shard:
+        description: Which of the 3 shards
+        type: number
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  BUN_VERSION: "1.4.3"
+
+jobs:
+  e2e-mac:
+    name: e2e-mac
+    runs-on: macos-latest
+    # Shards 2 and 3 take 8 to 13 minutes; shard 1, with the unit suite, 19 to 21, and its 20-minute limit cancelled it
+    # (CI 39096308581). The limit catches a hang, not a slow runner.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      # The unit suite's golden `dev from tarball` row hydrates in Chromium (bits/14), and the hydrate harness, with no
+      # Docker here, runs every engine from these local installs (bits/15).
+      - run: bunx playwright install --with-deps chromium firefox webkit
+      - if: inputs.shard == 1
+        run: bun run test
+      - run: >-
+          bun run test:e2e --
+          --project node-dev-webkit --project node-prod-webkit --project bun-dev-webkit
+          --project bun-prod-webkit --project workers-dev-webkit --project workers-prod-webkit
+          --shard=${{ inputs.shard }}/3
+        env:
+          FLARE_E2E_TRACE: "1"
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-mac-${{ inputs.shard }}
+          path: packages/core/test-results
+          retention-days: 7

@@ -19,6 +19,8 @@ it("pinned actions", () => {
 	expect(workflows.map((file) => file.name)).toEqual([
 		"ci.yml",
 		"consumers-newest.yml",
+		"e2e-mac-context.yml",
+		"e2e-mac.yml",
 		"nightly.yml",
 		"release.yml",
 		"repro.yml",
@@ -26,8 +28,10 @@ it("pinned actions", () => {
 	const unpinned = workflows.flatMap(({ name, text }) =>
 		[...text.matchAll(/uses:\s*(\S+)/g)]
 			.map((found) => found[1] ?? "")
-			// An action, or a sub-action under its repo (`actions/cache/restore`), always at a commit.
+			// An action, or a sub-action under its repo (`actions/cache/restore`), always at a commit; or this repo's own
+			// reusable workflow, which runs from the same commit as its caller.
 			.filter((action) => !/^[\w.-]+\/[\w.-]+(?:\/[\w.-]+)*@[\da-f]{40}$/.test(action))
+			.filter((action) => !/^\.\/\.github\/workflows\/[\w.-]+\.yml$/.test(action))
 			.map((action) => `${name}: ${action}`),
 	)
 	expect(unpinned).toEqual([])
@@ -68,7 +72,7 @@ it("browsers from browser-server", () => {
 	expect(job("e2e-linux")).toMatch(
 		/container:\s+image: mcr\.microsoft\.com\/playwright:v[\d.]+-noble@sha256:[0-9a-f]{64}/,
 	)
-	expect(job("e2e-mac")).toMatch(
+	expect(workflows.find((file) => file.name === "e2e-mac.yml")?.text).toMatch(
 		/runs-on: macos-latest[\s\S]*bunx playwright install --with-deps chromium firefox webkit/,
 	)
 })

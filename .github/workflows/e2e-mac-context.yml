@@ -1,0 +1,29 @@
+name: e2e-mac-context
+
+# One e2e-mac shard at any ref, by hand: the job ci.yml runs, from main's definition (e2e-mac.yml), so a failure seen in
+# CI is repeated in its context, the unit suite in shard 1 and every webkit spec beside it, not alone as repro.yml runs
+# one case (BUGS.md 453). An older ref's own ci.yml ran the same job: e2e-mac.yml's steps match it, but for the trace's
+# env, which code from before tests/e2e/trace.ts never reads.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: The commit, tag, or branch to run
+        required: true
+      shard:
+        description: Which of e2e-mac's 3 shards
+        required: true
+        type: choice
+        options: ["1", "2", "3"]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-mac:
+    name: e2e-mac (${{ inputs.shard }}/3) at ${{ inputs.ref }}
+    uses: ./.github/workflows/e2e-mac.yml
+    with:
+      ref: ${{ inputs.ref }}
+      shard: ${{ fromJSON(inputs.shard) }}
