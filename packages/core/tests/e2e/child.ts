@@ -90,6 +90,8 @@ export function bootChild(input: {
 		appDir,
 		cacheDir,
 		logs: output.logs,
+		status: () =>
+			child.exitCode === null && child.signalCode === null ? "running" : exitOf(child.exitCode, child.signalCode),
 		// The group gets SIGTERM, the child is awaited, and whatever of the group ignored it is killed.
 		async close() {
 			process.off("exit", onExit)
@@ -103,4 +105,18 @@ export function bootChild(input: {
 
 export function remove(dirs: readonly string[]): void {
 	for (const dir of dirs) rmSync(dir, { recursive: true, force: true, maxRetries: 3 })
+}
+
+// How many of a failed boot's last output lines an explained failure carries.
+const TOLD_LINES = 60
+
+// A check that failed against a boot, told: which boot (`node prod`), the server's status at that moment, before any
+// close, and its last output lines, the failure kept as the cause. A request a server dropped while running reads
+// apart from one a dead server never answered (BUGS.md 517).
+export function explained(label: string, session: Pick<Boot, "logs" | "status">, failure: unknown): Error {
+	const message = failure instanceof Error ? failure.message : String(failure)
+	const status = session.status?.() ?? "in this process"
+	const tail = session.logs().slice(-TOLD_LINES)
+	const head = `${label} boot: ${message} (server ${status}); its last ${tail.length} lines:`
+	return new Error([head, ...tail].join("\n"), { cause: failure })
 }

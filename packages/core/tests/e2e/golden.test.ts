@@ -10,6 +10,7 @@ import { packCore, type Packed } from "../../../../scripts/release.ts"
 import { fromWire, toWire } from "../../src/shared/protocol/value.ts"
 import { flarePage } from "../../src/testing/index.ts"
 import { bootApp, type Boot } from "./boot.ts"
+import { explained } from "./child.ts"
 
 // The golden proof (bits/14, B75): apps/minimal over the installed tarball, not the workspace. The stage holds the
 // extracted package in its own node_modules, so `@lovrozagar/flare` resolves there, and the peers resolve from the
@@ -55,10 +56,13 @@ async function threeRequests(origin: string): Promise<void> {
 	await data.body?.cancel()
 }
 
+// A failed check names the boot, the server's status when it failed, and its output (BUGS.md 517).
 async function served(runtime: string, mode: string, check: (origin: string) => Promise<void>): Promise<void> {
 	const session: Boot = await bootApp({ appDir: packed.stage, runtime, mode })
 	try {
-		await check(session.origin)
+		await check(session.origin).catch((failure: unknown) => {
+			throw explained(`${runtime} ${mode}`, session, failure)
+		})
 	} finally {
 		await session.close()
 	}
