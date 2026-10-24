@@ -45,19 +45,33 @@ test("load error recovers", async ({ page }, info) => {
 	}
 })
 
-// A route file that does not parse leaves every other page its dev styles: the document the server writes carries the
-// app's stylesheet, and the dev server never makes it wait out the styles' bound (plan 21 11.6).
+// A route file that does not parse fails dev codegen, and until a pass succeeds every document is the dev error page
+// naming it (dx/plugin.md, BUGS.md 480); that page never waits out the dev styles' bound (plan 21 11.6, BUGS.md 252).
+// Mended, the pass reloads the page, which renders with the app's stylesheet (BUGS.md 503). The case waits on the
+// codegen failure's log line: a load right after the write raced the 50 ms codegen debounce and met the app or the
+// error page by timing (BUGS.md 516).
 test("broken sibling route", async ({ page }, info) => {
 	test.skip(isProd(info) || serverOf(info).startsWith("workers"), "the Node and Bun dev handler")
 	const session = await bootCopy({ app: "docs", runtime: serverOf(info).split("-")[0] ?? "node" })
 	try {
-		writeFileSync(
-			`${session.appDir}/src/routes/[[locale]]/_root_/changelog/changelog.page.tsx`,
-			"export const route = (\n",
+		const file = `${session.appDir}/src/routes/[[locale]]/_root_/changelog/changelog.page.tsx`
+		const source = readFileSync(file, "utf8")
+		const failures = () => session.logs().filter((line) => line.includes("[flare:codegen]")).length
+		// A first load settles the dependency optimizer and the watch, as `load error recovers` does.
+		expect((await page.goto(`${session.origin}/docs/routing`))?.status()).toBe(200)
+		await page.waitForLoadState("networkidle")
+		writeFileSync(file, "export const route = (\n")
+		await expect.poll(failures).toBeGreaterThan(0)
+		const failed = await page.goto(`${session.origin}/docs/routing`)
+		expect(failed?.status()).toBe(500)
+		expect(await failed?.text()).toContain("changelog.page.tsx")
+		// The pass that succeeds reloads the error page itself; a load of the case's own would cut that one short.
+		const recovered = page.waitForResponse(
+			(response) => response.request().resourceType() === "document" && response.status() === 200,
 		)
-		const response = await page.goto(`${session.origin}/docs/routing`)
-		expect(response?.status()).toBe(200)
-		expect(await response?.text()).toMatch(/<style[^>]*data-vite-dev-id="[^"]*\/src\/styles\.css"/)
+		writeFileSync(file, source)
+		const mended = await recovered
+		expect(await mended.text()).toMatch(/<style[^>]*data-vite-dev-id="[^"]*\/src\/styles\.css"/)
 		expect(session.logs().filter((line) => line.includes("no dev styles"))).toEqual([])
 	} finally {
 		await session.close()
