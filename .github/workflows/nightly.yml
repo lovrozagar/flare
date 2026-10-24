@@ -101,6 +101,13 @@ jobs:
       - run: bun run test:e2e -- --project=node-prod-chromium docs-perf
         env:
           FLARE_PERF_LONG: "1"
+      # A failure keeps its test results, server logs and request history among them (BUGS.md 515).
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nightly-perf-e2e
+          path: packages/core/test-results
+          retention-days: 7
 
   # Plan 21 17.1's long forms. The hostile corpus's seeded mutations, 2000 per runtime, held to its invariants.
   black-box-hostile:
@@ -129,6 +136,13 @@ jobs:
         env:
           FLARE_BLACKBOX_LONG: "1"
           FLARE_HOSTILE_SEED: ${{ steps.seed.outputs.seed }}
+      # A failure keeps its test results, server logs and request history among them (BUGS.md 515).
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nightly-black-box-hostile
+          path: packages/core/test-results
+          retention-days: 7
 
   # Every docs page and seeded fuzz requests, the same answer from Node, Bun, and workerd.
   black-box-parity:
@@ -161,6 +175,13 @@ jobs:
         env:
           FLARE_BLACKBOX_LONG: "1"
           FLARE_PARITY_SEED: ${{ steps.seed.outputs.seed }}
+      # A failure keeps its test results, server logs and request history among them (BUGS.md 515).
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nightly-black-box-parity
+          path: packages/core/test-results
+          retention-days: 7
 
   # The seeded browser chaos run, 400 steps on every production project, with the visible blank-screen and leak checks.
   black-box-chaos:
@@ -189,6 +210,13 @@ jobs:
         env:
           FLARE_BLACKBOX_LONG: "1"
           FLARE_CHAOS_SEED: ${{ steps.seed.outputs.seed }}
+      # A failure keeps its test results, server logs and request history among them (BUGS.md 515).
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nightly-black-box-chaos
+          path: packages/core/test-results
+          retention-days: 7
 
   issues:
     name: issues

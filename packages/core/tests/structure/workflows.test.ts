@@ -126,6 +126,31 @@ it("nightly", () => {
 	expect(Object(load(text)).on.workflow_dispatch.inputs.plant).toMatchObject({ type: "boolean", default: false })
 })
 
+// A nightly job that runs the e2e suite keeps its test results when it fails, as e2e-mac does, so a failure carries its
+// server logs and request history (BUGS.md 515).
+it("nightly artifacts", () => {
+	const text = workflows.find((file) => file.name === "nightly.yml")?.text ?? ""
+	type Step = { if?: string; run?: string; uses?: string; with?: Record<string, unknown> }
+	const e2eJobs = Object.entries(Object(load(text)).jobs as Record<string, { steps: Step[] }>).filter(([, job]) =>
+		job.steps.some((step) => step.run?.includes("test:e2e") === true),
+	)
+	expect(e2eJobs.map(([name]) => name)).toEqual([
+		"perf-e2e",
+		"black-box-hostile",
+		"black-box-parity",
+		"black-box-chaos",
+	])
+	for (const [name, job] of e2eJobs) {
+		const last = job.steps.findLastIndex((step) => step.run?.includes("test:e2e") === true)
+		const kept = job.steps[last + 1]
+		expect([kept?.if, kept?.uses?.split("@")[0], kept?.with]).toEqual([
+			"failure()",
+			"actions/upload-artifact",
+			{ name: `nightly-${name}`, path: "packages/core/test-results", "retention-days": 7 },
+		])
+	}
+})
+
 // Playwright's `--project` takes every bare word after it, so `--project node-prod-chromium docs-perf` asks for a
 // project named docs-perf and runs nothing: each long-form nightly job failed so on its first night (run 39927366660,
 // BUGS.md 513). Every workflow names a project as `--project=name`, which takes one value. A night's replay line keeps
