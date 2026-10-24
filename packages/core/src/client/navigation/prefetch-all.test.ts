@@ -16,6 +16,11 @@ afterEach(() => {
 	document.body.replaceChildren()
 })
 
+// The prefetch links in the head, by href.
+function hrefs(): (string | null)[] {
+	return [...document.head.querySelectorAll('link[rel="prefetch"]')].map((link) => link.getAttribute("href"))
+}
+
 // The idle warm-up, the router's `modules: "all"` (prefetch.ts `all`).
 it("all modules", async () => {
 	const chunks = { _root_: "/src/root.tsx", "_root_/": "/src/root.tsx", "_root_/about": "/src/about.tsx" }
@@ -112,8 +117,11 @@ it("all closures", async () => {
 	const app = setup(routerOf({ chunks }))
 	app.prefetcher.all()
 	await settled()
-	const hrefs = [...document.head.querySelectorAll('link[rel="prefetch"]')].map((link) => link.getAttribute("href"))
-	expect(hrefs).toEqual(["/assets/a.js", "/assets/a-dep.js", "/assets/x.js"])
+	// Two at a time (BUGS.md 520): the third goes in once one of the first two has loaded.
+	expect(hrefs()).toEqual(["/assets/a.js", "/assets/a-dep.js"])
+	document.head.querySelector('link[rel="prefetch"]')?.dispatchEvent(new Event("load"))
+	await settled()
+	expect(hrefs()).toEqual(["/assets/a.js", "/assets/a-dep.js", "/assets/x.js"])
 })
 
 // A chunk the client already imported is not prefetched again: the browser holds it in its module map, and a prefetch

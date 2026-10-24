@@ -13,7 +13,8 @@ import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts"
 import { createArrival } from "../navigation/arrival.ts"
 import { createNavigationState } from "../navigation/pending.ts"
 import { createPopstate } from "../navigation/popstate.ts"
-import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts"
+import { observeViewport, type PrefetchEnv } from "../navigation/prefetch.ts"
+import { browserPrefetcher } from "./browser-prefetcher.ts"
 import { chainChunks, chunksGone, isChunkError, loadDocument } from "../navigation/reload.ts"
 import { browserScroll, lastFrame, type ScrollStore } from "../navigation/scroll.ts"
 import { hydrateCache } from "./initial.ts"
@@ -23,7 +24,8 @@ import { createRouterStore, snapshotFromState, type RouterStore } from "../route
 import { guardHead } from "./head-guard.ts"
 import { mountApp, readState, renderedLocation, type App, type ClientState, type Mount } from "./hydrate.ts"
 import { installCall } from "./install-call.ts"
-import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts"
+import { countedFetch, userWork, type UserWork } from "../navigation/user-work.ts"
+import { afterLoad, createReady, type IdleEnv, type ReadyApi } from "./ready.ts"
 
 // The browser surface the client uses, passed in so a test can observe it.
 export type ClientEnv = {
@@ -95,7 +97,7 @@ export function devSend(hot: { send: (event: string, payload: unknown) => void }
 
 // Resolves to a dispose that removes the listeners and unmounts the app.
 export async function bootClient(router: Router, ready: Ready, given: ClientEnv): Promise<() => void> {
-	const env = devTabbed(given)
+	const { env, work } = countedEnv(given)
 	const report = callbackReporter(env, ready)
 	const state = readState()
 	const location = windowLocation()
@@ -112,7 +114,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	const [navigation, blockers, scroll] = [createNavigationState(), createBlockers(), browserScroll(router)]
 	// One id for the navigator, the prefetcher, and the server function transport, so none disagrees on a mismatch (B30).
 	const build = state.build ?? ""
-	const prefetcher = browserPrefetcher(router, store, { env, build })
+	const prefetcher = browserPrefetcher(router, store, { env, build, work })
 	const { cache, initial } = hydrateCache(router, { match, location, snapshot: store.snapshot(), at: state.at, report })
 	const navigator = createNavigator({
 		router,
@@ -173,6 +175,14 @@ function disposer(...stops: (() => void)[]): () => void {
 		setActiveClient(undefined)
 		for (const stop of stops) stop()
 	}
+}
+
+// The client's env with its fetch counted as the user's work until each answer's head arrives; a link's own prefetch
+// counts too (prefetch.ts). The idle warm-up of every route module yields to both (BUGS.md 520).
+function countedEnv(given: ClientEnv): { env: ClientEnv; work: UserWork } {
+	const work = userWork(Date.now)
+	const tabbed = devTabbed(given)
+	return { env: { ...tabbed, fetch: countedFetch(tabbed.fetch, work) }, work }
 }
 
 // Every request the client makes, data, fill, prefetch, and server function, names its dev tab (B42).
@@ -253,23 +263,6 @@ function browserEnv(): ClientEnv {
 		network: globalThis.navigator,
 		observe: observeViewport,
 	}
-}
-
-// The prefetcher over the window. A link resolves against the page on screen.
-function browserPrefetcher(
-	router: Router,
-	store: RouterStore,
-	{ env, build }: { env: ClientEnv; build: string },
-): Prefetcher {
-	return createPrefetcher({
-		router,
-		origin: window.location.origin,
-		current: () => store.snapshot().location,
-		fetch: env.fetch,
-		build,
-		land: { dev: env.dev, send: env.send },
-		env: { network: env.network, observe: env.observe, idle: loadedIdle(env.idle), head: document.head, now: Date.now },
-	})
 }
 
 function windowLocation(): Location {

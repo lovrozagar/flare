@@ -400,6 +400,8 @@ packages/core/src/server/cache/prerender.test.ts	P12	test	server	Unit cases for 
 packages/core/src/server/cache/index.ts	P10	index	server	Re-exports
 packages/core/src/client/boot/callbacks.test.ts	P6	test	dom	A throwing createClient callback is logged and, in dev, sent to the overlay while the boot goes on (BUGS.md 203)
 packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates and adopts history.state
+packages/core/src/client/boot/browser-prefetcher.ts	P1	src	client	The prefetcher over the window: a link resolves against the page on screen, and the warm reads the document's protocol from its navigation entry; split from create-client.ts at the 300-line limit
+packages/core/src/client/boot/browser-prefetcher.test.ts	P1	test	dom	Unit cases for browser-prefetcher.ts: the warm reads the protocol from the navigation entry, six links over h2, two with no entry
 packages/core/src/client/dev/tab.ts	P15	src	dom	Dev only: read the dev tab token, announce it, and name it on the client's requests (B42)
 packages/core/src/client/dev/tab.test.ts	P15	test	dom	Unit cases for tab.ts
 packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts
@@ -465,6 +467,10 @@ packages/core/src/client/navigation/overlay.test.ts	P6	test	dom	Unit cases for o
 packages/core/src/client/navigation/prefetch.ts	P6	src	dom	Intent and viewport prefetch of the module and the data URL
 packages/core/src/client/navigation/prefetch.test.ts	P6	test	dom	Unit cases for prefetch.ts
 packages/core/src/client/navigation/prefetch-all.test.ts	P6	test	dom	Unit cases for prefetch.ts's idle warm-up, `modules: "all"`: links, closures, loaded chunks, an import in flight (BUGS.md 482)
+packages/core/src/client/navigation/warm.test.ts	P6	test	dom	Unit cases for the idle warm-up's queue: two at a time, low priority, yielding to the user's work and resuming at its end or past the bound, imports a few at a time, a link's own prefetch as user work (BUGS.md 520)
+packages/core/src/client/navigation/user-work.ts	P6	src	client	The user's own requests in flight, which the idle warm-up yields to: begin and end, busy, whenIdle at the last end or past a 30 s bound, and a counted fetch (BUGS.md 520)
+packages/core/src/client/navigation/user-work.test.ts	P6	test	dom	Unit cases for user-work.ts: busy and the bound, a counted fetch, whenIdle at once, at the last end, and past the bound by one timer
+packages/core/src/client/navigation/warm.ts	P6	src	client	The router's `modules: "all"` warm-up after load and idle: unloaded route chunks as low-priority prefetch links, or imports where rel=prefetch is missing, two at a time over HTTP/1.1 and six over h2 or h3, yielding to the user's own requests (BUGS.md 520, B127)
 packages/core/src/client/navigation/prefetch.fixture.ts	P6	test	dom	The routes, router, and prefetcher prefetch.test and prefetch-all.test share
 packages/core/src/client/navigation/index.ts	P6	index	client	Re-exports
 packages/core/src/client/history/history.ts	P6	src	dom	Stamp a per-document history index. Adopt the existing entry on hydrate
@@ -747,6 +753,7 @@ packages/core/tests/integration/head.test.ts	P6	test	node	dx/head.md's fields an
 packages/core/tests/integration/link.test.ts	P6	test	node	dx/link.md's Link markup, active state, Href, and URL values through the real createServer(...).fetch, the URL text read back by a route's validators (plan 14 9.6, BUGS.md 147)
 packages/core/tests/integration/link-client.test.ts	P6	test	node	dx/link.md's clicks, active state, navigation options, search spellings, URL values, and prefetch in each engine through the hydrate harness (plan 14 9.6, BUGS.md 147)
 packages/core/tests/integration/link-prefetch-client.test.ts	P6	test	node	dx/link.md's prefetch layers in each engine through the hydrate harness: a router with prefetch off, link and route precedence, each field's triggers, a nav Link on its own URL plus a hash, the warm-up after load and idle, and 2G (BUGS.md 305, 309)
+packages/core/tests/integration/prefetch-warm-client.test.ts	P6	test	node	The idle warm-up against held chunk answers in Chromium, Firefox, and WebKit: a server function still reaches the server, and at most two chunk requests are open at once (BUGS.md 520)
 packages/core/tests/integration/wire-later.test.ts	P6	test	node	A value holding a Promise or a ReadableStream through every site of flare's wire codec, a loader's data, a deferred value, the document state, a server function's return and stream, the query cache, a stored answer: each refused through its path for a value the wire cannot hold, its promise observed (BUGS.md 507)
 packages/core/tests/integration/server-options.test.ts	P1	test	node	dx/server.md's createServer options through the real server: authenticate's statuses, call, context, and order before a hit; site and the stores; rewrite; serverContext; serverFns; retireServiceWorker (plan 25 4.2)
 packages/core/tests/integration/server-security.test.ts	P3	test	node	dx/server.md's SecurityConfig keys, CSP directives, Permissions-Policy values, and the response headers finalize sets, through the real server in production (plan 25 4.2)
