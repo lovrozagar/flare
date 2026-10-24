@@ -14,6 +14,9 @@ type Step = {
 type Job = {
 	"runs-on": string
 	steps: Step[]
+	uses?: string
+	with?: Record<string, unknown>
+	name?: string
 	container?: { image?: string; options?: string }
 	strategy?: { "fail-fast"?: boolean; matrix?: Record<string, unknown> }
 }
@@ -24,6 +27,10 @@ function workflowOf(file: string): Workflow {
 }
 
 const workflow = workflowOf("ci.yml")
+// The macOS job ci.yml calls for each shard, defined once in e2e-mac.yml (BUGS.md 453).
+const mac = workflowOf("e2e-mac.yml").jobs["e2e-mac"]
+// ci.yml's jobs as they run: the e2e-mac call stands for the job it calls.
+const ciJobs: Record<string, Job | undefined> = { ...workflow.jobs, "e2e-mac": mac }
 // Every workflow file, so a new one is held to the same pins.
 const workflows = new Map(
 	readdirSync(new URL("../../../../.github/workflows/", import.meta.url))
@@ -33,7 +40,8 @@ const workflows = new Map(
 
 // B3: every CI job runs on Node 24, set right after checkout, so no job runs on the runner's own Node (BUGS.md B24).
 it("ci node", () => {
-	for (const [name, job] of Object.entries(workflow.jobs)) {
+	for (const [name, job] of Object.entries(ciJobs)) {
+		if (job === undefined) throw new Error(`${name}: no job`)
 		const checkout = job.steps.findIndex((step) => step.uses?.startsWith("actions/checkout@") === true)
 		const node = job.steps[checkout + 1]
 		expect({ name, uses: node?.uses, version: node?.with?.["node-version"] }).toEqual({
@@ -46,10 +54,9 @@ it("ci node", () => {
 
 // B3 covers Linux and macOS, so the unit suite runs on both (BUGS.md B27).
 it("ci unit on both oses", () => {
-	const runsTests = (name: string): boolean =>
-		workflow.jobs[name]?.steps.some((step) => step.run === "bun run test") === true
-	expect(workflow.jobs["check"]?.["runs-on"]).toBe("ubuntu-latest")
-	expect(workflow.jobs["e2e-mac"]?.["runs-on"]).toBe("macos-latest")
+	const runsTests = (name: string): boolean => ciJobs[name]?.steps.some((step) => step.run === "bun run test") === true
+	expect(ciJobs["check"]?.["runs-on"]).toBe("ubuntu-latest")
+	expect(ciJobs["e2e-mac"]?.["runs-on"]).toBe("macos-latest")
 	expect([runsTests("check"), runsTests("e2e-mac")]).toEqual([true, true])
 })
 
@@ -61,9 +68,11 @@ it("ci bun version", () => {
 		packageManager?: string
 	}
 	for (const [file, flow] of workflows) {
+		// A file of calls alone, such as e2e-mac-context.yml, runs no Bun of its own.
+		if (Object.values(flow.jobs).every((job) => job.steps === undefined)) continue
 		expect([file, `bun@${String(flow.env?.["BUN_VERSION"])}`]).toEqual([file, root.packageManager])
 		const pins = Object.values(flow.jobs).flatMap((job) =>
-			job.steps.filter((step) => step.uses?.startsWith("oven-sh/setup-bun") === true).map((step) => step.with),
+			(job.steps ?? []).filter((step) => step.uses?.startsWith("oven-sh/setup-bun") === true).map((step) => step.with),
 		)
 		expect([file, pins.every((pin) => pin?.["bun-version"] === "${{ env.BUN_VERSION }}")]).toEqual([file, true])
 	}
@@ -115,32 +124,50 @@ function e2eRun(job: Job | undefined): string {
 // macOS runs the 6 webkit projects with every deep spec in 3 shards, and its unit run once, in the first (B97). Each
 // shard fits its 20 minutes: with 2, the first ran the unit suite and half the grid for 20.5 and timed out (BUGS.md 100).
 it("ci mac shards", () => {
-	const mac = workflow.jobs["e2e-mac"]
-	expect(mac?.strategy?.matrix?.["shard"]).toEqual([1, 2, 3])
+	expect(workflow.jobs["e2e-mac"]?.strategy?.matrix?.["shard"]).toEqual([1, 2, 3])
 	const run = e2eRun(mac)
 	const servers = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"]
 	expect([...run.matchAll(/--project (\S+)/g)].map((match) => match[1])).toEqual(
 		servers.map((server) => `${server}-webkit`),
 	)
-	expect(run).toContain("--shard=${{ matrix.shard }}/3")
-	expect(mac?.steps.filter((step) => step.run === "bun run test").map((step) => step.if)).toEqual(["matrix.shard == 1"])
+	expect(run).toContain("--shard=${{ inputs.shard }}/3")
+	expect(mac?.steps.filter((step) => step.run === "bun run test").map((step) => step.if)).toEqual(["inputs.shard == 1"])
 })
 
 // A failed grid uploads its test results, each failing case's error context, server logs, and navigation log (tracing is
 // off, B34), as the last step of both jobs, so a failure only CI hits can be read (BUGS.md 93). A pass uploads nothing:
 // `stream` no longer times anything (BUGS.md 100).
 it("ci failure artifacts", () => {
-	for (const [name, when] of [
-		["e2e-linux", "failure()"],
-		["e2e-mac", "failure()"],
+	for (const [name, shard] of [
+		["e2e-linux", "matrix.shard"],
+		["e2e-mac", "inputs.shard"],
 	] as const) {
-		const last = workflow.jobs[name]?.steps.at(-1)
+		const last = ciJobs[name]?.steps.at(-1)
 		expect({ if: last?.if, uses: last?.uses, with: last?.with }).toEqual({
-			if: when,
+			if: "failure()",
 			uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
-			with: { name: `${name}-\${{ matrix.shard }}`, path: "packages/core/test-results", "retention-days": 7 },
+			with: { name: `${name}-\${{ ${shard} }}`, path: "packages/core/test-results", "retention-days": 7 },
 		})
 	}
+})
+
+// ci.yml calls e2e-mac.yml for shards 1 to 3 and passes no ref, so each shard checks out the commit the run checks;
+// e2e-mac-context.yml calls the same job at a ref it is given, so a CI failure repeats in the job it happened in
+// (BUGS.md 453). GitHub names each shard's check `e2e-mac (n/3) / e2e-mac`.
+it("ci mac call", () => {
+	const call = workflow.jobs["e2e-mac"]
+	expect([call?.name, call?.uses, call?.with, call?.strategy]).toEqual([
+		"e2e-mac (${{ matrix.shard }}/3)",
+		"./.github/workflows/e2e-mac.yml",
+		{ shard: "${{ matrix.shard }}" },
+		{ "fail-fast": false, matrix: { shard: [1, 2, 3] } },
+	])
+	expect(mac?.steps[0]?.with).toEqual({ ref: "${{ inputs.ref || github.sha }}" })
+	const context = workflows.get("e2e-mac-context.yml")?.jobs["e2e-mac"]
+	expect([context?.uses, context?.with]).toEqual([
+		"./.github/workflows/e2e-mac.yml",
+		{ ref: "${{ inputs.ref }}", shard: "${{ fromJSON(inputs.shard) }}" },
+	])
 })
 
 // The browser image has no unzip, which setup-bun needs, so the Linux grid takes Bun from npm at BUN_VERSION.
