@@ -127,7 +127,8 @@ it("navigation log", () => {
 
 // A failed case lists every request its pages started, the ones still in flight first, each with its type, its start,
 // and how it ended, and, for one the server trace names by path, whether the server saw it arrive and answered it. A
-// document the engine reported but the server never saw reads `server: not seen` (BUGS.md 453.5, 504.10).
+// document the engine reported but the server never saw reads `server: not seen` (BUGS.md 453.5, 504.10). A
+// document's answer lists its headers under it, so a hang carries the headers its page was served with (BUGS.md 504.14).
 type Listed = { url(): string; resourceType(): string; failure(): { errorText: string } | null }
 
 function made(url: string, type: string, failure: string | null = null): Listed {
@@ -138,7 +139,7 @@ it("request log", () => {
 	type Request = Listed
 	type Handlers = {
 		request: ((request: Request) => void)[]
-		response: ((response: { request(): Request; status(): number }) => void)[]
+		response: ((response: { request(): Request; status(): number; headers(): Record<string, string> }) => void)[]
 		requestfinished: ((request: Request) => void)[]
 		requestfailed: ((request: Request) => void)[]
 	}
@@ -154,7 +155,12 @@ it("request log", () => {
 	clock = 10
 	for (const run of handlers.request) run(cdn)
 	clock = 12
-	for (const run of handlers.response) run({ request: () => cdn, status: () => 200 })
+	const headers = {
+		"x-frame-options": "DENY",
+		"content-type": "text/html",
+		"cross-origin-opener-policy": "same-origin",
+	}
+	for (const run of handlers.response) run({ request: () => cdn, status: () => 200, headers: () => headers })
 	clock = 13
 	for (const run of handlers.requestfinished) run(cdn)
 	clock = 20
@@ -162,6 +168,8 @@ it("request log", () => {
 	for (const run of handlers.request) run(gone)
 	clock = 25
 	for (const run of handlers.requestfailed) run(gone)
+	// A script's answer is timed but its headers are not listed.
+	for (const run of handlers.response) run({ request: () => mod, status: () => 200, headers: () => headers })
 	clock = 40
 	for (const run of handlers.request) run(again)
 	const server = [
@@ -174,8 +182,11 @@ it("request log", () => {
 	expect(log(server)).toEqual([
 		"in flight: 2 of 4 requests",
 		"40 document http://127.0.0.1:5000/app/cdn in flight; server: not seen",
-		"20 script http://127.0.0.1:5000/src/a.ts?v=1 in flight; server: #2 arrived, no answer",
+		"20 script http://127.0.0.1:5000/src/a.ts?v=1 response 200 at 25; server: #2 arrived, no answer",
 		"10 document http://127.0.0.1:5000/app/cdn response 200 at 12, finished at 13; server: #1 arrived, answered 200",
+		"  header content-type: text/html",
+		"  header cross-origin-opener-policy: same-origin",
+		"  header x-frame-options: DENY",
 		"20 script http://127.0.0.1:5000/src/b.ts failed (cancelled) at 25; server: not seen",
 	])
 })

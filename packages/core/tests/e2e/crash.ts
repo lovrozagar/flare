@@ -117,18 +117,23 @@ export async function pageStates(context: { pages(): readonly StatedPage[] }, bo
 type ListedRequest = { url(): string; resourceType(): string; failure(): { errorText: string } | null }
 type ListedPage = {
 	on(event: "request" | "requestfinished" | "requestfailed", listener: (request: ListedRequest) => void): unknown
-	on(event: "response", listener: (response: { request(): ListedRequest; status(): number }) => void): unknown
+	on(
+		event: "response",
+		listener: (response: { request(): ListedRequest; status(): number; headers(): Record<string, string> }) => void,
+	): unknown
 }
 type Listed = { pages(): readonly ListedPage[]; on(event: "page", listener: (page: ListedPage) => void): unknown }
 
-type Entry = { url: string; type: string; started: number; response?: string; ended?: string }
+type Entry = { url: string; type: string; started: number; response?: string; headers?: string[]; ended?: string }
 
 // Every request of every page the context has or opens, timed from the watch's start. Given the server log a failed
 // case carries (server-log.ts), it lists them with the ones still in flight first, newest first, as the one the case
 // waited on is likely the last it started; each with its type, start, and end,
 // and what the server trace saw of it: the k-th request to a path on a traced origin is that origin's k-th arrival of
 // the path, `server: not seen` when there is none. A request the engine reported and the server never received reads
-// apart from one the server answered and the engine never finished (BUGS.md 453.5, 504.10).
+// apart from one the server answered and the engine never finished (BUGS.md 453.5, 504.10). A document's answer lists
+// its headers under it, `  header <name>: <value>`, so a hang carries the headers its page was served with (BUGS.md
+// 504.14).
 export function requestLog(
 	context: Listed,
 	now: () => number = () => performance.now(),
@@ -143,7 +148,12 @@ export function requestLog(
 		)
 		page.on("response", (response) => {
 			const entry = entries.get(response.request())
-			if (entry !== undefined) entry.response = `response ${response.status()} at ${at()}`
+			if (entry === undefined) return
+			entry.response = `response ${response.status()} at ${at()}`
+			if (entry.type === "document")
+				entry.headers = Object.entries(response.headers())
+					.map(([name, value]) => `  header ${name}: ${value}`)
+					.toSorted()
 		})
 		page.on("requestfinished", (request) => {
 			const entry = entries.get(request)
@@ -165,13 +175,14 @@ export function requestLog(
 			taken.set(key, index + 1)
 			const state = [entry.response, entry.ended].filter((part) => part !== undefined).join(", ")
 			const line = `${entry.started} ${entry.type} ${entry.url} ${state === "" ? "in flight" : state}`
-			return { flying: entry.ended === undefined, line: `${line}; server: ${seen.get(key)?.[index] ?? "not seen"}` }
+			const served = `${line}; server: ${seen.get(key)?.[index] ?? "not seen"}`
+			return { flying: entry.ended === undefined, lines: [served, ...(entry.headers ?? [])] }
 		})
 		const flying = lines.filter((entry) => entry.flying)
 		return [
 			`in flight: ${flying.length} of ${lines.length} requests`,
-			...flying.toReversed().map((entry) => entry.line),
-			...lines.filter((entry) => !entry.flying).map((entry) => entry.line),
+			...flying.toReversed().flatMap((entry) => entry.lines),
+			...lines.filter((entry) => !entry.flying).flatMap((entry) => entry.lines),
 		]
 	}
 }
