@@ -40,7 +40,7 @@ jobs:
           key: bench-${{ github.run_id }}
           restore-keys: bench-
       - working-directory: packages/core
-        run: npx vitest bench --run --project unit-node --outputJson bench-tonight.json
+        run: npx vitest bench --run --project=unit-node --outputJson bench-tonight.json
       - working-directory: packages/core
         run: node tests/perf/bench-compare.ts bench-tonight.json bench-previous.json --summary "$GITHUB_STEP_SUMMARY"
       # Tonight becomes the next night's previous only when it passed, so a slowdown is not taken as the new normal.
@@ -91,7 +91,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       # The long form of docs-perf: absolute paint, TTFB, navigation and heap numbers, and fifty navigation rounds.
-      - run: bun run test:e2e -- --project node-prod-chromium docs-perf
+      - run: bun run test:e2e -- --project=node-prod-chromium docs-perf
         env:
           FLARE_PERF_LONG: "1"
 
@@ -117,8 +117,8 @@ jobs:
         run: |
           seed=$(date -u +%Y%m%d)
           echo "seed=$seed" >> "$GITHUB_OUTPUT"
-          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_HOSTILE_SEED=$seed bun run test:e2e -- --project node-prod-chromium --project bun-prod-chromium --project workers-prod-chromium docs-hostile -g "hostile fuzz"" >> "$GITHUB_OUTPUT"
-      - run: bun run test:e2e -- --project node-prod-chromium --project bun-prod-chromium --project workers-prod-chromium docs-hostile -g "hostile fuzz"
+          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_HOSTILE_SEED=$seed bun run test:e2e -- --project=node-prod-chromium --project=bun-prod-chromium --project=workers-prod-chromium docs-hostile -g 'hostile fuzz'" >> "$GITHUB_OUTPUT"
+      - run: bun run test:e2e -- --project=node-prod-chromium --project=bun-prod-chromium --project=workers-prod-chromium docs-hostile -g "hostile fuzz"
         env:
           FLARE_BLACKBOX_LONG: "1"
           FLARE_HOSTILE_SEED: ${{ steps.seed.outputs.seed }}
@@ -145,8 +145,8 @@ jobs:
         run: |
           seed=$(date -u +%Y%m%d)
           echo "seed=$seed" >> "$GITHUB_OUTPUT"
-          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_PARITY_SEED=$seed bun run test:e2e -- --project node-prod-chromium docs-parity -g "runtime parity long"" >> "$GITHUB_OUTPUT"
-      - run: bun run test:e2e -- --project node-prod-chromium docs-parity -g "runtime parity long"
+          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_PARITY_SEED=$seed bun run test:e2e -- --project=node-prod-chromium docs-parity -g 'runtime parity long'" >> "$GITHUB_OUTPUT"
+      - run: bun run test:e2e -- --project=node-prod-chromium docs-parity -g "runtime parity long"
         env:
           FLARE_BLACKBOX_LONG: "1"
           FLARE_PARITY_SEED: ${{ steps.seed.outputs.seed }}
@@ -173,8 +173,8 @@ jobs:
         run: |
           seed=$(date -u +%Y%m%d)
           echo "seed=$seed" >> "$GITHUB_OUTPUT"
-          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_CHAOS_SEED=$seed bun run test:e2e -- --project node-prod-chromium --project node-prod-firefox --project node-prod-webkit --project bun-prod-chromium --project bun-prod-firefox --project bun-prod-webkit --project workers-prod-chromium --project workers-prod-firefox --project workers-prod-webkit docs-chaos" >> "$GITHUB_OUTPUT"
-      - run: bun run test:e2e -- --project node-prod-chromium --project node-prod-firefox --project node-prod-webkit --project bun-prod-chromium --project bun-prod-firefox --project bun-prod-webkit --project workers-prod-chromium --project workers-prod-firefox --project workers-prod-webkit docs-chaos
+          echo "replay=FLARE_BLACKBOX_LONG=1 FLARE_CHAOS_SEED=$seed bun run test:e2e -- --project=node-prod-chromium --project=node-prod-firefox --project=node-prod-webkit --project=bun-prod-chromium --project=bun-prod-firefox --project=bun-prod-webkit --project=workers-prod-chromium --project=workers-prod-firefox --project=workers-prod-webkit docs-chaos" >> "$GITHUB_OUTPUT"
+      - run: bun run test:e2e -- --project=node-prod-chromium --project=node-prod-firefox --project=node-prod-webkit --project=bun-prod-chromium --project=bun-prod-firefox --project=bun-prod-webkit --project=workers-prod-chromium --project=workers-prod-firefox --project=workers-prod-webkit docs-chaos
         env:
           FLARE_BLACKBOX_LONG: "1"
           FLARE_CHAOS_SEED: ${{ steps.seed.outputs.seed }}

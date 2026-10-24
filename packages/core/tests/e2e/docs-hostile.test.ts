@@ -77,7 +77,7 @@ test("hostile fuzz", async ({ docs }, info) => {
 	const host = new URL(docs.origin).host
 	const replay = replayLine(FUZZ, {
 		name: "HOSTILE",
-		command: `bun run test:e2e -- --project ${info.project.name} docs-hostile -g "hostile fuzz"`,
+		command: `bun run test:e2e -- --project=${info.project.name} docs-hostile -g "hostile fuzz"`,
 	})
 	const deadline = Date.now() + FUZZ_CAP
 	const broken: string[] = []

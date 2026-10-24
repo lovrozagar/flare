@@ -49,8 +49,8 @@ jobs:
         run: bun run test
       - run: >-
           bun run test:e2e --
-          --project node-dev-webkit --project node-prod-webkit --project bun-dev-webkit
-          --project bun-prod-webkit --project workers-dev-webkit --project workers-prod-webkit
+          --project=node-dev-webkit --project=node-prod-webkit --project=bun-dev-webkit
+          --project=bun-prod-webkit --project=workers-dev-webkit --project=workers-prod-webkit
           --shard=${{ inputs.shard }}/3
         env:
           FLARE_E2E_TRACE: "1"

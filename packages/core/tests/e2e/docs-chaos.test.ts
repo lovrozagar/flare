@@ -223,7 +223,7 @@ test("seeded chaos", async ({ page, docs, browserName }, info) => {
 	const chromium = browserName === "chromium"
 	const replay = replayLine(RUN, {
 		name: "CHAOS",
-		command: `bun run test:e2e -- --project ${info.project.name} docs-chaos`,
+		command: `bun run test:e2e -- --project=${info.project.name} docs-chaos`,
 	})
 	let early = { nodes: 0, listeners: 0 }
 	let least = 1

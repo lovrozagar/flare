@@ -117,6 +117,21 @@ it("nightly", () => {
 	expect(text).toContain("--check")
 })
 
+// Playwright's `--project` takes every bare word after it, so `--project node-prod-chromium docs-perf` asks for a
+// project named docs-perf and runs nothing: each long-form nightly job failed so on its first night (run 39927366660,
+// BUGS.md 513). Every workflow names a project as `--project=name`, which takes one value. A night's replay line keeps
+// its grep quoted.
+it("project flags", () => {
+	const bare = workflows.flatMap(({ name, text }) =>
+		(text.match(/--project (?!=)\S+/g) ?? []).map((flag) => `${name}: ${flag}`),
+	)
+	expect(bare).toEqual([])
+	const nightly = workflows.find((file) => file.name === "nightly.yml")?.text ?? ""
+	const replays = nightly.match(/echo "replay=.*" >> "\$GITHUB_OUTPUT"/g) ?? []
+	expect(replays).toHaveLength(3)
+	for (const line of replays) expect(line.slice('echo "'.length, -'" >> "$GITHUB_OUTPUT"'.length)).not.toContain('"')
+})
+
 // The repro job (plan 41 2.2.1): dispatched by hand with a ref, a spec, a grep, projects, a repeat count, and a runner
 // class, it runs main's file against the checked-out ref, so a ref older than the file runs too; it traces the dev
 // servers, uploads the test results whatever the outcome, and counts each project's runs in the job summary, so a
