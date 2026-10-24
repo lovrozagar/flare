@@ -140,13 +140,14 @@ export async function loadHydrated(page: FlarePageInput, path: string, wait: Hyd
 	const { deadline = DEADLINE } = wait
 	const start = now()
 	const signal = await hydrationSignal(page)
-	const hydrated = signal.next()
 	// The goto gets what the deadline leaves: a document that never answers is a page that never hydrated.
 	const left = Math.max(1, deadline - (now() - start))
 	await page.goto(path, { waitUntil: "commit", timeout: left }).catch((error: unknown) => {
 		throw now() - start >= deadline ? neverHydrated(deadline) : error
 	})
-	await waitHydrated(page, hydrated, { ...wait, start })
+	// Armed once the new document committed: a call before it came from the page being left, which can still be
+	// hydrating when the load begins. A new document that hydrates before the arm keeps its attribute for the query.
+	await waitHydrated(page, signal.next(), { ...wait, start })
 }
 
 type Signal = { next: () => Promise<void>; kept: string }
@@ -154,7 +155,7 @@ type Signal = { next: () => Promise<void>; kept: string }
 const signals = new WeakMap<FlarePageInput, Signal>()
 
 // One binding, under a name no app uses, and one init script per page: a second load on the page reuses them.
-// `next()` resolves at the next hydration the page's top frame reports, so the load arms it before its `goto`. `kept`
+// `next()` resolves at the next hydration the page's top frame reports, so the load arms it after its `goto`. `kept`
 // is the global the page keeps its hydrated state under.
 async function hydrationSignal(page: FlarePageInput): Promise<Signal> {
 	const known = signals.get(page)

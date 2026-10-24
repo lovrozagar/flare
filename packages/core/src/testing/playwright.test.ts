@@ -249,6 +249,29 @@ it("binding once", async () => {
 	expect(page.addInitScript).toHaveBeenCalledOnce()
 })
 
+// A binding call before the goto commits comes from the page being left, still hydrating when the load began (docs-resilience
+// on macOS WebKit, CI 40055656884): it does not resolve the load, and the new document's call does.
+it("previous document hydrated", async () => {
+	const { page } = fakePage()
+	page.waitFor.mockImplementation(lost)
+	const report = (): void => page.exposeBinding.mock.calls[0]?.[1]()
+	page.goto.mockImplementationOnce(async () => {
+		report()
+		return null
+	})
+	let done = false
+	const load = loadHydrated(page, "/", { sleep: () => new Promise(() => undefined) }).then(() => {
+		done = true
+	})
+	// The wait has begun once its query went out; one macrotask turn then drains every microtask it could settle on.
+	await vi.waitFor(() => expect(page.waitFor).toHaveBeenCalledOnce())
+	await new Promise((drained) => setTimeout(drained))
+	expect(done).toBe(false)
+	report()
+	await load
+	expect(done).toBe(true)
+})
+
 // The helper says when it had to send a query again, naming the path.
 it("reissue warns", async () => {
 	const { page } = fakePage()
