@@ -1,5 +1,6 @@
 import { defineConfig, type PlaywrightTestOptions, type PlaywrightWorkerOptions, type Project } from "@playwright/test"
 import type { FloorOptions } from "./crash.ts"
+import { WEBKIT_NO_COOP } from "./e2e-env.ts"
 import { machineWorkers } from "./workers.ts"
 
 type FlareProject = Project<PlaywrightTestOptions, PlaywrightWorkerOptions & FloorOptions>
@@ -53,6 +54,11 @@ const projects = inWorker || requested.size === 0 ? all : all.filter((project) =
 const sized = machineWorkers(process.env)
 if (!inWorker) console.log(sized.line)
 
+// Playwright's WebKit hangs about 1 in 1250 concurrent navigations to a COOP same-origin document (bugs.webkit.org
+// 325840, BUGS.md 504.12): its runs boot every app with the switch that serves WebKit without COOP. The workers load
+// this config too, so their boots pass it on (e2e-env.ts webkitCoopEnv).
+process.env[WEBKIT_NO_COOP] = "1"
+
 export default defineConfig<object, FloorOptions>({
 	testDir: import.meta.dirname,
 	// Vitest files beside the specs: the boot helper's and its child helpers' own tests, and the golden proof from the
@@ -69,6 +75,7 @@ export default defineConfig<object, FloorOptions>({
 		"**/server-log.test.ts",
 		"**/timing.test.ts",
 		"**/trace.test.ts",
+		"**/webkit-coop.test.ts",
 	],
 	// On GitHub, each spec file's time goes to the job summary beside the default dot output, so a green run shows what
 	// each file costs (timing.ts, BUGS.md 489).
