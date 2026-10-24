@@ -1012,6 +1012,8 @@ packages/core/tests/black-box/raw.ts	P15	test	node	The black-box suites' raw HTT
 packages/core/tests/black-box/raw.test.ts	P15	test	node	Unit cases for raw.ts: a whole answer, loopback only, no answer, framed answers on an open socket
 packages/core/tests/black-box/painted.ts	P15	test	node	The chaos run's visible blank-screen measure: the share of the viewport painted apart from the page's background
 packages/core/tests/black-box/painted.test.ts	P15	test	node	Unit cases for painted.ts: the painted share and its tolerance, the background color
+packages/core/tests/black-box/unload.ts	P15	test	node	The chaos run's report of a page being left: Firefox's warning for a module the old page asked for, warned during a document navigation's teardown window, told from a missing chunk (BUGS.md 518)
+packages/core/tests/black-box/unload.test.ts	P15	test	node	Unit cases for unload.ts: a teardown warning dropped, the commit included; a warning before the navigation, after the commit, with none, for another module, or for one first asked for after the start kept
 packages/core/tests/black-box/fuzz.ts	P15	test	node	The hostile suite's long form: seeded mutations of the corpus (method, path, Host, Content-Length, a repeated or long header)
 packages/core/tests/black-box/fuzz.test.ts	P15	test	node	Unit cases for fuzz.ts: seeded, every kind, named after what it changed
 packages/core/tests/black-box/parity.ts	P15	test	node	The parity run's comparison: each runtime's answers masked of per-request and per-build values and set against Node's, a data request after its document's miss compared by the document's render stamp, not its single-flight label (BUGS.md 515)

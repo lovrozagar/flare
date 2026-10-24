@@ -3,6 +3,7 @@ import type { Page, TestInfo } from "@playwright/test"
 import sharp from "sharp"
 import { background, paintedFraction } from "../black-box/painted.ts"
 import { generator, replayLine, runFrom } from "../black-box/seeded.ts"
+import { leftBehind, moduleFailed, type StepEvent } from "../black-box/unload.ts"
 import { expect, isProd, open, test } from "./docs.fixture.ts"
 
 // The seeded browser chaos run (plan 21 17.1): a session of random steps over the docs app, a click on one of the
@@ -206,6 +207,28 @@ async function domCounters(page: Page): Promise<{ nodes: number; listeners: numb
 	return { nodes: counters.nodes, listeners: counters.jsEventListeners }
 }
 
+// What the leaving page's teardown is told from (black-box/unload.ts, BUGS.md 518): every request the page made,
+// main-frame document navigations and their commits, kept for the whole run, since a module the old page asked for
+// can come steps before the navigation; and each step's Firefox module warnings, emptied at each step so they line up
+// with that step's problems.
+function stepEvents(page: Page): { history: StepEvent[]; warnings: StepEvent[] } {
+	const history: StepEvent[] = []
+	const warnings: StepEvent[] = []
+	page.on("request", (request) => {
+		history.push({ at: Date.now(), kind: "request", url: request.url() })
+		if (request.resourceType() === "document" && request.frame() === page.mainFrame())
+			history.push({ at: Date.now(), kind: "document" })
+	})
+	page.on("framenavigated", (frame) => {
+		if (frame === page.mainFrame()) history.push({ at: Date.now(), kind: "commit" })
+	})
+	page.on("console", (message) => {
+		const url = moduleFailed(message.text())
+		if (url !== undefined) warnings.push({ at: Date.now(), kind: "warning", url })
+	})
+	return { history, warnings }
+}
+
 test("seeded chaos", async ({ page, docs, browserName }, info) => {
 	test.skip(!isProd(info), "the production build")
 	test.skip(!LONG && !CHOSEN && !GATE.has(info.project.name), "the gate's four projects; the nightly runs all")
@@ -217,6 +240,7 @@ test("seeded chaos", async ({ page, docs, browserName }, info) => {
 		const answer = `${response.status()} ${new URL(response.url()).pathname}`
 		if (response.status() >= 400 && !ON_PURPOSE.includes(answer)) failed.push(`${answer} ${response.url()}`)
 	})
+	const events = stepEvents(page)
 	const problems = await open(page, docs.origin, "/")
 	const draw = generator(RUN.seed)
 	const trail: string[] = []
@@ -228,11 +252,14 @@ test("seeded chaos", async ({ page, docs, browserName }, info) => {
 	let early = { nodes: 0, listeners: 0 }
 	let least = 1
 	for (let index = 0; index < RUN.steps; index++) {
+		const before = problems.length
+		events.warnings.length = 0
 		trail.push(await step(page, draw))
 		await shows(page, { trail, open: flying }).catch((error: unknown) => {
 			throw new Error(`${replay}\n${String(error)}`)
 		})
 		const { share, shot } = await screen(page, problems)
+		problems.push(...leftBehind(problems.splice(before), [...events.history, ...events.warnings]))
 		least = Math.min(least, share)
 		const blank = share > PAINTED_FLOOR ? undefined : await settledBlank(page, { problems, info, first: shot })
 		if (blank !== undefined) {
