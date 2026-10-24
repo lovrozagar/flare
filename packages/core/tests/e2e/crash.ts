@@ -194,22 +194,22 @@ function keyOf(url: string): string {
 	return `${parsed.origin}${parsed.pathname}${parsed.search}`
 }
 
-// What the trace (trace.ts) saw of each request, by origin and path, in arrival order: `#<n> arrived`, then `answered
-// <status>` once it finished, or `no answer`.
+// What the trace (trace.ts) saw of each request, by origin and path, in arrival order: `#<n> arrived on s<k>`, its
+// socket (BUGS.md 504.14), then `answered <status>` once it finished, or `no answer`.
 function serverTrace(server: readonly string[]): Map<string, string[]> {
 	const byKey = new Map<string, string[]>()
-	const states = new Map<string, { key: string; slot: number; status?: string }>()
+	const states = new Map<string, { key: string; slot: number; socket?: string; status?: string }>()
 	let origin = ""
 	for (const line of server) {
 		if (line.startsWith("== ")) origin = line.slice(3)
-		const match = /^\[trace\] \d+ (#\d+) \S+ (\S+) (arrived|finish (\d+))/.exec(line)
+		const match = /^\[trace\] \d+ (#\d+) \S+ (\S+) (arrived(?: on (s\S+))?|finish (\d+))/.exec(line)
 		if (match === null) continue
-		const [, id = "", path = "", event = "", status] = match
+		const [, id = "", path = "", event = "", socket, status] = match
 		const tag = `${origin} ${id}`
-		if (event === "arrived") {
+		if (event.startsWith("arrived")) {
 			const key = `${origin}${path}`
 			const list = byKey.get(key) ?? []
-			states.set(tag, { key, slot: list.push("") - 1 })
+			states.set(tag, { key, slot: list.push("") - 1, ...(socket === undefined ? {} : { socket }) })
 			byKey.set(key, list)
 		} else {
 			const state = states.get(tag)
@@ -220,7 +220,9 @@ function serverTrace(server: readonly string[]): Map<string, string[]> {
 		const id = tag.slice(tag.lastIndexOf(" ") + 1)
 		const list = byKey.get(state.key)
 		if (list !== undefined)
-			list[state.slot] = `${id} arrived, ${state.status === undefined ? "no answer" : `answered ${state.status}`}`
+			list[state.slot] =
+				`${id} arrived${state.socket === undefined ? "" : ` on ${state.socket}`}, ` +
+				(state.status === undefined ? "no answer" : `answered ${state.status}`)
 	}
 	return byKey
 }
