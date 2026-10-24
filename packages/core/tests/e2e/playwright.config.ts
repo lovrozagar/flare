@@ -64,6 +64,7 @@ export default defineConfig<object, FloorOptions>({
 		"**/copy-boot.test.ts",
 		"**/flush.test.ts",
 		"**/golden.test.ts",
+		"**/host-state.test.ts",
 		"**/shared-cache.test.ts",
 		"**/server-log.test.ts",
 		"**/timing.test.ts",
@@ -73,6 +74,7 @@ export default defineConfig<object, FloorOptions>({
 	// each file costs (timing.ts, BUGS.md 489).
 	...(process.env["GITHUB_STEP_SUMMARY"] !== undefined && { reporter: [["dot"], ["./timing.ts"]] }),
 	globalSetup: "./global-setup.ts",
+	globalTeardown: "./global-teardown.ts",
 	fullyParallel: false,
 	retries: 0,
 	...(sized.workers !== undefined && { workers: sized.workers }),
