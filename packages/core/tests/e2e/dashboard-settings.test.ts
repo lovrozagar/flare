@@ -112,6 +112,30 @@ test("invite and change a role", async ({ page, dashboard }) => {
 	await expect(page.locator(`#members tr[data-email="${invited}"] .member-role`)).toHaveValue("admin")
 })
 
+// A role change the server refuses: while it is in flight the select is disabled and busy, and once refused it shows
+// the member's role again beside the reason, never the role it was not given (BUGS.md 519).
+test("refused role change", async ({ page, dashboard }) => {
+	await signedIn(page, dashboard.origin, "/app/settings/team")
+	const invited = `r${Date.now().toString(36)}@dash.test`
+	await page.locator("#invite-email").fill(invited)
+	await page.locator("#invite").click()
+	const select = page.locator(`#members tr[data-email="${invited}"] .member-role`)
+	await expect(select).toHaveValue("member")
+	const { promise: held, resolve: release } = Promise.withResolvers<void>()
+	await page.route(`**${CHANGE_ROLE}`, async (route) => {
+		await held
+		await route.fulfill({ status: 500, contentType: "text/plain", body: "" })
+	})
+	await select.selectOption("admin")
+	await expect(select).toBeDisabled()
+	await expect(select).toHaveAttribute("aria-busy", "true")
+	release()
+	await expect(page.locator("#team-error")).not.toHaveText("")
+	await expect(select).toHaveValue("member")
+	await expect(select).toBeEnabled()
+	await expect(select).toHaveAttribute("aria-busy", "false")
+})
+
 // An invited admin, in their own browser, has the team page. Once the owner makes them a member, their next client
 // navigation reloads the settings layout's data, so the Team tab is gone with no document load; the page itself is
 // then answered 403 with its own render, under the settings tabs.

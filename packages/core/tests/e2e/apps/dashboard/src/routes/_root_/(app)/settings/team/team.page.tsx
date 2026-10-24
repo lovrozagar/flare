@@ -13,12 +13,23 @@ function messageOf(error: unknown): string {
 	return fieldError(error, "email") ?? (error instanceof Error ? error.message : String(error))
 }
 
-// One member: their email and role. The owner's role and the viewer's own are text; any other is a select.
+// One member: their email and role. The owner's role and the viewer's own are text; any other is a select. A native
+// select shows the chosen role at once, so while the change is in flight the select is disabled and busy, and when the
+// server refuses it the select shows the member's role again (BUGS.md 519).
 function MemberRow(props: {
 	member: Member
 	self: string
-	assign: (userId: string, role: string) => void
+	assign: (userId: string, role: string) => Promise<boolean>
 }): JSX.Element {
+	const [pending, setPending] = createSignal(false)
+	const choose = async (select: HTMLSelectElement): Promise<void> => {
+		setPending(true)
+		const landed = await props.assign(props.member.id, select.value)
+		setPending(false)
+		// `value={props.member.role}` writes the element only when the role changes, and a refused change leaves it as
+		// it was, so nothing would undo the choice the select still shows: write the member's role back.
+		if (!landed) select.value = props.member.role
+	}
 	return (
 		<tr class="border-b border-slate-100" data-email={props.member.email}>
 			<td class="py-2">{props.member.email}</td>
@@ -31,7 +42,9 @@ function MemberRow(props: {
 						class="member-role rounded border border-slate-300 px-1 text-sm"
 						aria-label={`Role of ${props.member.email}`}
 						value={props.member.role}
-						onChange={(event) => props.assign(props.member.id, event.currentTarget.value)}
+						disabled={pending()}
+						aria-busy={pending() ? "true" : "false"}
+						onChange={(event) => void choose(event.currentTarget)}
 					>
 						<option value="admin">admin</option>
 						<option value="member">member</option>
@@ -92,12 +105,16 @@ function Team(props: { members: Member[]; self: string }): JSX.Element {
 			return false
 		}
 	}
-	const assign = (userId: string, role: string): void => {
+	// Whether the change landed: the list takes the server's answer, and a refusal is shown in its place.
+	const assign = async (userId: string, role: string): Promise<boolean> => {
 		setError("")
-		changeRole({ userId, role }).then(
-			(answer) => setMembers(answer.members),
-			(thrown: unknown) => setError(messageOf(thrown)),
-		)
+		try {
+			setMembers((await changeRole({ userId, role })).members)
+			return true
+		} catch (thrown) {
+			setError(messageOf(thrown))
+			return false
+		}
 	}
 	return (
 		<div>
