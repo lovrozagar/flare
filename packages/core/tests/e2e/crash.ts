@@ -151,9 +151,10 @@ export function requestLog(
 			if (entry === undefined) return
 			entry.response = `response ${response.status()} at ${at()}`
 			if (entry.type === "document")
+				// Sorted by name; Playwright joins a header's values with a newline, each kept in order on its own line.
 				entry.headers = Object.entries(response.headers())
-					.map(([name, value]) => `  header ${name}: ${value}`)
-					.toSorted()
+					.toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+					.flatMap(([name, value]) => value.split("\n").map((one) => `  header ${name}: ${one}`))
 		})
 		page.on("requestfinished", (request) => {
 			const entry = entries.get(request)

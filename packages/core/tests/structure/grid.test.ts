@@ -155,10 +155,12 @@ it("request log", () => {
 	clock = 10
 	for (const run of handlers.request) run(cdn)
 	clock = 12
+	// Playwright joins a header's values with a newline; each is its own line, in its order.
 	const headers = {
 		"x-frame-options": "DENY",
 		"content-type": "text/html",
 		"cross-origin-opener-policy": "same-origin",
+		vary: "Sec-Fetch-Dest\nOrigin",
 	}
 	for (const run of handlers.response) run({ request: () => cdn, status: () => 200, headers: () => headers })
 	clock = 13
@@ -186,6 +188,8 @@ it("request log", () => {
 		"10 document http://127.0.0.1:5000/app/cdn response 200 at 12, finished at 13; server: #1 arrived, answered 200",
 		"  header content-type: text/html",
 		"  header cross-origin-opener-policy: same-origin",
+		"  header vary: Sec-Fetch-Dest",
+		"  header vary: Origin",
 		"  header x-frame-options: DENY",
 		"20 script http://127.0.0.1:5000/src/b.ts failed (cancelled) at 25; server: not seen",
 	])
