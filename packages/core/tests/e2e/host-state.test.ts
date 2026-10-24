@@ -2,7 +2,15 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, it } from "vitest"
-import { attachHostState, hostState, type HostDeps, type Run, workerStates, writeWorkerState } from "./host-state.ts"
+import {
+	attachHostState,
+	hostState,
+	run,
+	type HostDeps,
+	type Run,
+	workerStates,
+	writeWorkerState,
+} from "./host-state.ts"
 
 // A process table: this worker (100), its two dev servers (200, 300), a workerd under the second (301), and a process
 // outside the tree (999).
@@ -86,6 +94,48 @@ it("host state lsof gone", async () => {
 		"fds 300 node unknown",
 		"fds 301 workerd 1",
 	])
+})
+
+// Node's execFile hands a failed command's stdout to its callback, not to the error, so the default runner puts it on
+// the rejection: lsof exits 1 when a listed process is gone and still prints the rest (BUGS.md 504.11).
+it("host state run keeps stdout", async () => {
+	const failed = await run("sh", ["-c", "printf 'COMMAND PID\\n'; exit 1"]).then(
+		() => undefined,
+		(error: unknown) => error,
+	)
+	expect([Reflect.get(Object(failed), "code"), Reflect.get(Object(failed), "stdout")]).toEqual([1, "COMMAND PID\n"])
+})
+
+// macOS lsof as a runner answers host-state's call (captured on the Mac, 2026-10-24): exit 1, as the `ps` that listed
+// the tree is gone by then, nothing on stderr, and every other process's lines on stdout. Any exit with lsof's header
+// counts; a gone process reads `unknown`; an answer without the header is unavailable (BUGS.md 504.11).
+const MAC_LSOF = [
+	"COMMAND   PID       USER   FD     TYPE             DEVICE  SIZE/OFF                NODE NAME",
+	"node      100 lovrozagar  cwd      DIR               1,15      1312            78078237 /Users/lovrozagar/flare-probe",
+	"node      100 lovrozagar  txt      REG               1,15 121482128              490031 /usr/local/bin/node",
+	"node      200 lovrozagar    0u     CHR               16,0       0t0                   1 /dev/null",
+	"",
+].join("\n")
+
+// The fds and lsof lines a Mac host gives for `lsof`'s answer, an answer or a failed run.
+async function lsofFds(lsof: Error | string): Promise<string[]> {
+	const lines = await hostState(macDeps(runs({ sh: "256\n256\n", ps: PS, lsof, netstat: "", vm_stat: "" })))
+	return lines.filter((line) => line.startsWith("fds ") || line.startsWith("lsof"))
+}
+
+// lsof as execFile fails it: the exit code, and the stdout the runner keeps.
+function lsofExit(code: number, stdout: string): Error {
+	return Object.assign(new Error(`Command failed: lsof -n -P -p 100,200,300,301\n`), { code, stdout })
+}
+
+it("host state mac lsof shapes", async () => {
+	const counted = ["fds 100 node 2", "fds 200 node 1", "fds 300 node unknown", "fds 301 workerd unknown"]
+	expect(await lsofFds(lsofExit(1, MAC_LSOF))).toEqual(counted)
+	expect(await lsofFds(lsofExit(2, MAC_LSOF))).toEqual(counted)
+	expect(await lsofFds(lsofExit(1, ""))).toEqual([
+		"lsof: unavailable (Command failed: lsof -n -P -p 100,200,300,301\n)",
+	])
+	expect(await lsofFds("no header here\n")).toEqual(["lsof: unavailable (no lsof header)"])
 })
 
 // On Linux the descriptors come from each process's fd directory, TIME_WAIT from ss, and the memory from MemAvailable; a process gone
