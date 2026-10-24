@@ -55,11 +55,17 @@ export function logMarks(): Map<Logged, number> {
 	return new Map([...live].map((boot) => [boot, boot.logs().length]))
 }
 
+// Each live boot's lines since `marks`, each boot's under a `== <origin>` line: a boot started during the case gives all
+// of its lines.
+export function serverLines(marks: Map<Logged, number>): string[] {
+	return [...live].flatMap((boot) => [`== ${boot.origin}`, ...boot.logs().slice(marks.get(boot) ?? 0)])
+}
+
 // Each live boot's lines since `marks`, under its origin: a boot started during the case gives all of its lines. A
 // fixture that attached its own `server log` (docs.fixture.ts, dashboard.fixture.ts) keeps it.
 export async function attachServerLog(info: CaseInfo, marks: Map<Logged, number>): Promise<void> {
 	if (info.attachments.some((attachment) => attachment.name === "server log")) return
-	const lines = [...live].flatMap((boot) => [`== ${boot.origin}`, ...boot.logs().slice(marks.get(boot) ?? 0)])
+	const lines = serverLines(marks)
 	const path = info.outputPath("server-log.txt")
 	writeFileSync(path, `${lines.join("\n")}\n`)
 	await info.attach("server log", { path, contentType: "text/plain" })

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { expect, it } from "vitest"
-import { crashWatch, navigationLog } from "../e2e/crash.ts"
+import { crashWatch, navigationLog, requestLog } from "../e2e/crash.ts"
 import config from "../e2e/playwright.config.ts"
 import { gridWorkers, memAvailable, RESERVE_BYTES, WORKER_PEAK_BYTES } from "../e2e/workers.ts"
 
@@ -121,6 +121,61 @@ it("navigation log", () => {
 		"20 requestfailed http://host/a.js ",
 		"20 response 404 http://host/gone",
 		"50 document http://host/b",
+	])
+})
+
+// A failed case lists every request its pages started, the ones still in flight first, each with its type, its start,
+// and how it ended, and, for one the server trace names by path, whether the server saw it arrive and answered it. A
+// document the engine reported but the server never saw reads `server: not seen` (BUGS.md 453.5, 504.10).
+type Listed = { url(): string; resourceType(): string; failure(): { errorText: string } | null }
+
+function made(url: string, type: string, failure: string | null = null): Listed {
+	return { url: () => url, resourceType: () => type, failure: () => (failure === null ? null : { errorText: failure }) }
+}
+
+it("request log", () => {
+	type Request = Listed
+	type Handlers = {
+		request: ((request: Request) => void)[]
+		response: ((response: { request(): Request; status(): number }) => void)[]
+		requestfinished: ((request: Request) => void)[]
+		requestfailed: ((request: Request) => void)[]
+	}
+	const handlers: Handlers = { request: [], response: [], requestfinished: [], requestfailed: [] }
+	const page = { on: (event: keyof Handlers, listener: never) => void handlers[event].push(listener) }
+	const context = { pages: () => [page], on: () => undefined }
+	let clock = 0
+	const log = requestLog(context, () => clock)
+	const cdn = made("http://127.0.0.1:5000/app/cdn", "document")
+	const mod = made("http://127.0.0.1:5000/src/a.ts?v=1", "script")
+	const gone = made("http://127.0.0.1:5000/src/b.ts", "script", "cancelled")
+	const again = made("http://127.0.0.1:5000/app/cdn", "document")
+	clock = 10
+	for (const run of handlers.request) run(cdn)
+	clock = 12
+	for (const run of handlers.response) run({ request: () => cdn, status: () => 200 })
+	clock = 13
+	for (const run of handlers.requestfinished) run(cdn)
+	clock = 20
+	for (const run of handlers.request) run(mod)
+	for (const run of handlers.request) run(gone)
+	clock = 25
+	for (const run of handlers.requestfailed) run(gone)
+	clock = 40
+	for (const run of handlers.request) run(again)
+	const server = [
+		"== http://127.0.0.1:5000",
+		"[trace] 2010 #1 GET /app/cdn arrived",
+		"[trace] 2012 #1 GET /app/cdn finish 200 4488",
+		"[trace] 2012 #1 GET /app/cdn close finished=true head=true bytes=4488",
+		"[trace] 2020 #2 GET /src/a.ts?v=1 arrived",
+	]
+	expect(log(server)).toEqual([
+		"in flight: 2 of 4 requests",
+		"40 document http://127.0.0.1:5000/app/cdn in flight; server: not seen",
+		"20 script http://127.0.0.1:5000/src/a.ts?v=1 in flight; server: #2 arrived, no answer",
+		"10 document http://127.0.0.1:5000/app/cdn response 200 at 12, finished at 13; server: #1 arrived, answered 200",
+		"20 script http://127.0.0.1:5000/src/b.ts failed (cancelled) at 25; server: not seen",
 	])
 })
 
