@@ -127,7 +127,7 @@ it("ci mac shards", () => {
 	expect(workflow.jobs["e2e-mac"]?.strategy?.matrix?.["shard"]).toEqual([1, 2, 3])
 	const run = e2eRun(mac)
 	const servers = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"]
-	expect([...run.matchAll(/--project (\S+)/g)].map((match) => match[1])).toEqual(
+	expect([...run.matchAll(/--project=(\S+)/g)].map((match) => match[1])).toEqual(
 		servers.map((server) => `${server}-webkit`),
 	)
 	expect(run).toContain("--shard=${{ inputs.shard }}/3")

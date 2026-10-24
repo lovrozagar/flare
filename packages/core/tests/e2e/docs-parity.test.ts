@@ -183,7 +183,7 @@ test("runtime parity long", async ({ docs, http }, info) => {
 	test.setTimeout(20 * 60_000)
 	const replay = replayLine(LONG, {
 		name: "PARITY",
-		command: `bun run test:e2e -- --project ${info.project.name} docs-parity -g "runtime parity long"`,
+		command: `bun run test:e2e -- --project=${info.project.name} docs-parity -g "runtime parity long"`,
 	})
 	const pages = PAGES.flatMap((page): Probe[] =>
 		[page.path, `${page.path}${page.path.includes("?") ? "&" : "?"}_flare=data`].map((path) => ({
