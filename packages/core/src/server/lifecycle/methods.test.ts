@@ -181,8 +181,11 @@ const step = (request: { url: string }) => {
 
 // A server's refused channel over three routes, a mount, and two server functions, one whose module fails to load,
 // and the error lines its sink logs.
-function refusedServer(security?: RuntimeOptions["security"]): {
-	at: (path: string) => Promise<RefusedAnswer>
+function refusedServer(
+	security?: RuntimeOptions["security"],
+	serverContext?: RuntimeOptions["serverContext"],
+): {
+	at: (path: string, method?: string) => Promise<RefusedAnswer>
 	logged: string[]
 } {
 	const router = createRouter({
@@ -212,12 +215,17 @@ function refusedServer(security?: RuntimeOptions["security"]): {
 				fail000000000000: async () => Promise.reject(new Error("module broke")),
 			},
 			security,
+			serverContext,
 		},
 		mounts: [{ prefix: "/mounted", fetch: respond }],
 		sink,
 	}
 	const refused = refusedChannel(serving as never, step)[REFUSED]
-	return { at: (path) => refused({ method: "TRACE", url: `http://localhost${path}` }), logged }
+	const headers = new Headers({ "user-agent": "agent" })
+	return {
+		at: (path, method = "TRACE") => refused({ method, url: `http://localhost${path}`, headers, env: {} }),
+		logged,
+	}
 }
 
 // What an adapter that cannot make a request of the method gets, in the order Bun's pipeline answers it: an unknown
@@ -243,7 +251,7 @@ it("refused channel", async () => {
 		"/page",
 		"/elsewhere",
 	]
-	const answers = await Promise.all(paths.map(at))
+	const answers = await Promise.all(paths.map((path) => at(path)))
 	expect(answers.map((answer) => ({ ...answer, headers: undefined }))).toEqual([
 		{ status: 400 },
 		{ status: 500 },
@@ -270,9 +278,52 @@ async function frame(security: RuntimeOptions["security"]): Promise<string | nul
 	return (await refusedServer(security).at("/old")).headers?.get("x-frame-options")
 }
 
-// Each answer carries the security set Bun's pipeline builds before the request runs: the server's own as an object,
+// A canonical redirect carries the set Bun's pipeline builds before serverContext runs: the server's own as an object,
 // the defaults as a callback, which needs the request's context (BUGS.md 491).
 it("refused channel security", async () => {
 	expect(await frame({ "X-Frame-Options": "SAMEORIGIN" })).toBe("SAMEORIGIN")
 	expect(await frame(() => ({ "X-Frame-Options": "SAMEORIGIN" }))).toBe("DENY")
+})
+
+// An answer made after serverContext carries a callback's set, as on Bun: the callback gets the request Node cannot
+// make as a RefusedMethodRequest, a Request that reads the real method over a GET of the URL and headers. A callback
+// that throws is the projected 500 with the defaults, as `failed` answers (BUGS.md 514).
+it("refused callback security", async () => {
+	const seen: string[] = []
+	const security = ({ request }: { request: Request }) => {
+		seen.push(`${request.method} ${String(request instanceof Request)} ${request.headers.get("user-agent")}`)
+		return { "X-Frame-Options": "SAMEORIGIN" as const }
+	}
+	const { at } = refusedServer(security)
+	const answers = await Promise.all(["TRACE", "CONNECT", "TRACK"].map((method) => at("/page", method)))
+	expect(answers.map((answer) => [answer.status, answer.headers?.get("x-frame-options")])).toEqual([
+		[405, "SAMEORIGIN"],
+		[405, "SAMEORIGIN"],
+		[405, "SAMEORIGIN"],
+	])
+	expect(seen).toEqual(["TRACE true agent", "CONNECT true agent", "TRACK true agent"])
+	const broken = refusedServer(() => {
+		throw new Error("security broke")
+	})
+	const failed = await broken.at("/page")
+	expect([failed.status, failed.headers?.get("x-frame-options")]).toEqual([500, "DENY"])
+	expect(broken.logged.join(" ")).toContain("security broke")
+	// serverContext runs first with the same request and the env, and its value reaches the callback; a throw there is
+	// the logged 500 with the defaults too.
+	const contexts: string[] = []
+	const contextual = refusedServer(
+		({ serverContext }) => ({ "X-Frame-Options": Reflect.get(Object(serverContext), "frame") }),
+		({ request, env }) => {
+			contexts.push(`${request.method} ${JSON.stringify(env)}`)
+			return { frame: "SAMEORIGIN" } as never
+		},
+	)
+	expect((await contextual.at("/page", "TRACK")).headers?.get("x-frame-options")).toBe("SAMEORIGIN")
+	expect(contexts).toEqual(["TRACK {}"])
+	const unready = refusedServer({ "X-Frame-Options": "SAMEORIGIN" }, () => {
+		throw new Error("context broke")
+	})
+	const refused = await unready.at("/page")
+	expect([refused.status, refused.headers?.get("x-frame-options")]).toEqual([500, "SAMEORIGIN"])
+	expect(unready.logged.join(" ")).toContain("context broke")
 })

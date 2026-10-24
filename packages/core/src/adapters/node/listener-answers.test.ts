@@ -354,16 +354,18 @@ it("node unparseable host and throw", async () => {
 // channel names one (BUGS.md 491).
 it("refused method security", async () => {
 	const set: Record<string, string> = {}
+	const asked: { method: string; url: string; headers: Headers; env: unknown }[] = []
 	const server = {
 		fetch: () => new Response("x"),
-		[Symbol.for("flare.refused")]: async () => ({
-			status: 400,
-			headers: new Headers({ "x-frame-options": "SAMEORIGIN" }),
-		}),
+		[Symbol.for("flare.refused")]: async (refused: (typeof asked)[number]) => {
+			asked.push(refused)
+			return { status: 400, headers: new Headers({ "x-frame-options": "SAMEORIGIN" }) }
+		},
 	}
-	const listener = createNodeListener(server)
+	const env = { APP: "1" }
+	const listener = createNodeListener(server, { env })
 	listener(
-		{ ...req(), method: "TRACE", headers: { host: "localhost" } },
+		{ ...req(), method: "TRACE", headers: { host: "localhost", "user-agent": "agent" } },
 		{
 			writeHead() {},
 			setHeader(name: string, value: string | readonly string[]) {
@@ -376,4 +378,9 @@ it("refused method security", async () => {
 	)
 	await settle()
 	expect([set["x-frame-options"], set["allow"]]).toEqual(["SAMEORIGIN", undefined])
+	// The channel gets the request's headers and the listener's env, which serverContext and a security callback read
+	// (BUGS.md 514).
+	expect(asked.map((refused) => [refused.method, refused.headers.get("user-agent"), refused.env])).toEqual([
+		["TRACE", "agent", env],
+	])
 })
