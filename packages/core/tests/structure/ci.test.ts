@@ -19,6 +19,7 @@ type Job = {
 	name?: string
 	container?: { image?: string; options?: string }
 	strategy?: { "fail-fast"?: boolean; matrix?: Record<string, unknown> }
+	"timeout-minutes"?: number
 }
 type Workflow = { env?: Record<string, string>; on?: Record<string, unknown>; jobs: Record<string, Job> }
 
@@ -92,6 +93,12 @@ it("release node", () => {
 			version: 24,
 		})
 	}
+})
+
+// The release verify job runs every gate and the whole e2e grid unsharded on one runner, so its limit is twice the
+// measured run: 54 minutes on 2026-10-24 (bits/14, release.yml's comment has the parts).
+it("release verify timeout", () => {
+	expect(workflows.get("release.yml")?.jobs["verify"]?.["timeout-minutes"]).toBeGreaterThanOrEqual(108)
 })
 
 // The check job runs the unit suite under the Bun runtime right after the Node run, so a Bun-only regression fails

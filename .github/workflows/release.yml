@@ -27,7 +27,10 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # Twice the measured run, which has every gate and the whole e2e grid unsharded: setup 37 s and the gates before
+    # the e2e 661 s (release run 40117868690), the e2e-linux shards' sum at most 2305 s (CI 40110652344, 40112174017,
+    # 40115979133), and two consumer cells of at most 118 s each: 3239 s, 54 minutes.
+    timeout-minutes: 110
     permissions:
       contents: read
     steps:
