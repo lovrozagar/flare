@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs"
 import { expect, test as base } from "@playwright/test"
 import { removeAfterFloor } from "./floor.ts"
 import { httpClient, type HttpClient } from "./http.ts"
+import { attachHostState, writeWorkerState } from "./host-state.ts"
 import { attachServerLog, logMarks } from "./server-log.ts"
 
 // A page as the crash watch reads it, and the context that opens pages.
@@ -66,10 +67,22 @@ export function navigationLog(context: Logged, now: () => number = () => perform
 export type FloorOptions = { floor: boolean }
 
 // Every e2e spec's `test`: the crash watch and the navigation log run around each case on its own context, and a failed
-// case carries the log, and what each live boot's server logged during the case (server-log.ts). `http` is the case's own HTTP client, a connection per call (http.ts, BUGS.md 125); specs use it
-// rather than Playwright's `request` (grid.test `http client only`).
-export const test = base.extend<{ crashGuard: void; http: HttpClient }, FloorOptions>({
+// case carries the log, what each live boot's server logged during the case (server-log.ts), and the host's open
+// files, sockets, memory, and processes (host-state.ts, BUGS.md 504.9). `http` is the case's own HTTP client, a
+// connection per call (http.ts, BUGS.md 125); specs use it rather than Playwright's `request` (grid.test `http client
+// only`).
+export const test = base.extend<{ crashGuard: void; http: HttpClient }, FloorOptions & { hostBaseline: void }>({
 	floor: [false, { option: true, scope: "worker" }],
+	// Each worker writes its host state as it ends, the baseline a failed case's is read against (BUGS.md 504.9).
+	hostBaseline: [
+		// Playwright reads a fixture's dependencies from this pattern, so a fixture with none takes an empty one.
+		// oxlint-disable-next-line no-empty-pattern
+		async ({}, use, workerInfo) => {
+			await use()
+			await writeWorkerState(workerInfo.project.outputDir, workerInfo.workerIndex)
+		},
+		{ scope: "worker", auto: true },
+	],
 	context: async ({ context, floor }, use) => {
 		if (floor) await context.addInitScript(removeAfterFloor)
 		await use(context)
@@ -93,6 +106,7 @@ export const test = base.extend<{ crashGuard: void; http: HttpClient }, FloorOpt
 				writeFileSync(path, `${log().join("\n")}\n`)
 				await testInfo.attach("navigation log", { path, contentType: "text/plain" })
 				await attachServerLog(testInfo, marks)
+				await attachHostState(testInfo)
 			}
 			check()
 		},
