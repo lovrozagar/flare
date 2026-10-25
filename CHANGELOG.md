@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.0.0-rc.1
+
+1.0.0-rc.1 is the v1 rewrite of Flare, under the same package name. It is published under the `next` dist-tag: `@lovrozagar/flare@next` installs it, and `latest` stays 0.9.23 until 1.0.0. It is not a drop-in upgrade from 0.9. The API is new; its reference is the repository's `blueprint/dx/` pages, and a 0.9 name they do not list is not in v1.
+
+- One server entry, `createServer(...).fetch(request, env, ctx)`, runs on Node (`createNodeListener`), Bun (`createBunFetch`), and Cloudflare Workers (`@lovrozagar/flare/worker` beside `@cloudflare/vite-plugin`). Node 22.12 or later.
+- Solid 2.0: `solid-js` and `@solidjs/web` 2.0.0-rc.17, `@solidjs/vite-plugin` 3.0.0-next.51, and Vite 8.1.4 or later are peers.
+- Filesystem routes generated into `src/_gen/routes.gen.ts`; `createPage`, `createLayout`, `createRootLayout`, and `createPathSegment`; params, links, and loader data typed through `FlareRegister`.
+- The first response is a streamed document and later navigations are client-side, with the loaders run on the server. `defer()` streams a value after the shell under SSR, SSG, and ISR.
+- `.cache()` per route: SSG, ISR, and shared SSR over a `FlareStore` (`createFilesystemStore`, `createCacheApiStore`, `createAssetsStore`), tag purge with `revalidate`, CDN headers, and a client route cache.
+- `createServerFn` for server functions; `createServerOnlyFn`, `createClientOnlyFn`, and `createIsomorphicFn`, where a body on the wrong side fails the build.
+- Prefetch has two fields, `modules` and `data`. The router default, `{ modules: "all", data: false }`, warms every route's code after idle, a few requests at a time and behind the user's own requests.
+- `createServer` takes middleware, mounts, a proxy, security headers with CSP nonces, and `serverCtx()`.
+- Theme, direction, i18n, image, fonts, and TanStack Query; a sitemap and IndexNow; `createTestServer` and `flarePage` for tests.
+
+From 0.9:
+
+- **Breaking:** there is no CSR render mode; `.cache({ csr })` does not exist.
+- **Breaking:** Flare builds no service worker and has no `retainPreviousAssets`, dev dashboard, navigation-progress bar (`useNavigationProgress` returns `{ pending, value }` and renders nothing), broadcast signals, `dedupe()`, tenant CSS, or no-JS form pipeline.
+- **Breaking:** `envFn`, `purge`, `markdownNegotiation`, `keepalive`, the `staticAssets` middleware, and server-function `piggyback` are gone.
+- **Breaking:** Flare compiles no CSS. `sx`, `styles()`, `css=`, `class=` compilation, and `<ResetCSS />` are gone; component CSS is Vite CSS modules, Tailwind is the app's own `@tailwindcss/vite`, and `flare({ css: { reset: true } })` prepends a fixed preflight.
+- **Breaking:** on Workers the app composes `@cloudflare/vite-plugin` itself and its Wrangler `main` is `@lovrozagar/flare/worker`; `flare({ workersDev })` is gone.
+- For the rest, see the docs.
+
+Known issues in this rc:
+
+- In `vite dev`, a page edited to call a server function written after the dev server started once did not call it until reloaded (seen once in CI).
+- In `vite dev` on Workers, workerd once took a request and never answered it, a prefetch or a server-function stream (CI's macOS runners only).
+
 ## 0.9.23
 
 - `vite build` builds the client once. `@solidjs/vite-plugin` builds the client from its own `buildApp` hook, and Flare's orchestrator built it again, doubling client build time and running every client close step (prefetch list, retained assets, service worker) twice.
