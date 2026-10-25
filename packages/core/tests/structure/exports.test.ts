@@ -377,6 +377,17 @@ it("engines", () => {
 	expect(Reflect.get(packed.manifest, "engines")).toEqual({ node: ">=22.12" })
 })
 
+// The packed manifest names the repository the release is built from: npm checks a provenance publish's
+// `repository.url` against the GitHub repository that built it and refuses a mismatch or an empty one (E422, the
+// v1.0.0-rc.1 run 40149112550, BUGS.md 522).
+it("repository", () => {
+	expect(Reflect.get(packed.manifest, "repository")).toEqual({
+		type: "git",
+		url: "git+https://github.com/lovrozagar/flare.git",
+		directory: "packages/core",
+	})
+})
+
 // A peer whose next release is known broken takes an upper bound below it, each named here with its BUGS row: Solid
 // rc.18 drops every hydration value batched beside one it cannot serialize, so a nested <Loading> never resolves
 // (solidjs/solid#4242, BUGS.md 506).
