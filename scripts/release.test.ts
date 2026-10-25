@@ -62,8 +62,11 @@ it("tag", () => {
 	expect(lines).toContain("bun scripts/check-tree.ts --complete P14")
 	const golden = calls.find((call) => call.args.includes("tests/e2e/golden.test.ts"))
 	expect(golden?.env).toEqual({ FLARE_TARBALL: TARBALL })
-	// One package, the tag's version, and a dry run outside a tag build.
-	expect(published().map((call) => call.args)).toEqual([["publish", TARBALL, "--access", "public", "--dry-run"]])
+	// One package, the tag's version, and a dry run outside a tag build. The first release is 1.0.0-rc.N, so the
+	// manifest's version publishes under `next`, never `latest`, until the user's 1.0.0 (bits/14).
+	expect(published().map((call) => call.args)).toEqual([
+		["publish", TARBALL, "--access", "public", "--dry-run", "--tag", "next"],
+	])
 	expect(lines.some((line) => line.includes("flare-fonts"))).toBe(false)
 	// A tag that is not the manifest's version is refused before anything is packed.
 	const wrong = deps({ ...CLEAN, "git describe --tags --exact-match": { status: 0, stdout: "v0.9.0\n" } })
