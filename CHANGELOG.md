@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-rc.2
+
+rc.1 never reached npm; rc.2 is the same code with repository metadata for provenance.
+
 ## 1.0.0-rc.1
 
 1.0.0-rc.1 is the v1 rewrite of Flare, under the same package name. It is published under the `next` dist-tag: `@lovrozagar/flare@next` installs it, and `latest` stays 0.9.23 until 1.0.0. It is not a drop-in upgrade from 0.9. The API is new; its reference is the repository's `blueprint/dx/` pages, and a 0.9 name they do not list is not in v1.

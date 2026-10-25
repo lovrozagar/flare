@@ -1,7 +1,12 @@
 {
 	"name": "@lovrozagar/flare",
-	"version": "1.0.0-rc.1",
+	"version": "1.0.0-rc.2",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/lovrozagar/flare.git",
+		"directory": "packages/core"
+	},
 	"bin": {
 		"flare": "./src/vite/bin/flare.ts"
 	},

@@ -28,6 +28,7 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `no dependencies` | the packed `package.json` | the `dependencies` key is absent |
 | `image module types` | the packed `dist` | `features/image/vite/modules.d.ts` sits where the emitted `exports/vite.d.ts` reference resolves, and the consumer-strict fixture with `vite/client` types `./a.png?image` as the binding. tsc does not copy `.d.ts` inputs, so the packager must |
 | `engines` | the packed manifest | `engines.node` is `>=22.12`, the published floor (B3), so a package manager warns an app on an older Node (plan 21 5.5) |
+| `repository` | the same manifest | `repository` is `{ type: "git", url: "git+https://github.com/lovrozagar/flare.git", directory: "packages/core" }`: npm checks a provenance publish's `repository.url` against the GitHub repository that built it, and refused v1.0.0-rc.1 with an empty one (E422, BUGS.md 522) |
 | `peer floors` | the same manifest | each peer in the B79 table is `>=` its devDependency version. `optional` is true only for `sharp`, `@tanstack/solid-query`, `negotiator`, `isbot`, and `@formatjs/intl-localematcher`. `@cloudflare/vite-plugin` is not a peer: the app depends on it and composes it beside `flare()`, which imports none of it (B109) |
 | `not a peer` | the same manifest | `@babel/parser`, `tailwindcss`, `oxc-resolver`, `node-html-markdown`, `@tanstack/query-broadcast-client-experimental`, `@types/negotiator`, and `@cloudflare/vite-plugin` (B109) are absent from both peer and dependency keys |
 
@@ -62,7 +63,7 @@ The packed tarball installed as an app installs it: into a fresh project under t
 
 ## `tests/structure/readme.test.ts` (plan 14 leaf 12.3)
 
-npm renders the tarball's README, which is the root `README.md`, and has no repository to resolve a relative link against. `readme.ts` reads it for this file and for exports.test's packed checks.
+npm renders the tarball's README, which is the root `README.md`, and does not resolve a relative link in it against the repository. `readme.ts` reads it for this file and for exports.test's packed checks.
 
 | test | case | result |
 | --- | --- | --- |
