@@ -8,6 +8,8 @@ description: >
 
 Inspect `git status` + `git diff` (staged and unstaged) before the message.
 
+Diff pass on the hunks you will stage: delete narrating comments, unused defensive guards or try/catch on trusted paths, `any` casts that only silence types, dead compatibility, and unrelated hunks. Keep a comment only when it states a constraint the code cannot encode. Keep behavior otherwise. Do not spawn a reviewer.
+
 Stage only user intent. Never blind `git add -A` / `git add .`. Split unrelated concerns into multiple commits.
 
 If a unique in-progress file exists under `.tmp/grunt/implementations/`, its `## Files` is the default stage set. Still inspect `git status`.
@@ -57,6 +59,7 @@ On default + clear bump:
 2. Commit the bump with the same subject rules (`chore(release): vX.Y.Z` unless the user gave a subject).
 3. Push the branch per **Branch**.
 4. `git tag vX.Y.Z` then `git push origin vX.Y.Z`.
+5. Watch the runs for the pushed commit and tag until every one completes (`gh run list`, then poll `gh run view <id> --json status,conclusion,jobs` every 30s or use a monitor). A pushed tag is not a release: report the outcome only after the publish job finishes. On a failed job, read its log (`gh api --allow-escape-sequences repos/{owner}/{repo}/actions/jobs/<job id>/logs`), fix the cause with a failing test first, and release the next patch. Never retag.
 
 Do not `npm publish`. Do not `npm pack` as publish. Do not `gh release create`. CI publishes from the tag.
 
