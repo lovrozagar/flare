@@ -574,7 +574,7 @@ _v0/                             the archived v0 tree
 
 ## Develop
 
-Requires [Bun](https://bun.sh) 1.4.3 (the root `packageManager`) and Node 22.18 or later; CI runs Node 24.
+Requires [Bun](https://bun.sh) 1.4.4 (the root `packageManager`) and Node 22.18 or later; CI runs Node 24.
 
 ```bash
 bun install
